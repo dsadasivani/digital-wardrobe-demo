@@ -47,6 +47,11 @@ export const routes: Routes = [
         title: 'My Outfits - Digital Wardrobe'
     },
     {
+        path: 'calendar',
+        loadComponent: () => import('./features/calendar/calendar.component').then(m => m.CalendarComponent),
+        title: 'Outfit Calendar - Digital Wardrobe'
+    },
+    {
         path: 'outfits/:id',
         loadComponent: () => import('./features/outfits/outfit-detail/outfit-detail.component').then(m => m.OutfitDetailComponent),
         title: 'Outfit Details - Digital Wardrobe'

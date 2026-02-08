@@ -405,6 +405,7 @@ export const MOCK_OUTFITS = [
     imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=500&fit=crop',
     createdAt: new Date('2025-01-15'),
     lastWorn: new Date('2026-02-05'),
+    plannedDates: ['2026-02-09', '2026-02-10', '2026-02-11', '2026-02-12', '2026-02-13'],
   },
   {
     id: 'o2',
@@ -454,6 +455,7 @@ export const MOCK_OUTFITS = [
     imageUrl: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=400&h=500&fit=crop',
     createdAt: new Date('2025-02-20'),
     lastWorn: new Date('2026-02-02'),
+    plannedDates: ['2026-02-14', '2026-02-15'],
   },
   {
     id: 'o3',
@@ -503,6 +505,7 @@ export const MOCK_OUTFITS = [
     imageUrl: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=400&h=500&fit=crop',
     createdAt: new Date('2025-11-01'),
     lastWorn: new Date('2026-01-20'),
+    plannedDates: ['2026-02-20'],
   },
   {
     id: 'o4',
@@ -543,6 +546,7 @@ export const MOCK_OUTFITS = [
     imageUrl: 'https://images.unsplash.com/photo-1523359346063-d879354c0ea5?w=400&h=500&fit=crop',
     createdAt: new Date('2025-06-15'),
     lastWorn: new Date('2025-08-10'),
+    plannedDates: ['2026-02-22'],
   },
   {
     id: 'o5',
@@ -583,6 +587,7 @@ export const MOCK_OUTFITS = [
     imageUrl: 'https://images.unsplash.com/photo-1518577915332-c2a19f149a75?w=400&h=500&fit=crop',
     createdAt: new Date('2025-12-15'),
     lastWorn: new Date('2025-12-31'),
+    plannedDates: ['2026-02-28'],
   },
 ];
 

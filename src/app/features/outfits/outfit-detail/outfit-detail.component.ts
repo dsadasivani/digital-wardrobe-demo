@@ -66,6 +66,19 @@ import { Outfit } from '../../../core/models';
              <h3>Last Worn</h3>
              <p>{{ selectedOutfit.lastWorn ? (selectedOutfit.lastWorn | date) : 'Never' }}</p>
           </section>
+
+          <section class="dates-section">
+             <h3>Scheduled Dates</h3>
+             @if (selectedOutfit.plannedDates?.length) {
+               <div class="planned-list">
+                 @for (day of selectedOutfit.plannedDates; track day) {
+                   <span class="planned-chip">{{ day }}</span>
+                 }
+               </div>
+             } @else {
+               <p>Not scheduled yet</p>
+             }
+          </section>
         </div>
       </div>
     </div>
@@ -149,6 +162,21 @@ import { Outfit } from '../../../core/models';
       text-align: center;
       font-size: 12px;
       color: var(--dw-text-secondary);
+    }
+
+    .planned-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .planned-chip {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--dw-surface-card);
+      border: 1px solid rgba(140,123,112,0.18);
+      color: var(--dw-text-primary);
     }
   `]
 })

@@ -114,12 +114,32 @@ export class WardrobeService {
             ...outfit,
             id: `o${Date.now()}`,
             createdAt: new Date(),
+            plannedDates: [...(outfit.plannedDates ?? [])].sort(),
         };
         this.outfits.update(outfits => [...outfits, newOutfit]);
     }
 
+    updateOutfit(id: string, updates: Partial<Outfit>): void {
+        this.outfits.update(outfits =>
+            outfits.map(outfit => {
+                if (outfit.id !== id) {
+                    return outfit;
+                }
+                const next: Outfit = { ...outfit, ...updates };
+                if (updates.plannedDates) {
+                    next.plannedDates = [...updates.plannedDates].sort();
+                }
+                return next;
+            })
+        );
+    }
+
     deleteOutfit(id: string): void {
         this.outfits.update(outfits => outfits.filter(outfit => outfit.id !== id));
+    }
+
+    getOutfitsByDate(date: string): Outfit[] {
+        return this.outfits().filter(outfit => (outfit.plannedDates ?? []).includes(date));
     }
 
     // Search & Filter

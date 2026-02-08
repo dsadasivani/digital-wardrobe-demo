@@ -85,6 +85,7 @@ export interface Outfit {
     imageUrl?: string;
     createdAt: Date;
     lastWorn?: Date;
+    plannedDates?: string[]; // YYYY-MM-DD
 }
 
 export interface OutfitItem {

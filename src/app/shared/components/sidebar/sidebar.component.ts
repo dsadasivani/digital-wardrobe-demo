@@ -310,6 +310,7 @@ export class SidebarComponent {
     { icon: 'checkroom', label: 'My Wardrobe', route: '/wardrobe' },
     { icon: 'watch', label: 'Accessories', route: '/accessories' },
     { icon: 'style', label: 'Outfits', route: '/outfits', badge: 5 },
+    { icon: 'calendar_month', label: 'Calendar', route: '/calendar' },
     { icon: 'brush', label: 'Outfit Canvas', route: '/outfit-canvas' },
   ];
 

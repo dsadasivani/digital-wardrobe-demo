@@ -403,7 +403,11 @@ export class MobileProfileSheetComponent {
   ],
   template: `
     @if (showLayout()) {
-      <dw-header [user]="user()" (toggleSidebar)="onToggleSidebar()"></dw-header>
+      <dw-header
+        [user]="user()"
+        (toggleSidebar)="onToggleSidebar()"
+        (openMobileProfileMenu)="openMobileProfileSheet()"
+      ></dw-header>
 
       <dw-sidebar
         [collapsed]="sidebarCollapsed()"
@@ -453,23 +457,6 @@ export class MobileProfileSheetComponent {
             @if (item.kind === 'create') {
               <button class="mobile-nav-item create-item" (click)="openMobileCreateSheet()">
                 <mat-icon>add</mat-icon>
-              </button>
-            } @else if (item.kind === 'profile') {
-              <button
-                class="mobile-nav-item avatar-item"
-                [class.active]="isProfileRoute()"
-                (click)="openMobileProfileSheet()"
-              >
-                @if (user()?.avatar) {
-                  <img
-                    class="mobile-nav-avatar"
-                    [src]="user()!.avatar"
-                    [alt]="user()!.name || 'Profile'"
-                  />
-                } @else {
-                  <mat-icon>{{ item.icon }}</mat-icon>
-                }
-                <span>{{ item.label }}</span>
               </button>
             } @else {
               <a
@@ -799,18 +786,6 @@ export class MobileProfileSheetComponent {
           }
         }
 
-        .mobile-nav-avatar {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          object-fit: cover;
-          box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
-        }
-
-        .mobile-nav-item.avatar-item.active .mobile-nav-avatar {
-          box-shadow: 0 0 0 2px var(--dw-primary);
-        }
-
         .mobile-nav-item.create-item {
           background: var(--dw-gradient-primary);
           color: #fff;
@@ -853,15 +828,15 @@ export class App {
   mobileNavItems: Array<{
     icon: string;
     label: string;
-    kind: 'route' | 'profile' | 'create';
+    kind: 'route' | 'create';
     route?: string;
     exact?: boolean;
   }> = [
     { icon: 'dashboard', label: 'Home', kind: 'route', route: '/', exact: true },
     { icon: 'checkroom', label: 'Wardrobe', kind: 'route', route: '/wardrobe', exact: false },
     { icon: 'add', label: 'Create', kind: 'create' },
+    { icon: 'calendar_month', label: 'Calendar', kind: 'route', route: '/calendar', exact: false },
     { icon: 'style', label: 'Outfits', kind: 'route', route: '/outfits', exact: false },
-    { icon: 'person', label: 'Me', kind: 'profile', route: '/profile', exact: false },
   ];
 
   private noLayoutRoutes = ['/login', '/signup'];
@@ -905,10 +880,6 @@ export class App {
 
   closeMobileMenu(): void {
     this.mobileMenuOpen.set(false);
-  }
-
-  isProfileRoute(): boolean {
-    return this.currentUrl().startsWith('/profile');
   }
 
   openMobileProfileSheet(): void {

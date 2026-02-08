@@ -81,7 +81,15 @@ import { AuthService } from '../../../core/services/auth.service';
           <mat-icon>add</mat-icon>
         </button>
 
-        @if (!isMobileView()) {
+        @if (isMobileView()) {
+          <button class="user-avatar" (click)="openMobileProfileMenu.emit()" matTooltip="Account">
+            @if (user()?.avatar) {
+              <img [src]="user()!.avatar" [alt]="user()!.name" class="avatar-img" />
+            } @else {
+              <mat-icon>account_circle</mat-icon>
+            }
+          </button>
+        } @else {
           <button class="user-avatar" [matMenuTriggerFor]="userMenu" matTooltip="Account">
             @if (user()?.avatar) {
               <img [src]="user()!.avatar" [alt]="user()!.name" class="avatar-img" />
@@ -402,6 +410,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private readonly resizeHandler = () => this.syncMobileState();
 
   toggleSidebar = output<void>();
+  openMobileProfileMenu = output<void>();
   user = input.required<User | null>();
   isDarkMode = signal(false);
   isMobileView = signal(false);
