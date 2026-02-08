@@ -1,15 +1,36 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
 import { WardrobeItem, WardrobeCategory, Accessory, Outfit, User, DashboardStats } from '../models';
 import { MOCK_WARDROBE_ITEMS, MOCK_ACCESSORIES, MOCK_OUTFITS, MOCK_USER, MOCK_WEATHER } from '../mock-data';
+
+interface WardrobeSessionState {
+    wardrobeItems: WardrobeItem[];
+    accessories: Accessory[];
+    outfits: Outfit[];
+    currentUser: User;
+}
 
 @Injectable({
     providedIn: 'root'
 })
 export class WardrobeService {
+    private static readonly SESSION_KEY = 'dw-session-wardrobe-state';
+
     private wardrobeItems = signal<WardrobeItem[]>(MOCK_WARDROBE_ITEMS);
     private accessories = signal<Accessory[]>(MOCK_ACCESSORIES);
     private outfits = signal<Outfit[]>(MOCK_OUTFITS);
     private currentUser = signal<User>(MOCK_USER);
+
+    constructor() {
+        this.hydrateFromSession();
+        effect(() => {
+            this.persistToSession({
+                wardrobeItems: this.wardrobeItems(),
+                accessories: this.accessories(),
+                outfits: this.outfits(),
+                currentUser: this.currentUser(),
+            });
+        });
+    }
 
     // Computed signals
     readonly items = this.wardrobeItems.asReadonly();
@@ -180,5 +201,80 @@ export class WardrobeService {
         }
 
         return { weather, suggestedItems };
+    }
+
+    private hydrateFromSession(): void {
+        try {
+            const raw = window.sessionStorage.getItem(WardrobeService.SESSION_KEY);
+            if (!raw) {
+                return;
+            }
+            const parsed = JSON.parse(raw) as Partial<WardrobeSessionState>;
+            if (Array.isArray(parsed.wardrobeItems)) {
+                this.wardrobeItems.set(parsed.wardrobeItems.map(item => this.hydrateWardrobeItem(item)));
+            }
+            if (Array.isArray(parsed.accessories)) {
+                this.accessories.set(parsed.accessories.map(item => this.hydrateAccessory(item)));
+            }
+            if (Array.isArray(parsed.outfits)) {
+                this.outfits.set(parsed.outfits.map(outfit => this.hydrateOutfit(outfit)));
+            }
+            if (parsed.currentUser) {
+                this.currentUser.set(this.hydrateUser(parsed.currentUser));
+            }
+        } catch {
+            // Ignore invalid session data and continue with defaults.
+        }
+    }
+
+    private persistToSession(state: WardrobeSessionState): void {
+        try {
+            window.sessionStorage.setItem(WardrobeService.SESSION_KEY, JSON.stringify(state));
+        } catch {
+            // Ignore storage failures (private mode/quota).
+        }
+    }
+
+    private hydrateWardrobeItem(item: WardrobeItem): WardrobeItem {
+        return {
+            ...item,
+            purchaseDate: this.toDate(item.purchaseDate),
+            lastWorn: this.toDate(item.lastWorn),
+            createdAt: this.toDate(item.createdAt) ?? new Date(),
+        };
+    }
+
+    private hydrateAccessory(accessory: Accessory): Accessory {
+        return {
+            ...accessory,
+            createdAt: this.toDate(accessory.createdAt) ?? new Date(),
+        };
+    }
+
+    private hydrateOutfit(outfit: Outfit): Outfit {
+        return {
+            ...outfit,
+            createdAt: this.toDate(outfit.createdAt) ?? new Date(),
+            lastWorn: this.toDate(outfit.lastWorn),
+            plannedDates: [...(outfit.plannedDates ?? [])].sort(),
+        };
+    }
+
+    private hydrateUser(user: User): User {
+        return {
+            ...user,
+            createdAt: this.toDate(user.createdAt) ?? new Date(),
+        };
+    }
+
+    private toDate(value: Date | string | undefined): Date | undefined {
+        if (!value) {
+            return undefined;
+        }
+        if (value instanceof Date) {
+            return value;
+        }
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? undefined : date;
     }
 }

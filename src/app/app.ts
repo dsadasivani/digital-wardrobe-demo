@@ -375,7 +375,7 @@ export class MobileProfileSheetComponent {
       this.renderer.removeAttribute(this.document.body, 'data-theme');
     }
     try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+      window.sessionStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
     } catch {
       // No-op if storage is blocked.
     }
@@ -960,7 +960,7 @@ export class App {
 
   private applySavedTheme(): void {
     try {
-      const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+      const savedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY);
       if (savedTheme === 'dark') {
         this.document.body.setAttribute('data-theme', 'dark');
         return;

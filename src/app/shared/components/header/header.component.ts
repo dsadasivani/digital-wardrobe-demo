@@ -459,7 +459,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   private readStoredTheme(): 'dark' | 'light' | null {
     try {
-      const saved = window.localStorage.getItem(HeaderComponent.THEME_STORAGE_KEY);
+      const saved = window.sessionStorage.getItem(HeaderComponent.THEME_STORAGE_KEY);
       return saved === 'dark' || saved === 'light' ? saved : null;
     } catch {
       return null;
@@ -468,7 +468,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   private storeTheme(theme: 'dark' | 'light'): void {
     try {
-      window.localStorage.setItem(HeaderComponent.THEME_STORAGE_KEY, theme);
+      window.sessionStorage.setItem(HeaderComponent.THEME_STORAGE_KEY, theme);
     } catch {
       // No-op if storage is blocked.
     }
