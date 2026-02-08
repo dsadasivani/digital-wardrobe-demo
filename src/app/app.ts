@@ -464,6 +464,7 @@ export class MobileProfileSheetComponent {
                 [routerLink]="item.route!"
                 routerLinkActive="active"
                 [routerLinkActiveOptions]="{ exact: !!item.exact }"
+                (click)="scrollToTopOnNavTap(item.route!, !!item.exact)"
               >
                 <mat-icon>{{ item.icon }}</mat-icon>
                 <span>{{ item.label }}</span>
@@ -843,6 +844,7 @@ export class App {
   private loaderTimer: ReturnType<typeof setTimeout> | null = null;
   private loadingStartedAt = 0;
   private readonly minLoaderMs = 240;
+  private nextScrollBehavior: ScrollBehavior = 'auto';
 
   constructor() {
     this.applySavedTheme();
@@ -860,6 +862,8 @@ export class App {
         this.showLayout.set(!this.noLayoutRoutes.includes(event.urlAfterRedirects));
         this.mobileMenuOpen.set(false);
         this.currentUrl.set(event.urlAfterRedirects);
+        this.scrollToTop(this.nextScrollBehavior);
+        this.nextScrollBehavior = 'auto';
         this.finishLoading();
         return;
       }
@@ -901,6 +905,16 @@ export class App {
     });
   }
 
+  scrollToTopOnNavTap(route: string, exact: boolean): void {
+    const current = this.currentUrl();
+    const isSameRoute = exact ? current === route : current.startsWith(route);
+    if (isSameRoute) {
+      this.scrollToTop('smooth');
+      return;
+    }
+    this.nextScrollBehavior = 'smooth';
+  }
+
   private syncViewportState(): void {
     this.isMobile.set(window.innerWidth <= 768);
   }
@@ -923,6 +937,25 @@ export class App {
     this.loaderTimer = setTimeout(() => {
       this.setRouteLoading(false);
     }, remaining);
+  }
+
+  private scrollToTop(behavior: ScrollBehavior = 'auto'): void {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior });
+      const mainContent = this.document.querySelector<HTMLElement>('.main-content');
+      if (behavior === 'smooth') {
+        if (mainContent && typeof mainContent.scrollTo === 'function') {
+          mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        return;
+      }
+
+      this.document.documentElement.scrollTop = 0;
+      this.document.body.scrollTop = 0;
+      if (mainContent) {
+        mainContent.scrollTop = 0;
+      }
+    });
   }
 
   private applySavedTheme(): void {
