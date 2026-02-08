@@ -312,7 +312,9 @@ export class MobileCreateSheetComponent {
         align-items: center;
         justify-content: center;
         border: none;
-        transition: background-color 180ms ease, box-shadow 180ms ease;
+        transition:
+          background-color 180ms ease,
+          box-shadow 180ms ease;
       }
 
       .theme-toggles mat-button-toggle ::ng-deep .mat-button-toggle-label-content {
@@ -482,10 +484,51 @@ export class MobileProfileSheetComponent {
       }
 
       @if (isMobile()) {
-        <nav class="mobile-bottom-nav glass">
+        @if (createMenuOpen()) {
+          <button
+            class="mobile-create-backdrop"
+            aria-label="Close create menu"
+            (click)="closeCreateMenu()"
+          ></button>
+        }
+        <nav class="mobile-bottom-nav glass" (click)="closeCreateMenu()">
+          @if (createMenuOpen()) {
+            <div class="mobile-create-popup glass" (click)="$event.stopPropagation()">
+              <!-- <div class="create-popup-header">
+                <strong>Quick Add</strong>
+                <span>Choose what you want to add</span>
+              </div> -->
+              <button
+                class="create-popup-option"
+                type="button"
+                (click)="navigateFromCreateMenu('/wardrobe/add')"
+              >
+                <span class="option-icon"><mat-icon>checkroom</mat-icon></span>
+                <span class="option-content">
+                  <span class="option-label">Item</span>
+                  <small>Add wardrobe piece</small>
+                </span>
+              </button>
+              <button
+                class="create-popup-option"
+                type="button"
+                (click)="navigateFromCreateMenu('/accessories')"
+              >
+                <span class="option-icon"><mat-icon>watch</mat-icon></span>
+                <span class="option-content">
+                  <span class="option-label">Accessory</span>
+                  <small>Add bags, watches, jewelry</small>
+                </span>
+              </button>
+            </div>
+          }
           @for (item of mobileNavItems; track item.label) {
             @if (item.kind === 'create') {
-              <button class="mobile-nav-item create-item" (click)="openMobileCreateSheet()">
+              <button
+                class="mobile-nav-item create-item"
+                [class.open]="createMenuOpen()"
+                (click)="toggleCreateMenu($event)"
+              >
                 <mat-icon>add</mat-icon>
               </button>
             } @else {
@@ -494,7 +537,7 @@ export class MobileProfileSheetComponent {
                 [routerLink]="item.route!"
                 routerLinkActive="active"
                 [routerLinkActiveOptions]="{ exact: !!item.exact }"
-                (click)="scrollToTopOnNavTap(item.route!, !!item.exact)"
+                (click)="onMobileNavTap(item.route!, !!item.exact)"
               >
                 <mat-icon>{{ item.icon }}</mat-icon>
                 <span>{{ item.label }}</span>
@@ -513,6 +556,15 @@ export class MobileProfileSheetComponent {
         display: block;
         min-height: 100vh;
         background: var(--dw-surface-base);
+        --dw-mobile-nav-fg: #1f2b43;
+        --dw-mobile-nav-active-fg: #0b1a33;
+        --dw-mobile-nav-create-fg: #ffffff;
+      }
+
+      :host-context(body[data-theme='dark']) {
+        --dw-mobile-nav-fg: #e6efff;
+        --dw-mobile-nav-active-fg: #0b1a33;
+        --dw-mobile-nav-create-fg: #ffffff;
       }
 
       .main-content {
@@ -661,7 +713,12 @@ export class MobileProfileSheetComponent {
         font-weight: 600;
         color: var(--dw-text-primary);
         letter-spacing: 0.01em;
-        background: linear-gradient(90deg, var(--dw-text-primary), var(--dw-primary), var(--dw-text-primary));
+        background: linear-gradient(
+          90deg,
+          var(--dw-text-primary),
+          var(--dw-primary),
+          var(--dw-text-primary)
+        );
         background-size: 180% 100%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -782,62 +839,257 @@ export class MobileProfileSheetComponent {
           right: 12px;
           bottom: calc(var(--dw-safe-bottom) + 10px);
           z-index: 1080;
-          border-radius: 22px;
-          padding: 8px 6px;
+          border-radius: 26px;
+          padding: 8px 10px 10px;
           display: grid;
           grid-template-columns: repeat(5, 1fr);
+          gap: 4px;
+          border: 1px solid rgba(255, 255, 255, 0.26);
+          background:
+            linear-gradient(
+              180deg,
+              rgba(191, 219, 254, 0.28) 0%,
+              rgba(147, 197, 253, 0.1) 48%,
+              rgba(30, 41, 59, 0.14) 100%
+            ),
+            color-mix(in srgb, var(--dw-surface-card) 76%, #0f172a 14%, #93c5fd 10%);
+          backdrop-filter: blur(22px) saturate(150%);
+          -webkit-backdrop-filter: blur(22px) saturate(150%);
+          box-shadow:
+            0 22px 34px -24px rgba(2, 6, 23, 0.65),
+            0 10px 18px -16px rgba(30, 64, 175, 0.38),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+          overflow: visible;
+        }
+
+        .mobile-create-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 1075;
+          border: none;
+          background: color-mix(in srgb, var(--dw-surface-base) 22%, transparent);
+          backdrop-filter: blur(8px) saturate(110%);
+          -webkit-backdrop-filter: blur(8px) saturate(110%);
+        }
+
+        .mobile-create-popup {
+          position: absolute;
+          left: 50%;
+          bottom: calc(100% + 14px);
+          transform: translateX(-50%);
+          min-width: 186px;
+          padding: 10px;
+          border-radius: 18px;
+          border: 1px solid rgba(255, 255, 255, 0.24);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08)),
+            color-mix(in srgb, var(--dw-surface-card) 84%, #93c5fd 16%);
+          backdrop-filter: blur(20px) saturate(140%);
+          -webkit-backdrop-filter: blur(20px) saturate(140%);
+          box-shadow:
+            0 24px 30px -22px rgba(2, 6, 23, 0.82),
+            inset 0 1px 0 rgba(255, 255, 255, 0.45);
+          display: grid;
+          gap: 8px;
+          animation: createPopupIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+          z-index: 2;
+        }
+
+        .create-popup-header {
+          display: grid;
           gap: 2px;
+          padding: 2px 2px 4px;
+        }
+
+        .create-popup-header strong {
+          font-size: 13px;
+          color: var(--dw-text-primary);
+          letter-spacing: 0.01em;
+        }
+
+        .create-popup-header span {
+          font-size: 11px;
+          color: var(--dw-text-secondary);
+        }
+
+        .create-popup-option {
+          border: none;
+          background: rgba(255, 255, 255, 0.14);
+          color: var(--dw-text-primary);
+          border-radius: 12px;
+          min-height: 50px;
+          padding: 0 10px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          transition:
+            background-color 160ms ease,
+            transform 160ms ease,
+            box-shadow 160ms ease;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+
+        .create-popup-option:hover {
+          background: rgba(255, 255, 255, 0.2);
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+            0 8px 14px -14px rgba(15, 23, 42, 0.5);
+        }
+
+        .create-popup-option:active {
+          transform: scale(0.98);
+        }
+
+        .option-icon {
+          width: 28px;
+          height: 28px;
+          border-radius: 9px;
+          display: grid;
+          place-items: center;
+          background: color-mix(in srgb, var(--dw-primary) 18%, rgba(255, 255, 255, 0.24));
+          border: 1px solid rgba(255, 255, 255, 0.26);
+        }
+
+        .option-icon mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          color: var(--dw-primary);
+        }
+
+        .option-label {
+          letter-spacing: 0.01em;
+        }
+
+        .option-content {
+          display: grid;
+          gap: 1px;
+          text-align: left;
+        }
+
+        .option-content small {
+          font-size: 11px;
+          font-weight: 500;
+          color: var(--dw-text-secondary);
         }
 
         .mobile-nav-item {
           border: none;
           background: transparent;
-          min-height: 56px;
+          min-height: 54px;
           border-radius: 16px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 2px;
-          color: var(--dw-text-secondary);
+          gap: 3px;
+          color: var(--dw-mobile-nav-fg);
           text-decoration: none;
-          font-size: 11px;
-          font-weight: 600;
-          transition: all var(--dw-transition-fast);
+          font-size: 10px;
+          font-weight: 700;
+          transition:
+            background-color 180ms ease,
+            color 180ms ease,
+            transform 180ms ease,
+            box-shadow 180ms ease;
 
           mat-icon {
             font-size: 20px;
             width: 20px;
             height: 20px;
+            color: inherit;
+          }
+
+          span {
+            line-height: 1;
+            opacity: 0.95;
+            letter-spacing: 0.01em;
           }
 
           &.active {
-            background: var(--dw-surface-card);
-            color: var(--dw-primary);
+            background: color-mix(in srgb, rgba(255, 255, 255, 0.36) 72%, var(--dw-primary) 28%);
+            color: var(--dw-mobile-nav-active-fg);
+            box-shadow:
+              inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+              0 10px 16px -16px rgba(30, 64, 175, 0.48);
           }
         }
 
         .mobile-nav-item.create-item {
-          background: var(--dw-gradient-primary);
-          color: #fff;
           border-radius: 999px;
-          width: 54px;
-          height: 54px;
-          min-height: 54px;
+          width: 58px;
+          height: 58px;
+          min-height: 58px;
           justify-self: center;
           align-self: center;
-          // transform: translateY(-4px);
-          box-shadow: var(--dw-shadow-glow);
+          transform: none;
+          background:
+            radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.62), transparent 42%),
+            radial-gradient(
+              circle at 82% 86%,
+              color-mix(in srgb, var(--dw-primary) 28%, rgba(15, 23, 42, 0.2)),
+              transparent 48%
+            ),
+            linear-gradient(
+              150deg,
+              color-mix(in srgb, var(--dw-primary) 74%, #ffffff 26%),
+              color-mix(in srgb, var(--dw-primary) 88%, #000000 12%)
+            );
+          color: var(--dw-mobile-nav-create-fg);
+          box-shadow:
+            0 18px 24px -20px rgba(2, 6, 23, 0.85),
+            0 12px 18px -12px color-mix(in srgb, var(--dw-primary) 48%, rgba(15, 23, 42, 0.35)),
+            0 0 0 1px rgba(255, 255, 255, 0.5) inset,
+            inset 0 -8px 12px rgba(15, 23, 42, 0.2);
+          display: grid;
+          place-items: center;
+          padding: 0;
+        }
+
+        .mobile-nav-item.create-item mat-icon {
+          font-size: 32px;
+          width: 32px;
+          height: 32px;
+          color: var(--dw-mobile-nav-create-fg);
+          transition: transform 220ms ease;
+        }
+
+        .mobile-nav-item.create-item.open mat-icon {
+          transform: rotate(135deg);
         }
 
         .mobile-nav-item.create-item span {
           display: none;
         }
 
-        .mobile-nav-item.create-item mat-icon {
-          font-size: 26px;
-          width: 26px;
-          height: 26px;
+        .mobile-nav-item.create-item:active {
+          transform: scale(0.96);
+        }
+
+        .mobile-bottom-nav::before {
+          content: '';
+          position: absolute;
+          left: 22px;
+          right: 22px;
+          top: 0;
+          height: 1px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+          opacity: 0.68;
+          pointer-events: none;
+        }
+
+        @keyframes createPopupIn {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
         }
       }
     `,
@@ -856,6 +1108,7 @@ export class App {
   isRouteLoading = signal(false);
   showLayout = signal(true);
   currentUrl = signal('/');
+  createMenuOpen = signal(false);
   mobileNavItems: Array<{
     icon: string;
     label: string;
@@ -891,6 +1144,7 @@ export class App {
       if (event instanceof NavigationEnd) {
         this.showLayout.set(!this.noLayoutRoutes.includes(event.urlAfterRedirects));
         this.mobileMenuOpen.set(false);
+        this.createMenuOpen.set(false);
         this.currentUrl.set(event.urlAfterRedirects);
         this.scrollToTop(this.nextScrollBehavior);
         this.nextScrollBehavior = 'auto';
@@ -929,10 +1183,26 @@ export class App {
   }
 
   openMobileCreateSheet(): void {
-    this.bottomSheet.open(MobileCreateSheetComponent, {
-      panelClass: 'dw-mobile-profile-sheet',
-      backdropClass: 'dw-mobile-sheet-backdrop',
-    });
+    this.createMenuOpen.set(true);
+  }
+
+  closeCreateMenu(): void {
+    this.createMenuOpen.set(false);
+  }
+
+  toggleCreateMenu(event: Event): void {
+    event.stopPropagation();
+    this.createMenuOpen.set(!this.createMenuOpen());
+  }
+
+  navigateFromCreateMenu(route: '/wardrobe/add' | '/accessories'): void {
+    this.createMenuOpen.set(false);
+    this.router.navigate([route]);
+  }
+
+  onMobileNavTap(route: string, exact: boolean): void {
+    this.createMenuOpen.set(false);
+    this.scrollToTopOnNavTap(route, exact);
   }
 
   scrollToTopOnNavTap(route: string, exact: boolean): void {
