@@ -89,6 +89,30 @@ import { Outfit } from '../../core/models';
     .planned-on mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; padding: 48px; text-align: center; }
     .empty-state mat-icon { font-size: 64px; width: 64px; height: 64px; color: var(--dw-text-muted); margin-bottom: 16px; }
+    @media (max-width: 768px) {
+      .outfits-page { padding: var(--dw-spacing-md); }
+      .page-header { flex-direction: column; gap: 12px; margin-bottom: var(--dw-spacing-md); }
+      .header-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .action-btn { width: 100%; justify-content: center; padding: 10px 12px; font-size: 0.85rem; }
+      .action-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .filter-chips {
+        margin-bottom: var(--dw-spacing-md);
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2px;
+      }
+      .filter-chips::-webkit-scrollbar { display: none; }
+      .chip { flex: 0 0 auto; padding: 7px 12px; font-size: 12px; }
+      .outfits-grid { grid-template-columns: 1fr; gap: var(--dw-spacing-md); }
+      .outfit-image { aspect-ratio: 4 / 4.2; }
+      .outfit-content { padding: 12px; }
+      .outfit-content h3 { margin: 0 0 6px; font-size: 1rem; }
+      .meta { flex-wrap: wrap; gap: 6px; }
+      .items-count, .planned-on { font-size: 12px; }
+      .empty-state { padding: 28px 16px; }
+      .empty-state mat-icon { font-size: 44px; width: 44px; height: 44px; margin-bottom: 10px; }
+    }
   `]
 })
 export class OutfitsComponent {
