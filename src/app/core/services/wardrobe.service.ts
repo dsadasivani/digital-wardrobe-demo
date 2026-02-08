@@ -120,10 +120,34 @@ export class WardrobeService {
 
     deleteItem(id: string): void {
         this.wardrobeItems.update(items => items.filter(item => item.id !== id));
+        this.accessories.update(items => items.filter(item => item.id !== id));
     }
 
     toggleFavorite(id: string): void {
         this.wardrobeItems.update(items =>
+            items.map(item =>
+                item.id === id ? { ...item, favorite: !item.favorite } : item
+            )
+        );
+        this.accessories.update(items =>
+            items.map(item =>
+                item.id === id ? { ...item, favorite: !item.favorite } : item
+            )
+        );
+    }
+
+    updateAccessory(id: string, updates: Partial<Accessory>): void {
+        this.accessories.update(items =>
+            items.map(item => item.id === id ? { ...item, ...updates } : item)
+        );
+    }
+
+    deleteAccessory(id: string): void {
+        this.accessories.update(items => items.filter(item => item.id !== id));
+    }
+
+    toggleAccessoryFavorite(id: string): void {
+        this.accessories.update(items =>
             items.map(item =>
                 item.id === id ? { ...item, favorite: !item.favorite } : item
             )

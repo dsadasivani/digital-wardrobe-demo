@@ -1,10 +1,11 @@
 import {Component, inject, ChangeDetectionStrategy} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { ItemCardComponent } from '../../shared/components/item-card/item-card.component';
+import { Accessory, WardrobeItem } from '../../core/models';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,7 +22,14 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
 
       <div class="items-grid">
         @for (item of accessories(); track item.id) {
-          <dw-item-card [item]="item"></dw-item-card>
+          <dw-item-card
+            [item]="item"
+            (viewItem)="onViewItem($event)"
+            (editItem)="onEditItem($event)"
+            (deleteItem)="onDeleteItem($event)"
+            (toggleFavorite)="onToggleFavorite($event)"
+            (addToOutfit)="onAddToOutfit($event)">
+          </dw-item-card>
         } @empty {
           <div class="empty-state">
             <mat-icon>watch</mat-icon>
@@ -44,5 +52,28 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
 })
 export class AccessoriesComponent {
   private wardrobeService = inject(WardrobeService);
+  private router = inject(Router);
   accessories = this.wardrobeService.accessoryList;
+
+  onViewItem(item: WardrobeItem | Accessory): void {
+    this.router.navigate(['/accessories', item.id]);
+  }
+
+  onEditItem(item: WardrobeItem | Accessory): void {
+    this.router.navigate(['/accessories', item.id, 'edit']);
+  }
+
+  onDeleteItem(item: WardrobeItem | Accessory): void {
+    if (confirm(`Delete "${item.name}" from accessories?`)) {
+      this.wardrobeService.deleteAccessory(item.id);
+    }
+  }
+
+  onToggleFavorite(item: WardrobeItem | Accessory): void {
+    this.wardrobeService.toggleAccessoryFavorite(item.id);
+  }
+
+  onAddToOutfit(_item: WardrobeItem | Accessory): void {
+    this.router.navigate(['/outfit-canvas']);
+  }
 }
