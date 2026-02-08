@@ -395,6 +395,7 @@ import { AuthService } from '../../../core/services/auth.service';
   ],
 })
 export class HeaderComponent implements OnInit, OnDestroy {
+  private static readonly THEME_STORAGE_KEY = 'dw-theme';
   private authService = inject(AuthService);
   private renderer = inject(Renderer2);
   private document = inject(DOCUMENT);
@@ -408,6 +409,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.syncMobileState();
     window.addEventListener('resize', this.resizeHandler);
+    const savedTheme = this.readStoredTheme();
+    if (savedTheme === 'dark') {
+      this.setTheme(true);
+      return;
+    }
+    if (savedTheme === 'light') {
+      this.setTheme(false);
+      return;
+    }
     this.isDarkMode.set(this.document.body.getAttribute('data-theme') === 'dark');
   }
 
@@ -434,6 +444,24 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.renderer.setAttribute(this.document.body, 'data-theme', 'dark');
     } else {
       this.renderer.removeAttribute(this.document.body, 'data-theme');
+    }
+    this.storeTheme(isDark ? 'dark' : 'light');
+  }
+
+  private readStoredTheme(): 'dark' | 'light' | null {
+    try {
+      const saved = window.localStorage.getItem(HeaderComponent.THEME_STORAGE_KEY);
+      return saved === 'dark' || saved === 'light' ? saved : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private storeTheme(theme: 'dark' | 'light'): void {
+    try {
+      window.localStorage.setItem(HeaderComponent.THEME_STORAGE_KEY, theme);
+    } catch {
+      // No-op if storage is blocked.
     }
   }
 

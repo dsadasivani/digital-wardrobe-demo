@@ -30,6 +30,8 @@ interface MobileProfileSheetData {
   isDarkMode: boolean;
 }
 
+const THEME_STORAGE_KEY = 'dw-theme';
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-mobile-create-sheet',
@@ -371,6 +373,11 @@ export class MobileProfileSheetComponent {
       this.renderer.setAttribute(this.document.body, 'data-theme', 'dark');
     } else {
       this.renderer.removeAttribute(this.document.body, 'data-theme');
+    }
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+    } catch {
+      // No-op if storage is blocked.
     }
   }
 
@@ -834,6 +841,7 @@ export class App {
   private authService = inject(AuthService);
   private router = inject(Router);
   private bottomSheet = inject(MatBottomSheet);
+  private document = inject(DOCUMENT);
 
   user = this.authService.user;
   sidebarCollapsed = signal(false);
@@ -862,6 +870,7 @@ export class App {
   private readonly minLoaderMs = 240;
 
   constructor() {
+    this.applySavedTheme();
     this.syncViewportState();
     window.addEventListener('resize', () => this.syncViewportState());
 
@@ -943,5 +952,20 @@ export class App {
     this.loaderTimer = setTimeout(() => {
       this.setRouteLoading(false);
     }, remaining);
+  }
+
+  private applySavedTheme(): void {
+    try {
+      const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (savedTheme === 'dark') {
+        this.document.body.setAttribute('data-theme', 'dark');
+        return;
+      }
+      if (savedTheme === 'light') {
+        this.document.body.removeAttribute('data-theme');
+      }
+    } catch {
+      // No-op if storage is blocked.
+    }
   }
 }
