@@ -174,6 +174,11 @@ export class OutfitCanvasComponent implements OnInit {
   private maxZ = 1;
 
   ngOnInit(): void {
+    const preselectedDate = this.normalizeDate(this.route.snapshot.queryParamMap.get('date') ?? '');
+    if (preselectedDate) {
+      this.addPlannedDate(preselectedDate);
+    }
+
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       return;
@@ -348,4 +353,3 @@ export class OutfitCanvasComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
 }
-

@@ -18,6 +18,7 @@ interface CalendarDay {
 }
 
 interface DaySheetData {
+  isoDate: string;
   dateLabel: string;
   outfits: Outfit[];
   fallbackImage: string;
@@ -38,6 +39,10 @@ interface DayPopoverState {
     <div class="day-sheet">
       <div class="sheet-handle"></div>
       <h3>{{ data.dateLabel }}</h3>
+      <button class="add-outfit-btn" type="button" (click)="addOutfitForDay()">
+        <mat-icon>add</mat-icon>
+        Add Outfit
+      </button>
       <div class="sheet-list">
         @for (outfit of data.outfits; track outfit.id) {
           <button class="sheet-card" type="button" (click)="openOutfit(outfit.id)">
@@ -47,6 +52,11 @@ interface DayPopoverState {
               <span>{{ outfit.occasion || 'General' }}</span>
             </div>
           </button>
+        } @empty {
+          <div class="empty-sheet-state">
+            <mat-icon>event_busy</mat-icon>
+            <span>No outfits scheduled for this date.</span>
+          </div>
         }
       </div>
     </div>
@@ -55,11 +65,37 @@ interface DayPopoverState {
     .day-sheet { padding: 10px 12px calc(14px + var(--dw-safe-bottom)); }
     .sheet-handle { width: 40px; height: 4px; border-radius: 999px; background: var(--dw-text-muted); opacity: 0.5; margin: 0 auto 12px; }
     h3 { margin: 0 0 10px; font-size: 1rem; color: var(--dw-text-primary); }
+    .add-outfit-btn {
+      width: 100%;
+      border: 1px solid rgba(140,123,112,0.22);
+      border-radius: 14px;
+      min-height: 42px;
+      margin-bottom: 10px;
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
     .sheet-list { display: grid; gap: 8px; }
     .sheet-card { width: 100%; border: 1px solid rgba(140,123,112,0.18); border-radius: 14px; padding: 8px; background: var(--dw-surface-card); display: flex; align-items: center; gap: 10px; text-align: left; }
     .sheet-card img { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; }
     .sheet-card-info { display: grid; gap: 2px; }
     .sheet-card-info span { font-size: 12px; color: var(--dw-text-secondary); }
+    .empty-sheet-state {
+      min-height: 84px;
+      border: 1px dashed rgba(140,123,112,0.2);
+      border-radius: 12px;
+      color: var(--dw-text-secondary);
+      display: grid;
+      place-items: center;
+      gap: 4px;
+      text-align: center;
+      padding: 8px;
+      font-size: 12px;
+    }
+    .empty-sheet-state mat-icon { font-size: 20px; width: 20px; height: 20px; }
   `],
 })
 export class DayOutfitsSheetComponent {
@@ -70,6 +106,13 @@ export class DayOutfitsSheetComponent {
   openOutfit(outfitId: string): void {
     this.bottomSheetRef.dismiss();
     this.router.navigate(['/outfits', outfitId]);
+  }
+
+  addOutfitForDay(): void {
+    this.bottomSheetRef.dismiss();
+    this.router.navigate(['/outfit-canvas'], {
+      queryParams: { date: this.data.isoDate },
+    });
   }
 }
 
@@ -172,43 +215,20 @@ export class DayOutfitsSheetComponent {
                 <mat-icon>close</mat-icon>
               </button>
             </div>
+            <a class="popover-add-btn" [routerLink]="['/outfit-canvas']" [queryParams]="{ date: popover.isoDate }" (click)="closePopover()">
+              <mat-icon>add</mat-icon>
+              Add Outfit
+            </a>
             <div class="popover-list">
               @for (outfit of popoverOutfits(); track outfit.id) {
                 <a class="popover-item" [routerLink]="['/outfits', outfit.id]" (click)="closePopover()">
                   <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
                   <span>{{ outfit.name }}</span>
                 </a>
+              } @empty {
+                <div class="popover-empty">No outfits planned for this date.</div>
               }
             </div>
-          </div>
-        }
-      </section>
-
-      <section class="day-panel glass">
-        <div class="panel-header">
-          <h3>{{ selectedDateLabel() }}</h3>
-          <button mat-stroked-button routerLink="/outfit-canvas">
-            <mat-icon>edit_calendar</mat-icon>
-            Plan Day
-          </button>
-        </div>
-
-        @if (selectedOutfits().length > 0) {
-          <div class="scheduled-grid">
-            @for (outfit of selectedOutfits(); track outfit.id) {
-              <a class="scheduled-card" [routerLink]="['/outfits', outfit.id]">
-                <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
-                <div class="card-info">
-                  <strong>{{ outfit.name }}</strong>
-                  <span>{{ outfit.occasion || 'General' }}</span>
-                </div>
-              </a>
-            }
-          </div>
-        } @else {
-          <div class="empty-state">
-            <mat-icon>event_available</mat-icon>
-            <p>No outfits scheduled for this date.</p>
           </div>
         }
       </section>
@@ -227,8 +247,16 @@ export class DayOutfitsSheetComponent {
       z-index: 4;
       pointer-events: none;
       background: transparent;
+      backdrop-filter: blur(0);
+      -webkit-backdrop-filter: blur(0);
+      transition: backdrop-filter 160ms ease, background-color 160ms ease;
     }
-    .calendar-click-layer.active { pointer-events: auto; }
+    .calendar-click-layer.active {
+      pointer-events: auto;
+      background: color-mix(in srgb, var(--dw-surface-base) 12%, transparent);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+    }
     .calendar-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .calendar-toolbar h2 { margin: 0; font-size: 1.2rem; }
     .weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; color: var(--dw-text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -261,30 +289,43 @@ export class DayOutfitsSheetComponent {
     }
     .popover-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .popover-header h4 { margin: 0; font-size: 0.9rem; }
+    .popover-add-btn {
+      min-height: 36px;
+      border-radius: 10px;
+      border: 1px solid rgba(140,123,112,0.18);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .popover-add-btn mat-icon { font-size: 18px; width: 18px; height: 18px; }
     .popover-list { display: grid; gap: 8px; }
     .popover-item { text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(140,123,112,0.14); border-radius: 10px; padding: 6px; background: var(--dw-surface-card); }
     .popover-item img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; }
     .popover-item span { font-size: 12px; color: var(--dw-text-primary); }
-    .day-panel { padding: var(--dw-spacing-md); border-radius: var(--dw-radius-xl); }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--dw-spacing-md); }
-    .panel-header h3 { margin: 0; font-size: 1rem; }
-    .scheduled-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-    .scheduled-card { text-decoration: none; color: inherit; border: 1px solid rgba(140, 123, 112, 0.12); border-radius: 14px; overflow: hidden; background: var(--dw-surface-card); }
-    .scheduled-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
-    .card-info { padding: 10px; display: grid; gap: 2px; }
-    .card-info span { color: var(--dw-text-secondary); font-size: 12px; }
-    .empty-state { min-height: 120px; display: grid; place-items: center; color: var(--dw-text-secondary); text-align: center; }
-    .empty-state mat-icon { font-size: 30px; width: 30px; height: 30px; margin-bottom: 6px; }
+    .popover-empty {
+      min-height: 62px;
+      border: 1px dashed rgba(140,123,112,0.2);
+      border-radius: 10px;
+      color: var(--dw-text-secondary);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      text-align: center;
+      padding: 8px;
+    }
     @media (max-width: 768px) {
       .calendar-page { padding: var(--dw-spacing-md); }
       .page-header { flex-direction: column; }
       .day-cell { min-height: 72px; padding: 6px; }
       .day-preview img { width: 16px; height: 16px; }
-      .panel-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-      .day-panel { display: block; }
-    }
-    @media (min-width: 769px) {
-      .day-panel { display: none; }
     }
   `],
 })
@@ -326,19 +367,12 @@ export class CalendarComponent {
     return days;
   });
 
-  selectedOutfits = computed(() => this.wardrobeService.getOutfitsByDate(this.selectedDate()));
   popoverOutfits = computed(() => {
     const popover = this.dayPopover();
     if (!popover) {
       return [];
     }
     return this.wardrobeService.getOutfitsByDate(popover.isoDate);
-  });
-
-  selectedDateLabel = computed(() => {
-    const [year, month, day] = this.selectedDate().split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   });
 
   changeMonth(step: number): void {
@@ -350,9 +384,10 @@ export class CalendarComponent {
   selectDate(day: CalendarDay, event: MouseEvent): void {
     this.selectedDate.set(day.isoDate);
     const outfits = day.outfits;
-    if (this.isMobileView() && outfits.length > 0) {
+    if (this.isMobileView()) {
       this.bottomSheet.open(DayOutfitsSheetComponent, {
         data: {
+          isoDate: day.isoDate,
           dateLabel: this.formatDateLabel(day.isoDate),
           outfits,
           fallbackImage: this.fallbackImage,
@@ -363,7 +398,7 @@ export class CalendarComponent {
       return;
     }
 
-    if (!this.isMobileView() && outfits.length > 0) {
+    if (!this.isMobileView()) {
       const anchor = event.currentTarget as HTMLElement | null;
       if (!anchor) {
         return;
