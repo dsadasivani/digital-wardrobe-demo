@@ -179,10 +179,10 @@ export class MobileCreateSheetComponent {
           class="theme-toggles"
         >
           <mat-button-toggle value="light">
-            <mat-icon>wb_sunny</mat-icon>
+            <mat-icon class="icon-sun">wb_sunny</mat-icon>
           </mat-button-toggle>
           <mat-button-toggle value="dark">
-            <mat-icon>dark_mode</mat-icon>
+            <mat-icon class="icon-moon">dark_mode</mat-icon>
           </mat-button-toggle>
         </mat-button-toggle-group>
       </div>
@@ -279,7 +279,7 @@ export class MobileCreateSheetComponent {
         align-items: center;
         justify-content: space-between;
         gap: 14px;
-        padding: 6px 4px 8px;
+        padding: 8px 6px 10px;
       }
 
       .theme-label {
@@ -287,25 +287,32 @@ export class MobileCreateSheetComponent {
         align-items: center;
         gap: 10px;
         font-weight: 500;
+        color: var(--dw-text-primary);
+      }
+
+      .theme-label mat-icon {
+        color: var(--dw-text-secondary);
       }
 
       .theme-toggles {
-        height: 36px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        border-radius: 20px;
-        background: rgba(0, 0, 0, 0.04);
+        height: 40px;
+        border: 1px solid rgba(140, 123, 112, 0.22);
+        border-radius: 999px;
+        background: var(--dw-surface-card);
         padding: 2px;
         display: inline-flex;
         align-items: center;
       }
 
       .theme-toggles mat-button-toggle {
-        width: 40px;
-        height: 32px;
-        border-radius: 18px;
+        width: 44px;
+        height: 34px;
+        border-radius: 999px;
         display: flex;
         align-items: center;
         justify-content: center;
+        border: none;
+        transition: background-color 180ms ease, box-shadow 180ms ease;
       }
 
       .theme-toggles mat-button-toggle ::ng-deep .mat-button-toggle-label-content {
@@ -318,12 +325,35 @@ export class MobileCreateSheetComponent {
 
       .theme-toggles mat-icon {
         margin: 0;
-        width: 20px;
-        height: 20px;
-        font-size: 20px;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        color: var(--dw-text-muted);
+        transition: color 180ms ease;
+      }
+
+      .theme-toggles .icon-sun {
+        color: #b45309;
+      }
+
+      .theme-toggles .icon-moon {
+        color: #334155;
+      }
+
+      .theme-toggles mat-button-toggle.mat-button-toggle-checked {
+        background: var(--dw-gradient-primary);
+        box-shadow: 0 3px 10px -6px rgba(140, 123, 112, 0.75);
+      }
+
+      .theme-toggles mat-button-toggle.mat-button-toggle-checked .icon-sun {
+        color: #fff;
+      }
+
+      .theme-toggles mat-button-toggle.mat-button-toggle-checked .icon-moon {
+        color: #fff;
       }
 
       .sheet-action {
