@@ -23,7 +23,7 @@ import { Outfit } from '../../../core/models';
           <button mat-stroked-button color="warn" (click)="deleteOutfit()">
             <mat-icon>delete</mat-icon> Delete
           </button>
-          <button mat-flat-button color="primary" [routerLink]="['/outfit-canvas', selectedOutfit.id]">
+          <button mat-flat-button color="primary" class="edit-btn" [routerLink]="['/outfit-canvas', selectedOutfit.id]">
             <mat-icon>edit</mat-icon> Edit
           </button>
         </div>
@@ -113,6 +113,20 @@ import { Outfit } from '../../../core/models';
       @media (max-width: 768px) {
         grid-template-columns: 1fr;
       }
+    }
+
+    .edit-btn {
+      --mdc-filled-button-container-color: transparent !important;
+      --mdc-filled-button-label-text-color: var(--dw-primary) !important;
+      background: transparent !important;
+      color: var(--dw-primary) !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-weight: 600;
+    }
+
+    .edit-btn:hover {
+      background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
     }
 
     .image-section {

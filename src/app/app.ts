@@ -130,7 +130,7 @@ export class MobileCreateSheetComponent {
 
   goToAccessory(): void {
     this.bottomSheetRef.dismiss();
-    this.router.navigate(['/accessories']);
+    this.router.navigate(['/accessories/add']);
   }
 }
 
@@ -512,7 +512,7 @@ export class MobileProfileSheetComponent {
               <button
                 class="create-popup-option"
                 type="button"
-                (click)="navigateFromCreateMenu('/accessories')"
+                (click)="navigateFromCreateMenu('/accessories/add')"
               >
                 <span class="option-icon"><mat-icon>watch</mat-icon></span>
                 <span class="option-content">
@@ -556,14 +556,18 @@ export class MobileProfileSheetComponent {
         display: block;
         min-height: 100vh;
         background: var(--dw-surface-base);
-        --dw-mobile-nav-fg: #1f2b43;
-        --dw-mobile-nav-active-fg: #0b1a33;
+        --dw-mobile-nav-fg: #5f5a52;
+        --dw-mobile-nav-active-fg: #3f372f;
+        --dw-mobile-nav-active-icon: #8b5e34;
+        --dw-mobile-nav-active-dot: #9a6a3f;
         --dw-mobile-nav-create-fg: #ffffff;
       }
 
       :host-context(body[data-theme='dark']) {
         --dw-mobile-nav-fg: #e6efff;
         --dw-mobile-nav-active-fg: #0b1a33;
+        --dw-mobile-nav-active-icon: color-mix(in srgb, var(--dw-primary) 78%, var(--dw-text-primary) 22%);
+        --dw-mobile-nav-active-dot: color-mix(in srgb, var(--dw-primary) 72%, #ffffff 28%);
         --dw-mobile-nav-create-fg: #ffffff;
       }
 
@@ -976,6 +980,7 @@ export class MobileProfileSheetComponent {
         }
 
         .mobile-nav-item {
+          position: relative;
           border: none;
           background: transparent;
           min-height: 54px;
@@ -1009,11 +1014,32 @@ export class MobileProfileSheetComponent {
           }
 
           &.active {
-            background: color-mix(in srgb, rgba(255, 255, 255, 0.36) 72%, var(--dw-primary) 28%);
             color: var(--dw-mobile-nav-active-fg);
-            box-shadow:
-              inset 0 0 0 1px rgba(255, 255, 255, 0.3),
-              0 10px 16px -16px rgba(30, 64, 175, 0.48);
+            background: color-mix(in srgb, var(--dw-primary) 10%, transparent);
+            box-shadow: 0 8px 16px -14px color-mix(in srgb, var(--dw-primary) 40%, rgba(15, 23, 42, 0.45));
+          }
+
+          &.active mat-icon {
+            color: var(--dw-mobile-nav-active-icon);
+            transform: translateY(-1px) scale(1.06);
+          }
+
+          &.active span {
+            color: var(--dw-text-primary);
+            opacity: 1;
+          }
+
+          &.active::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 5px;
+            transform: translateX(-50%);
+            width: 5px;
+            height: 5px;
+            border-radius: 999px;
+            background: var(--dw-mobile-nav-active-dot);
+            box-shadow: 0 0 8px -2px color-mix(in srgb, var(--dw-primary) 62%, rgba(15, 23, 42, 0.4));
           }
         }
 
@@ -1195,7 +1221,7 @@ export class App {
     this.createMenuOpen.set(!this.createMenuOpen());
   }
 
-  navigateFromCreateMenu(route: '/wardrobe/add' | '/accessories'): void {
+  navigateFromCreateMenu(route: '/wardrobe/add' | '/accessories/add'): void {
     this.createMenuOpen.set(false);
     this.router.navigate([route]);
   }

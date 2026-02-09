@@ -112,6 +112,15 @@ export class WardrobeService {
         this.wardrobeItems.update(items => [...items, newItem]);
     }
 
+    addAccessory(accessory: Omit<Accessory, 'id' | 'createdAt'>): void {
+        const newAccessory: Accessory = {
+            ...accessory,
+            id: `a${Date.now()}`,
+            createdAt: new Date(),
+        };
+        this.accessories.update(items => [...items, newAccessory]);
+    }
+
     updateItem(id: string, updates: Partial<WardrobeItem>): void {
         this.wardrobeItems.update(items =>
             items.map(item => item.id === id ? { ...item, ...updates } : item)

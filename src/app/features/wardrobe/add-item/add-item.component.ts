@@ -76,7 +76,7 @@ import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
 
         <div class="form-actions">
           <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
-          <button mat-raised-button color="primary" type="submit">Add to Wardrobe</button>
+          <button mat-raised-button color="primary" class="submit-btn" type="submit">Add to Wardrobe</button>
         </div>
       </form>
     </div>
@@ -98,6 +98,17 @@ import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
     .form-row { display: flex; gap: 16px; }
     .form-row mat-form-field { flex: 1; }
     .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+    .submit-btn {
+      --mdc-protected-button-container-color: transparent !important;
+      --mdc-protected-button-label-text-color: var(--dw-primary) !important;
+      --mdc-protected-button-container-elevation: 0 !important;
+      background: transparent !important;
+      color: var(--dw-primary) !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-weight: 600;
+    }
+    .submit-btn:hover { background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important; }
     @media (max-width: 600px) { .form-row { flex-direction: column; } }
   `]
 })

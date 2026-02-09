@@ -61,7 +61,7 @@ interface CanvasPlacedItem extends CanvasSourceItem {
           </mat-form-field>
           <div class="canvas-actions">
             <button mat-stroked-button (click)="clearCanvas()"><mat-icon>delete_sweep</mat-icon>Clear</button>
-            <button mat-raised-button color="primary" (click)="saveOutfit()">
+            <button mat-raised-button color="primary" class="save-btn" (click)="saveOutfit()">
               <mat-icon>save</mat-icon>{{ editingOutfitId() ? 'Update Outfit' : 'Save Outfit' }}
             </button>
           </div>
@@ -126,6 +126,19 @@ interface CanvasPlacedItem extends CanvasSourceItem {
     .canvas-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .outfit-name-field { flex: 1; min-width: 200px; max-width: 400px; }
     .canvas-actions { display: flex; gap: 8px; }
+    .save-btn {
+      --mdc-protected-button-container-color: transparent !important;
+      --mdc-protected-button-label-text-color: var(--dw-primary) !important;
+      --mdc-protected-button-container-elevation: 0 !important;
+      background: transparent !important;
+      color: var(--dw-primary) !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-weight: 600;
+    }
+    .save-btn:hover {
+      background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
+    }
     .schedule-panel { padding: var(--dw-spacing-md); border-radius: var(--dw-radius-lg); }
     .schedule-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
     .schedule-header h4 { margin: 0; font-size: 0.95rem; }

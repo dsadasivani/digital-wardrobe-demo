@@ -72,6 +72,23 @@ export type AccessoryCategory =
     | 'sunglasses'
     | 'ties';
 
+export interface AccessoryCategoryInfo {
+    id: AccessoryCategory;
+    label: string;
+    icon: string;
+}
+
+export const ACCESSORY_CATEGORIES: AccessoryCategoryInfo[] = [
+    { id: 'bags', label: 'Bags', icon: 'work' },
+    { id: 'jewelry', label: 'Jewelry', icon: 'diamond' },
+    { id: 'watches', label: 'Watches', icon: 'watch' },
+    { id: 'scarves', label: 'Scarves', icon: 'checkroom' },
+    { id: 'belts', label: 'Belts', icon: 'straighten' },
+    { id: 'hats', label: 'Hats', icon: 'styler' },
+    { id: 'sunglasses', label: 'Sunglasses', icon: 'visibility' },
+    { id: 'ties', label: 'Ties', icon: 'style' },
+];
+
 // Outfit Interface
 export interface Outfit {
     id: string;

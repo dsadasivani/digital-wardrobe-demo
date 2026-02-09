@@ -89,6 +89,7 @@ html {
   --dw-primary-light: #B5A8A0;
   --dw-primary-dark: #6D5F56;
   --dw-primary-glow: rgba(140, 123, 112, 0.15);
+  --dw-on-primary: #FFFFFF;
 
   // Accent Colors - Muted Sage & Clay
   --dw-accent: #A3B18A;
@@ -173,6 +174,7 @@ html {
   --dw-primary-light: #F1F5F9; // Slate 100
   --dw-primary-dark: #64748B; // Slate 500
   --dw-primary-glow: rgba(203, 213, 225, 0.15);
+  --dw-on-primary: #0F172A;
 
   // Accent - Rich Amber/Bronze (unchanged)
   --dw-accent: #F59E0B;
@@ -617,13 +619,53 @@ h4 {
 // -----------------------------------------
 
 // Override Material buttons
+.mat-mdc-button-base {
+  font-family: 'Outfit', sans-serif !important;
+  letter-spacing: 0.2px;
+}
+
 .mat-mdc-button.mat-primary,
 .mat-mdc-raised-button.mat-primary,
 .mat-mdc-unelevated-button.mat-primary {
   --mdc-filled-button-container-color: var(--dw-primary);
+  --mdc-filled-button-label-text-color: var(--dw-on-primary);
   border-radius: var(--dw-radius-md) !important;
-  font-family: 'Outfit', sans-serif !important;
+  color: var(--dw-on-primary) !important;
   letter-spacing: 0.5px;
+}
+
+.mat-mdc-unelevated-button:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
+  background: var(--dw-surface-card) !important;
+  color: var(--dw-text-primary) !important;
+  border: 1px solid color-mix(in srgb, var(--dw-primary) 18%, transparent) !important;
+}
+
+.mat-mdc-outlined-button {
+  border-radius: var(--dw-radius-md) !important;
+}
+
+.mat-mdc-outlined-button:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
+  color: var(--dw-text-primary) !important;
+  border-color: color-mix(in srgb, var(--dw-primary) 26%, transparent) !important;
+  background: color-mix(in srgb, var(--dw-surface-elevated) 84%, transparent) !important;
+}
+
+.mat-mdc-outlined-button.mat-primary {
+  color: var(--dw-primary) !important;
+  border-color: color-mix(in srgb, var(--dw-primary) 40%, transparent) !important;
+}
+
+.mat-mdc-outlined-button.mat-warn {
+  color: var(--dw-error) !important;
+  border-color: color-mix(in srgb, var(--dw-error) 45%, transparent) !important;
+}
+
+.mat-mdc-button:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
+  color: var(--dw-text-primary) !important;
+}
+
+.mat-mdc-button-base .mat-icon {
+  color: inherit;
 }
 
 // Override Material form fields
@@ -633,7 +675,7 @@ h4 {
   }
 
   .mdc-text-field--filled {
-    border-radius: var(--dw-radius-md) !important;
+    border-radius: 12px !important;
   }
 
   .mdc-line-ripple {
@@ -687,6 +729,30 @@ h4 {
       background-color: var(--dw-surface-card);
     }
   }
+}
+
+// Override Material select dropdowns (Fix transparency across app)
+.mat-mdc-select-panel,
+div.mat-mdc-select-panel,
+.cdk-overlay-pane .mat-mdc-select-panel {
+  background-color: var(--dw-surface-elevated) !important;
+  border: 1px solid rgba(140, 123, 112, 0.08);
+  box-shadow: var(--dw-shadow-lg) !important;
+  border-radius: var(--dw-radius-md) !important;
+}
+
+.mat-mdc-option {
+  color: var(--dw-text-primary) !important;
+  font-family: 'Outfit', sans-serif !important;
+}
+
+.mat-mdc-option .mdc-list-item__primary-text {
+  color: var(--dw-text-primary) !important;
+}
+
+.mat-mdc-option:hover:not(.mdc-list-item--disabled),
+.mat-mdc-option.mat-mdc-option-active {
+  background-color: var(--dw-surface-card) !important;
 }
 
 // -----------------------------------------

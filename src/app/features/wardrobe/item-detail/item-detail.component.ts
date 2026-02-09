@@ -24,7 +24,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
               <mat-icon>delete</mat-icon>
               Delete
             </button>
-            <button mat-flat-button color="primary" [routerLink]="['/wardrobe', item()!.id, 'edit']">
+            <button mat-flat-button color="primary" class="edit-btn" [routerLink]="['/wardrobe', item()!.id, 'edit']">
               <mat-icon>edit</mat-icon>
               Edit
             </button>
@@ -133,6 +133,18 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: var(--dw-spacing-xl); }
     .detail-header h1 { margin: 0; flex: 1; }
     .actions { display: flex; gap: 8px; }
+    .edit-btn {
+      --mdc-filled-button-container-color: transparent !important;
+      --mdc-filled-button-label-text-color: var(--dw-primary) !important;
+      background: transparent !important;
+      color: var(--dw-primary) !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-weight: 600;
+    }
+    .edit-btn:hover {
+      background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
+    }
     .content-grid { display: grid; gap: var(--dw-spacing-xl); grid-template-columns: minmax(280px, 420px) 1fr; }
     .image-panel { border-radius: var(--dw-radius-xl); overflow: hidden; aspect-ratio: 3/4; }
     .image-panel img { width: 100%; height: 100%; object-fit: cover; }

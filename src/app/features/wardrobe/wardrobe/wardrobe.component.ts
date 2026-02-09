@@ -296,19 +296,36 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
       width: 24px;
       height: 24px;
       border-radius: 50%;
-      border: 2px solid transparent;
+      border: 1px solid color-mix(in srgb, var(--dw-text-primary) 28%, transparent);
       background: var(--chip-color);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 1px 3px rgba(0, 0, 0, 0.18);
       cursor: pointer;
       transition: all var(--dw-transition-fast);
       padding: 0;
 
       &:hover {
         transform: scale(1.15);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+          0 0 0 1px color-mix(in srgb, var(--dw-primary) 24%, transparent),
+          0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+
+      &:focus-visible {
+        outline: none;
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+          0 0 0 2px color-mix(in srgb, var(--dw-primary) 48%, transparent);
       }
 
       &.selected {
-        border-color: white;
-        box-shadow: 0 0 0 2px var(--dw-primary);
+        border-color: color-mix(in srgb, var(--dw-primary) 55%, transparent);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+          0 0 0 2px color-mix(in srgb, var(--dw-primary) 52%, transparent),
+          0 2px 8px -4px color-mix(in srgb, var(--dw-primary) 45%, rgba(0, 0, 0, 0.35));
       }
     }
 

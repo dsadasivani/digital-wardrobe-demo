@@ -42,6 +42,11 @@ export const routes: Routes = [
         title: 'Accessories - Digital Wardrobe'
     },
     {
+        path: 'accessories/add',
+        loadComponent: () => import('./features/accessories/add-accessory/add-accessory.component').then(m => m.AddAccessoryComponent),
+        title: 'Add Accessory - Digital Wardrobe'
+    },
+    {
         path: 'accessories/:id/edit',
         loadComponent: () => import('./features/accessories/edit-accessory/edit-accessory.component').then(m => m.EditAccessoryComponent),
         title: 'Edit Accessory - Digital Wardrobe'

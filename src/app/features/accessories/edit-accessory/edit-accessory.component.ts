@@ -5,8 +5,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Accessory } from '../../../core/models';
+import { ACCESSORY_CATEGORIES, Accessory, AccessoryCategory } from '../../../core/models';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 
 @Component({
@@ -20,6 +21,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     MatIconModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
   ],
   template: `
     @if (accessoryId()) {
@@ -45,7 +47,11 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
           <div class="row">
             <mat-form-field appearance="outline">
               <mat-label>Category</mat-label>
-              <input matInput [(ngModel)]="category" name="category" required>
+              <mat-select [(ngModel)]="category" name="category" required>
+                @for (entry of categories; track entry.id) {
+                  <mat-option [value]="entry.id">{{ entry.label }}</mat-option>
+                }
+              </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
@@ -53,6 +59,11 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
               <input matInput [(ngModel)]="color" name="color" required>
             </mat-form-field>
           </div>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Color Hex</mat-label>
+            <input matInput [(ngModel)]="colorHex" name="colorHex" required>
+          </mat-form-field>
 
           <mat-form-field appearance="outline">
             <mat-label>Brand</mat-label>
@@ -71,7 +82,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
 
           <div class="actions">
             <button mat-stroked-button type="button" (click)="goBack()">Cancel</button>
-            <button mat-flat-button color="primary" type="submit">Save Changes</button>
+            <button mat-flat-button color="primary" type="submit" class="save-btn">Save Changes</button>
           </div>
         </form>
       </div>
@@ -94,6 +105,19 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     mat-form-field { width: 100%; }
     .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+    .save-btn {
+      --mdc-filled-button-container-color: transparent !important;
+      --mdc-filled-button-label-text-color: var(--dw-primary) !important;
+      background: transparent !important;
+      color: var(--dw-primary) !important;
+      border: none !important;
+      box-shadow: none !important;
+      min-width: 140px;
+      font-weight: 600;
+    }
+    .save-btn:hover {
+      background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
+    }
     .not-found { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 12px; }
     .not-found mat-icon { font-size: 56px; width: 56px; height: 56px; color: var(--dw-text-muted); }
     @media (max-width: 768px) {
@@ -109,10 +133,12 @@ export class EditAccessoryComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
 
   accessoryId = signal<string | null>(null);
+  categories = ACCESSORY_CATEGORIES;
 
   name = '';
-  category = '';
+  category: AccessoryCategory = 'bags';
   color = '';
+  colorHex = '#8b4513';
   brand = '';
   imageUrl = '';
   tags = '';
@@ -137,11 +163,15 @@ export class EditAccessoryComponent implements OnInit {
     if (!id || !this.name || !this.category || !this.color) {
       return;
     }
+    const normalizedHex = this.colorHex.trim().startsWith('#')
+      ? this.colorHex.trim()
+      : `#${this.colorHex.trim()}`;
 
     this.wardrobeService.updateAccessory(id, {
       name: this.name.trim(),
-      category: this.category.trim().toLowerCase() as Accessory['category'],
+      category: this.category,
       color: this.color.trim(),
+      colorHex: normalizedHex,
       brand: this.brand.trim() || undefined,
       imageUrl: this.imageUrl.trim(),
       tags: this.tags.split(',').map(tag => tag.trim()).filter(Boolean),
@@ -154,6 +184,7 @@ export class EditAccessoryComponent implements OnInit {
     this.name = item.name;
     this.category = item.category;
     this.color = item.color;
+    this.colorHex = item.colorHex;
     this.brand = item.brand ?? '';
     this.imageUrl = item.imageUrl;
     this.tags = item.tags.join(', ');
