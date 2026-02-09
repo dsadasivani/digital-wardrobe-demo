@@ -12,6 +12,11 @@ export const routes: Routes = [
         title: 'Login - Digital Wardrobe'
     },
     {
+        path: 'signup',
+        redirectTo: 'login',
+        pathMatch: 'full',
+    },
+    {
         path: 'wardrobe',
         loadComponent: () => import('./features/wardrobe/wardrobe/wardrobe.component').then(m => m.WardrobeComponent),
         title: 'My Wardrobe - Digital Wardrobe'

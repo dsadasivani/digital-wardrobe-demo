@@ -95,7 +95,21 @@ import { AuthService } from '../../core/services/auth.service';
     mat-form-field { width: 100%; }
     .form-options { display: flex; justify-content: space-between; align-items: center; }
     .forgot-link { color: var(--dw-primary-light); text-decoration: none; font-size: 14px; }
-    .submit-btn { width: 100%; height: 48px; font-size: 16px; margin-top: 8px; }
+    .submit-btn {
+      width: 100%;
+      height: 48px;
+      font-size: 16px;
+      margin-top: 8px;
+      --mdc-protected-button-container-color: var(--dw-primary);
+      --mdc-protected-button-label-text-color: var(--dw-on-primary);
+      --mdc-protected-button-container-elevation: 0 8px 18px rgba(140, 123, 112, 0.28);
+      background: var(--dw-primary) !important;
+      color: var(--dw-on-primary) !important;
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 78%, #000 22%);
+    }
+    .submit-btn:disabled {
+      opacity: 0.7;
+    }
     .divider { display: flex; align-items: center; gap: 16px; margin: 24px 0; color: var(--dw-text-muted); font-size: 14px; }
     .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
     .social-buttons { display: flex; gap: 12px; }

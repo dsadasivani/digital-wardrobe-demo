@@ -77,6 +77,7 @@ export class WardrobeService {
 
         return {
             totalItems: this.totalItems(),
+            totalAccessories: this.accessories().length,
             totalOutfits: this.outfits().length,
             mostWornItem: sortedByWorn[0],
             leastWornItems: leastWorn,

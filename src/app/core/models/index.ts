@@ -136,6 +136,7 @@ export interface UserPreferences {
 // Dashboard Stats
 export interface DashboardStats {
     totalItems: number;
+    totalAccessories: number;
     totalOutfits: number;
     mostWornItem?: WardrobeItem;
     leastWornItems: WardrobeItem[];

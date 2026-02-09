@@ -1,4 +1,4 @@
-import {Component, inject, ChangeDetectionStrategy} from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -6,13 +6,22 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/services';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-    selector: 'dw-profile',
-    imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatSlideToggleModule],
-    template: `
+  selector: 'dw-profile',
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule,
+    MatSlideToggleModule,
+  ],
+  template: `
     <div class="profile-page animate-fade-in">
       <header class="page-header">
         <h1>Profile Settings</h1>
@@ -33,17 +42,17 @@ import { AuthService } from '../../core/services';
         <form class="profile-form">
           <mat-form-field appearance="outline">
             <mat-label>Full Name</mat-label>
-            <input matInput [value]="user()?.name">
+            <input matInput [(ngModel)]="name" name="name">
           </mat-form-field>
 
           <mat-form-field appearance="outline">
             <mat-label>Email</mat-label>
-            <input matInput [value]="user()?.email" type="email">
+            <input matInput [(ngModel)]="email" name="email" type="email">
           </mat-form-field>
 
           <mat-form-field appearance="outline">
             <mat-label>Location</mat-label>
-            <input matInput [value]="user()?.preferences?.location" placeholder="City, Country">
+            <input matInput [(ngModel)]="location" name="location" placeholder="City, Country">
           </mat-form-field>
         </form>
       </div>
@@ -52,16 +61,16 @@ import { AuthService } from '../../core/services';
         <h3>Preferences</h3>
         <div class="setting-item">
           <div><strong>Dark Mode</strong><p>Use dark theme throughout the app</p></div>
-          <mat-slide-toggle [checked]="true" color="primary"></mat-slide-toggle>
+          <mat-slide-toggle [(ngModel)]="darkMode" color="primary"></mat-slide-toggle>
         </div>
         <div class="setting-item">
           <div><strong>Notifications</strong><p>Receive outfit suggestions and reminders</p></div>
-          <mat-slide-toggle [checked]="user()?.preferences?.notificationsEnabled" color="primary"></mat-slide-toggle>
+          <mat-slide-toggle [(ngModel)]="notificationsEnabled" color="primary"></mat-slide-toggle>
         </div>
       </div>
 
       <div class="actions-card">
-        <button mat-raised-button color="primary"><mat-icon>save</mat-icon>Save Changes</button>
+        <button mat-raised-button color="primary" (click)="saveChanges()"><mat-icon>save</mat-icon>Save Changes</button>
         <button mat-stroked-button color="warn" (click)="logout()"><mat-icon>logout</mat-icon>Logout</button>
       </div>
     </div>
@@ -84,8 +93,37 @@ import { AuthService } from '../../core/services';
   `]
 })
 export class ProfileComponent {
-    private authService = inject(AuthService);
-    user = this.authService.user;
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  user = this.authService.user;
 
-    logout() { this.authService.logout(); }
+  name = this.user()?.name ?? '';
+  email = this.user()?.email ?? '';
+  location = this.user()?.preferences?.location ?? '';
+  darkMode = this.user()?.preferences?.darkMode ?? false;
+  notificationsEnabled = this.user()?.preferences?.notificationsEnabled ?? true;
+
+  saveChanges(): void {
+    this.authService.updateProfile({
+      name: this.name.trim() || this.user()?.name,
+      email: this.email.trim() || this.user()?.email,
+      preferences: {
+        ...(this.user()?.preferences ?? {
+          favoriteColors: [],
+          stylePreferences: [],
+          location: '',
+          notificationsEnabled: true,
+          darkMode: false,
+        }),
+        location: this.location.trim(),
+        darkMode: this.darkMode,
+        notificationsEnabled: this.notificationsEnabled,
+      },
+    });
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
+  }
 }

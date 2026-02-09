@@ -1,5 +1,15 @@
 import { CommonModule, Location } from '@angular/common';
-import {ChangeDetectionStrategy, Component, computed, inject, OnInit, signal} from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  ViewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
@@ -68,6 +78,46 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
             }
           </section>
         </div>
+
+        @if (relatedAccessories().length) {
+          <section class="related-section">
+            <div class="related-header">
+              <h2>Related Accessories</h2>
+              <a routerLink="/accessories">See all</a>
+            </div>
+            <div class="related-container">
+              @if (canScrollLeft()) {
+                <button
+                  class="related-nav related-prev"
+                  type="button"
+                  (click)="scrollRelatedRow(relatedRow, 'left')"
+                  aria-label="Scroll related accessories left">
+                  <mat-icon>chevron_left</mat-icon>
+                </button>
+              }
+              <div class="related-row" #relatedRow (scroll)="onRelatedScroll(relatedRow)">
+                @for (related of relatedAccessories(); track related.id) {
+                  <a class="related-card glass" [routerLink]="['/accessories', related.id]">
+                    <img [src]="related.imageUrl" [alt]="related.name">
+                    <div class="related-meta">
+                      <span class="name">{{ related.name }}</span>
+                      <span class="sub">{{ related.color }}</span>
+                    </div>
+                  </a>
+                }
+              </div>
+              @if (canScrollRight()) {
+                <button
+                  class="related-nav related-next"
+                  type="button"
+                  (click)="scrollRelatedRow(relatedRow, 'right')"
+                  aria-label="Scroll related accessories right">
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              }
+            </div>
+          </section>
+        }
       </div>
     } @else {
       <div class="not-found animate-fade-in">
@@ -105,6 +155,22 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .stats { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     .label { display: block; color: var(--dw-text-secondary); font-size: 12px; margin-bottom: 4px; }
     .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .related-section { margin-top: var(--dw-spacing-2xl); }
+    .related-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .related-header h2 { font-size: 1.2rem; margin: 0; }
+    .related-header a { color: var(--dw-primary); text-decoration: none; font-size: 13px; font-weight: 600; }
+    .related-container { position: relative; }
+    .related-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(160px, 180px); gap: 12px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; -ms-overflow-style: none; }
+    .related-row::-webkit-scrollbar { display: none; }
+    .related-card { border-radius: var(--dw-radius-lg); overflow: hidden; text-decoration: none; color: inherit; border: 1px solid rgba(255, 255, 255, 0.08); }
+    .related-card img { width: 100%; height: 180px; object-fit: cover; display: block; }
+    .related-meta { padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+    .related-meta .name { font-size: 13px; font-weight: 600; color: var(--dw-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .related-meta .sub { font-size: 12px; color: var(--dw-text-secondary); }
+    .related-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.12); background: var(--dw-surface-elevated); color: var(--dw-text-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--dw-shadow-sm); z-index: 2; }
+    .related-prev { left: 6px; }
+    .related-next { right: 6px; }
+    .related-nav mat-icon { font-size: 20px; width: 20px; height: 20px; }
     .not-found { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 12px; }
     .not-found mat-icon { font-size: 56px; width: 56px; height: 56px; color: var(--dw-text-muted); }
     @media (max-width: 900px) {
@@ -114,23 +180,46 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     }
   `]
 })
-export class AccessoryDetailComponent implements OnInit {
+export class AccessoryDetailComponent implements OnInit, AfterViewInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private location = inject(Location);
   private wardrobeService = inject(WardrobeService);
+  @ViewChild('relatedRow') private relatedRowRef?: ElementRef<HTMLElement>;
 
   accessory = signal<Accessory | undefined>(undefined);
+  canScrollLeft = signal(false);
+  canScrollRight = signal(true);
+
   categoryLabel = computed(() => {
     const category = this.accessory()?.category ?? '';
     return category.charAt(0).toUpperCase() + category.slice(1);
+  });
+
+  relatedAccessories = computed(() => {
+    const current = this.accessory();
+    if (!current) return [];
+
+    return this.wardrobeService.accessoryList()
+      .filter(item => item.id !== current.id)
+      .filter(item =>
+        item.category === current.category ||
+        item.color === current.color ||
+        item.tags.some(tag => current.tags.includes(tag))
+      )
+      .slice(0, 8);
   });
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       this.accessory.set(id ? this.wardrobeService.getAccessoryById(id) : undefined);
+      queueMicrotask(() => this.refreshRelatedScrollState());
     });
+  }
+
+  ngAfterViewInit(): void {
+    queueMicrotask(() => this.refreshRelatedScrollState());
   }
 
   goBack(): void {
@@ -146,5 +235,31 @@ export class AccessoryDetailComponent implements OnInit {
       this.wardrobeService.deleteAccessory(current.id);
       this.router.navigate(['/accessories']);
     }
+  }
+
+  onRelatedScroll(container: HTMLElement): void {
+    this.updateScrollControls(container);
+  }
+
+  scrollRelatedRow(container: HTMLElement, direction: 'left' | 'right'): void {
+    const delta = direction === 'right' ? 280 : -280;
+    container.scrollBy({ left: delta, behavior: 'smooth' });
+    setTimeout(() => this.updateScrollControls(container), 220);
+  }
+
+  private refreshRelatedScrollState(): void {
+    const container = this.relatedRowRef?.nativeElement;
+    if (!container) {
+      this.canScrollLeft.set(false);
+      this.canScrollRight.set(false);
+      return;
+    }
+    this.updateScrollControls(container);
+  }
+
+  private updateScrollControls(container: HTMLElement): void {
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    this.canScrollLeft.set(container.scrollLeft > 2);
+    this.canScrollRight.set(container.scrollLeft < maxScrollLeft - 2);
   }
 }

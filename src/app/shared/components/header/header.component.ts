@@ -18,7 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { User } from '../../../core/models';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -405,6 +405,7 @@ import { AuthService } from '../../../core/services/auth.service';
 export class HeaderComponent implements OnInit, OnDestroy {
   private static readonly THEME_STORAGE_KEY = 'dw-theme';
   private authService = inject(AuthService);
+  private router = inject(Router);
   private renderer = inject(Renderer2);
   private document = inject(DOCUMENT);
   private readonly resizeHandler = () => this.syncMobileState();
@@ -445,6 +446,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.authService.logout();
+    this.router.navigate(['/login']);
   }
 
   private setTheme(isDark: boolean): void {
