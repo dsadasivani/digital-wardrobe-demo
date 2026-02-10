@@ -759,6 +759,77 @@ import { WardrobeItem, Accessory } from '../../core/models';
           font-size: 12px;
         }
 
+        .weather-section {
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 10px 12px;
+          align-items: start;
+          padding: 12px;
+          border-radius: var(--dw-radius-lg);
+        }
+
+        .weather-info {
+          grid-column: 1 / -1;
+          gap: 10px;
+        }
+
+        .weather-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+        }
+
+        .weather-icon mat-icon {
+          font-size: 22px;
+          width: 22px;
+          height: 22px;
+        }
+
+        .weather-temp {
+          font-size: 1.35rem;
+          line-height: 1.1;
+        }
+
+        .weather-location {
+          font-size: 12px;
+          line-height: 1.2;
+        }
+
+        .weather-suggestion {
+          grid-column: 1 / -1;
+          min-width: 0;
+        }
+
+        .weather-suggestion h4 {
+          margin: 0 0 4px;
+          font-size: 0.95rem;
+        }
+
+        .weather-suggestion p {
+          font-size: 12px;
+          line-height: 1.35;
+        }
+
+        .suggested-items {
+          grid-column: 1 / -1;
+          gap: 8px;
+          overflow-x: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          padding-bottom: 2px;
+        }
+
+        .suggested-items::-webkit-scrollbar {
+          display: none;
+        }
+
+        .mini-item {
+          width: 48px;
+          height: 48px;
+          border-width: 1px;
+          flex: 0 0 auto;
+        }
+
         .items-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }

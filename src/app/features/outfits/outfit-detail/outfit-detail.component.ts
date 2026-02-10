@@ -1,11 +1,17 @@
-import {Component, inject, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
-import { Outfit } from '../../../core/models';
+import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../../core/models';
+
+interface OutfitResolvedItem {
+  source: OutfitItem;
+  data: WardrobeItem | Accessory | null;
+  type: 'wardrobe' | 'accessory';
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,11 +52,25 @@ import { Outfit } from '../../../core/models';
           <section class="items-list">
             <h3>Items in this Look</h3>
             <div class="items-grid">
-              @for (outfitItem of selectedOutfit.items; track outfitItem.itemId) {
-                <div class="item-card glass">
-                  <div class="item-icon"><mat-icon>checkroom</mat-icon></div>
-                  <span>{{ outfitItem.itemId }}</span>
-                </div>
+              @for (resolvedItem of resolvedItems(); track resolvedItem.source.itemId) {
+                @if (resolvedItem.data; as itemData) {
+                  <a
+                    class="item-card glass"
+                    [routerLink]="resolvedItem.type === 'wardrobe' ? ['/wardrobe', itemData.id] : ['/accessories', itemData.id]"
+                  >
+                    <img [src]="itemData.imageUrl" [alt]="itemData.name" />
+                    <span>{{ itemData.name }}</span>
+                    <small>{{ resolvedItem.type === 'wardrobe' ? 'Wardrobe' : 'Accessory' }}</small>
+                  </a>
+                } @else {
+                  <div class="item-card glass missing">
+                    <div class="item-icon">
+                      <mat-icon>{{ resolvedItem.type === 'wardrobe' ? 'checkroom' : 'watch' }}</mat-icon>
+                    </div>
+                    <span>Unavailable Item</span>
+                    <small>{{ resolvedItem.source.itemId }}</small>
+                  </div>
+                }
               }
             </div>
           </section>
@@ -115,6 +135,25 @@ import { Outfit } from '../../../core/models';
       }
     }
 
+    .info-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--dw-spacing-lg);
+    }
+
+    .items-list h3,
+    .notes-section h3,
+    .dates-section h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .notes-section p,
+    .dates-section p {
+      margin: 0;
+      color: var(--dw-text-secondary);
+    }
+
     .edit-btn {
       --mdc-filled-button-container-color: transparent !important;
       --mdc-filled-button-label-text-color: var(--dw-primary) !important;
@@ -161,12 +200,13 @@ import { Outfit } from '../../../core/models';
 
     .items-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
       gap: 12px;
       margin-top: 16px;
     }
 
     .item-card {
+      text-decoration: none;
       padding: 12px;
       border-radius: var(--dw-radius-md);
       display: flex;
@@ -176,6 +216,45 @@ import { Outfit } from '../../../core/models';
       text-align: center;
       font-size: 12px;
       color: var(--dw-text-secondary);
+      min-height: 172px;
+      transition: transform var(--dw-transition-fast), box-shadow var(--dw-transition-fast);
+    }
+
+    .item-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--dw-shadow-md);
+    }
+
+    .item-card img {
+      width: 100%;
+      height: 102px;
+      object-fit: cover;
+      border-radius: var(--dw-radius-sm);
+    }
+
+    .item-card span {
+      color: var(--dw-text-primary);
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .item-card small {
+      font-size: 11px;
+      color: var(--dw-text-muted);
+    }
+
+    .item-card.missing {
+      justify-content: center;
+    }
+
+    .item-card.missing .item-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      background: var(--dw-surface-card);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .planned-list {
@@ -192,6 +271,72 @@ import { Outfit } from '../../../core/models';
       border: 1px solid rgba(140,123,112,0.18);
       color: var(--dw-text-primary);
     }
+
+    @media (max-width: 768px) {
+      .outfit-detail-container {
+        padding: 12px;
+      }
+
+      .detail-header {
+        gap: 10px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      .detail-header h1 {
+        font-size: 1.15rem;
+        line-height: 1.25;
+      }
+
+      .detail-header .actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .detail-header .actions button {
+        width: 100%;
+        min-height: 40px;
+      }
+
+      .detail-content {
+        gap: 12px;
+      }
+
+      .image-section {
+        aspect-ratio: 4 / 3;
+        border-radius: var(--dw-radius-lg);
+      }
+
+      .image-section .meta-overlay {
+        left: 10px;
+        bottom: 10px;
+        gap: 6px;
+        flex-wrap: wrap;
+        max-width: calc(100% - 20px);
+      }
+
+      .items-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .item-card {
+        min-height: 142px;
+        padding: 8px;
+        gap: 6px;
+      }
+
+      .item-card img {
+        height: 76px;
+      }
+
+      .item-card span {
+        font-size: 12px;
+      }
+    }
   `]
 })
 export class OutfitDetailComponent implements OnInit {
@@ -201,6 +346,25 @@ export class OutfitDetailComponent implements OnInit {
     private wardrobeService = inject(WardrobeService);
 
     outfit = signal<Outfit | undefined>(undefined);
+    resolvedItems = computed<OutfitResolvedItem[]>(() => {
+      const selectedOutfit = this.outfit();
+      if (!selectedOutfit) {
+        return [];
+      }
+
+      return selectedOutfit.items.map((sourceItem) => {
+        const data =
+          sourceItem.type === 'wardrobe'
+            ? this.wardrobeService.getItemById(sourceItem.itemId)
+            : this.wardrobeService.getAccessoryById(sourceItem.itemId);
+
+        return {
+          source: sourceItem,
+          data: data ?? null,
+          type: sourceItem.type,
+        };
+      });
+    });
 
     ngOnInit() {
         this.route.paramMap.subscribe(params => {

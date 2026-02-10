@@ -1,6 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { CdkDrag, CdkDragEnd, DragDropModule } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  ViewChild,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -25,6 +35,8 @@ interface CanvasPlacedItem extends CanvasSourceItem {
   zIndex: number;
 }
 
+type CanvasSourceFilter = 'wardrobe' | 'accessory';
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-outfit-canvas',
@@ -43,11 +55,30 @@ interface CanvasPlacedItem extends CanvasSourceItem {
     <div class="outfit-canvas-page">
       <aside class="items-panel glass">
         <h3>My Items</h3>
+        <div class="source-filters">
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="sourceFilter() === 'wardrobe'"
+            (click)="sourceFilter.set('wardrobe')"
+          >
+            Items
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="sourceFilter() === 'accessory'"
+            (click)="sourceFilter.set('accessory')"
+          >
+            Accessories
+          </button>
+        </div>
         <div class="items-list">
-          @for (item of availableItems(); track item.type + '-' + item.id) {
-            <div class="panel-item" (click)="addToCanvas(item)" matTooltip="Click to add">
+          @for (item of filteredAvailableItems(); track item.type + '-' + item.id) {
+            <div class="panel-item" (click)="addToCanvas(item)" matTooltip="Add to Canva">
               <img [src]="item.imageUrl" [alt]="item.name" />
               <span>{{ item.name }}</span>
+              <span class="add-overlay">Add to Canva</span>
             </div>
           }
         </div>
@@ -60,6 +91,11 @@ interface CanvasPlacedItem extends CanvasSourceItem {
             <input matInput [(ngModel)]="outfitName" placeholder="My New Outfit" />
           </mat-form-field>
           <div class="canvas-actions">
+            @if (editingOutfitId()) {
+              <button mat-stroked-button type="button" (click)="cancelEdit()">
+                <mat-icon>close</mat-icon>Cancel
+              </button>
+            }
             <button mat-stroked-button (click)="clearCanvas()"><mat-icon>delete_sweep</mat-icon>Clear</button>
             <button mat-raised-button color="primary" class="save-btn" (click)="saveOutfit()">
               <mat-icon>save</mat-icon>{{ editingOutfitId() ? 'Update Outfit' : 'Save Outfit' }}
@@ -90,7 +126,57 @@ interface CanvasPlacedItem extends CanvasSourceItem {
           </div>
         </section>
 
-        <div class="canvas">
+        <section class="mobile-items-panel glass">
+          <div class="mobile-items-header">
+            <h4>Items & Accessories</h4>
+            <button mat-stroked-button type="button" (click)="mobileCatalogOpen.set(!mobileCatalogOpen())">
+              <mat-icon>{{ mobileCatalogOpen() ? 'expand_less' : 'expand_more' }}</mat-icon>
+              {{ mobileCatalogOpen() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          <div class="source-filters mobile">
+            <button
+              type="button"
+              class="filter-chip"
+              [class.active]="sourceFilter() === 'wardrobe'"
+              (click)="sourceFilter.set('wardrobe')"
+            >
+              Items
+            </button>
+            <button
+              type="button"
+              class="filter-chip"
+              [class.active]="sourceFilter() === 'accessory'"
+              (click)="sourceFilter.set('accessory')"
+            >
+              Accessories
+            </button>
+          </div>
+          @if (mobileCatalogOpen()) {
+            <div class="mobile-items-row">
+              @for (item of filteredAvailableItems(); track item.type + '-' + item.id) {
+                <div
+                  class="mobile-item-chip"
+                  [class.selected]="isMobileItemSelected(item)"
+                  (click)="selectMobileItem(item)"
+                  role="button"
+                  tabindex="0"
+                  (keydown.enter)="selectMobileItem(item)"
+                >
+                  <img [src]="item.imageUrl" [alt]="item.name" />
+                  <span>{{ item.name }}</span>
+                  @if (isMobileItemSelected(item)) {
+                    <button class="add-overlay-mobile" type="button" (click)="addFromMobile(item, $event)">
+                      Add to Canva
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        <div class="canvas" #canvasEl>
           <div class="canvas-bg">
             <span>Drag items here to create your outfit</span>
           </div>
@@ -98,6 +184,7 @@ interface CanvasPlacedItem extends CanvasSourceItem {
             <div
               class="canvas-item"
               cdkDrag
+              [cdkDragBoundary]="'.canvas'"
               [style.left.px]="item.x"
               [style.top.px]="item.y"
               [style.z-index]="item.zIndex"
@@ -114,14 +201,76 @@ interface CanvasPlacedItem extends CanvasSourceItem {
     </div>
   `,
   styles: [`
-    .outfit-canvas-page { display: flex; height: calc(100vh - var(--dw-header-height)); }
+    .outfit-canvas-page { display: flex; min-height: calc(100vh - var(--dw-header-height)); }
     .items-panel { width: 280px; padding: var(--dw-spacing-md); border-right: 1px solid rgba(255,255,255,0.06); overflow-y: auto; flex-shrink: 0; }
     .items-panel h3 { margin: 0 0 var(--dw-spacing-md); }
+    .source-filters { display: flex; gap: 8px; margin-bottom: 10px; }
+    .filter-chip {
+      border: 1px solid rgba(140,123,112,0.2);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-secondary);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--dw-transition-fast);
+    }
+    .filter-chip.active {
+      background: color-mix(in srgb, var(--dw-primary) 18%, var(--dw-surface-card));
+      border-color: color-mix(in srgb, var(--dw-primary) 46%, transparent);
+      color: var(--dw-text-primary);
+    }
     .items-list { display: flex; flex-direction: column; gap: 8px; }
-    .panel-item { display: flex; align-items: center; gap: 12px; padding: 8px; background: var(--dw-surface-card); border-radius: var(--dw-radius-md); cursor: pointer; transition: all 0.15s; }
+    .panel-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px;
+      background: var(--dw-surface-card);
+      border-radius: var(--dw-radius-md);
+      cursor: pointer;
+      transition: all 0.15s;
+      overflow: hidden;
+    }
+    .panel-item::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: color-mix(in srgb, var(--dw-surface-overlay) 34%, rgba(0, 0, 0, 0.28));
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      opacity: 0;
+      transition: opacity var(--dw-transition-fast);
+      pointer-events: none;
+    }
     .panel-item:hover { background: var(--dw-surface-elevated); transform: translateX(4px); }
     .panel-item img { width: 48px; height: 48px; object-fit: cover; border-radius: var(--dw-radius-sm); }
     .panel-item span { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .panel-item .add-overlay {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--dw-text-primary);
+      background: transparent;
+      border: 1.5px solid color-mix(in srgb, var(--dw-text-primary) 62%, transparent);
+      border-radius: 999px;
+      padding: 7px 14px;
+      min-width: 108px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--dw-transition-fast);
+      z-index: 2;
+    }
+    .panel-item:hover::after { opacity: 1; }
+    .panel-item:hover .add-overlay { opacity: 1; }
     .canvas-area { flex: 1; display: flex; flex-direction: column; padding: var(--dw-spacing-md); gap: var(--dw-spacing-md); }
     .canvas-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .outfit-name-field { flex: 1; min-width: 200px; max-width: 400px; }
@@ -148,11 +297,12 @@ interface CanvasPlacedItem extends CanvasSourceItem {
     .date-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(140,123,112,0.22); border-radius: 999px; background: var(--dw-surface-card); color: var(--dw-text-primary); padding: 4px 10px; font-size: 12px; }
     .date-chip mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .empty-date-text { font-size: 12px; color: var(--dw-text-secondary); }
-    .canvas { flex: 1; position: relative; background: var(--dw-surface-elevated); border-radius: var(--dw-radius-xl); border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+    .mobile-items-panel { display: none; }
+    .canvas { flex: 1; position: relative; background: var(--dw-surface-elevated); border-radius: var(--dw-radius-xl); border: 1px solid rgba(255,255,255,0.06); overflow: hidden; min-height: 520px; }
     .canvas-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dw-text-muted); pointer-events: none; }
     .canvas-item { position: absolute; cursor: move; border-radius: var(--dw-radius-md); transition: box-shadow 0.15s; }
     .canvas-item:hover { box-shadow: 0 0 0 2px var(--dw-primary); }
-    .canvas-item img { width: 150px; height: auto; border-radius: var(--dw-radius-md); pointer-events: none; }
+    .canvas-item img { width: clamp(110px, 16vw, 150px); height: auto; border-radius: var(--dw-radius-md); pointer-events: none; }
     .item-controls { position: absolute; top: -8px; right: -8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
     .canvas-item:hover .item-controls { opacity: 1; }
     .item-controls button { width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -160,8 +310,56 @@ interface CanvasPlacedItem extends CanvasSourceItem {
     .item-controls mat-icon { font-size: 16px; width: 16px; height: 16px; }
     @media (max-width: 768px) {
       .items-panel { display: none; }
+      .outfit-canvas-page { display: block; }
+      .canvas-area { padding: 10px; gap: 10px; }
+      .mobile-items-panel { display: block; padding: 10px; border-radius: var(--dw-radius-lg); }
+      .mobile-items-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+      .mobile-items-header h4 { margin: 0; font-size: 0.92rem; }
+      .source-filters.mobile { margin-bottom: 8px; }
+      .mobile-items-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+      .mobile-items-row::-webkit-scrollbar { display: none; }
+      .mobile-item-chip { position: relative; overflow: hidden; min-width: 118px; border: 1px solid rgba(140,123,112,0.2); border-radius: 12px; background: var(--dw-surface-card); color: var(--dw-text-primary); padding: 6px; display: grid; gap: 6px; text-align: left; }
+      .mobile-item-chip.selected { border-color: color-mix(in srgb, var(--dw-primary) 50%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dw-primary) 20%, transparent); }
+      .mobile-item-chip.selected::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: color-mix(in srgb, var(--dw-surface-overlay) 34%, rgba(0, 0, 0, 0.28));
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        pointer-events: none;
+      }
+      .mobile-item-chip img { width: 100%; height: 70px; border-radius: 8px; object-fit: cover; display: block; }
+      .mobile-item-chip span { font-size: 11px; line-height: 1.2; white-space: normal; }
+      .mobile-item-chip .add-overlay-mobile {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--dw-text-primary);
+        background: transparent;
+        border: 1.5px solid color-mix(in srgb, var(--dw-text-primary) 62%, transparent);
+        border-radius: 999px;
+        min-width: 104px;
+        padding: 6px 12px;
+        opacity: 1;
+        cursor: pointer;
+        z-index: 2;
+        transition: border-color var(--dw-transition-fast), color var(--dw-transition-fast);
+      }
+      .mobile-item-chip .add-overlay-mobile:active {
+        border-color: color-mix(in srgb, var(--dw-primary) 60%, transparent);
+        color: color-mix(in srgb, var(--dw-primary) 72%, var(--dw-text-primary) 28%);
+      }
       .schedule-input-row { flex-direction: column; align-items: stretch; }
       .schedule-header { flex-direction: column; align-items: flex-start; }
+      .canvas { min-height: 360px; }
+      .item-controls { opacity: 1; }
     }
   `],
 })
@@ -169,6 +367,7 @@ export class OutfitCanvasComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  @ViewChild('canvasEl') private canvasRef?: ElementRef<HTMLDivElement>;
 
   wardrobeItems = this.wardrobeService.items;
   accessoryItems = this.wardrobeService.accessoryList;
@@ -184,7 +383,14 @@ export class OutfitCanvasComponent implements OnInit {
   dateInput = '';
   plannedDates = signal<string[]>([]);
   editingOutfitId = signal<string | null>(null);
+  mobileCatalogOpen = signal(true);
+  sourceFilter = signal<CanvasSourceFilter>('wardrobe');
+  selectedMobileItemKey = signal<string | null>(null);
   private maxZ = 1;
+
+  filteredAvailableItems = computed(() =>
+    this.availableItems().filter(item => item.type === this.sourceFilter())
+  );
 
   ngOnInit(): void {
     const preselectedDate = this.normalizeDate(this.route.snapshot.queryParamMap.get('date') ?? '');
@@ -226,27 +432,48 @@ export class OutfitCanvasComponent implements OnInit {
   }
 
   addToCanvas(item: CanvasSourceItem): void {
+    const { width, height } = this.getCanvasBounds();
+    const imageWidth = 140;
+    const imageHeight = 170;
+    const safeX = Math.max(12, width - imageWidth - 12);
+    const safeY = Math.max(12, height - imageHeight - 12);
     this.canvasItems.update(items => [
       ...items,
       {
         ...item,
-        x: 100 + Math.random() * 200,
-        y: 50 + Math.random() * 100,
+        x: 12 + Math.random() * safeX,
+        y: 12 + Math.random() * safeY,
         scale: 1,
         zIndex: this.maxZ++,
       },
     ]);
   }
 
+  selectMobileItem(item: CanvasSourceItem): void {
+    const key = `${item.type}-${item.id}`;
+    this.selectedMobileItemKey.update(current => (current === key ? null : key));
+  }
+
+  isMobileItemSelected(item: CanvasSourceItem): boolean {
+    return this.selectedMobileItemKey() === `${item.type}-${item.id}`;
+  }
+
+  addFromMobile(item: CanvasSourceItem, event: Event): void {
+    event.stopPropagation();
+    this.addToCanvas(item);
+    this.selectedMobileItemKey.set(null);
+  }
+
   onDragEnd(event: CdkDragEnd, index: number): void {
-    const element = event.source.element.nativeElement;
-    const rect = element.getBoundingClientRect();
-    const parentRect = element.parentElement!.getBoundingClientRect();
+    const delta = event.source.getFreeDragPosition();
     this.canvasItems.update(items => {
       const next = [...items];
-      next[index] = { ...next[index], x: rect.left - parentRect.left, y: rect.top - parentRect.top };
+      const current = next[index];
+      const clamped = this.clampPosition(current.x + delta.x, current.y + delta.y);
+      next[index] = { ...current, x: clamped.x, y: clamped.y };
       return next;
     });
+    event.source.reset();
   }
 
   removeFromCanvas(index: number): void {
@@ -263,6 +490,11 @@ export class OutfitCanvasComponent implements OnInit {
 
   clearCanvas(): void {
     this.canvasItems.set([]);
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.canvasItems.update(items => items.map(item => ({ ...item, ...this.clampPosition(item.x, item.y) })));
   }
 
   addDate(): void {
@@ -329,6 +561,15 @@ export class OutfitCanvasComponent implements OnInit {
     this.router.navigate(['/outfits']);
   }
 
+  cancelEdit(): void {
+    const editId = this.editingOutfitId();
+    if (editId) {
+      this.router.navigate(['/outfits', editId]);
+      return;
+    }
+    this.router.navigate(['/outfits']);
+  }
+
   private toSource(item: WardrobeItem | Accessory, type: 'wardrobe' | 'accessory'): CanvasSourceItem {
     return {
       id: item.id,
@@ -364,5 +605,29 @@ export class OutfitCanvasComponent implements OnInit {
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
     const day = `${date.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private clampPosition(x: number, y: number): { x: number; y: number } {
+    const { width, height } = this.getCanvasBounds();
+    const imageWidth = 140;
+    const imageHeight = 170;
+    const min = 8;
+    const maxX = Math.max(min, width - imageWidth - min);
+    const maxY = Math.max(min, height - imageHeight - min);
+    return {
+      x: Math.min(Math.max(x, min), maxX),
+      y: Math.min(Math.max(y, min), maxY),
+    };
+  }
+
+  private getCanvasBounds(): { width: number; height: number } {
+    const canvas = this.canvasRef?.nativeElement;
+    if (!canvas) {
+      return { width: 640, height: 520 };
+    }
+    return {
+      width: canvas.clientWidth || 640,
+      height: canvas.clientHeight || 520,
+    };
   }
 }

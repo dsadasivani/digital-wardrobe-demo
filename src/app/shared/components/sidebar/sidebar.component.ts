@@ -137,6 +137,14 @@ interface NavItem {
       flex: 1;
       padding: var(--dw-spacing-md);
       overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .nav-menu::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      background: transparent;
     }
 
     .nav-section {
