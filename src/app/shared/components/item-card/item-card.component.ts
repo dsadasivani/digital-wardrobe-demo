@@ -242,6 +242,74 @@ import { WardrobeItem, Accessory } from '../../../core/models';
     .delete-option {
       color: var(--dw-error);
     }
+
+    @media (max-width: 768px) {
+      .item-card {
+        border-radius: var(--dw-radius-md);
+      }
+
+      .item-card:hover {
+        transform: none;
+        box-shadow: none;
+      }
+
+      .card-image {
+        aspect-ratio: 4 / 5;
+      }
+
+      .card-overlay {
+        opacity: 1;
+        padding: 6px;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, transparent 80%);
+      }
+
+      .overlay-btn {
+        width: 32px;
+        height: 32px;
+
+        mat-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+        }
+      }
+
+      .color-dot {
+        width: 16px;
+        height: 16px;
+        right: 6px;
+        bottom: 6px;
+      }
+
+      .card-content {
+        padding: 10px;
+      }
+
+      .item-name {
+        font-size: 0.9rem;
+        white-space: normal;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .item-meta {
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+      }
+
+      .item-tags {
+        gap: 4px;
+      }
+
+      .tag {
+        font-size: 10px;
+        padding: 2px 6px;
+      }
+    }
   `]
 })
 export class ItemCardComponent {

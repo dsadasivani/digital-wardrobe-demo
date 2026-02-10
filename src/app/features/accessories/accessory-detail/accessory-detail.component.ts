@@ -178,6 +178,23 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       .content-grid { grid-template-columns: 1fr; }
       .detail-header { flex-wrap: wrap; }
     }
+    @media (max-width: 768px) {
+      .accessory-detail-page { padding: 12px; }
+      .detail-header { gap: 10px; margin-bottom: 12px; }
+      .detail-header h1 { font-size: 1.15rem; line-height: 1.25; }
+      .actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .actions button { width: 100%; min-height: 40px; }
+      .content-grid { gap: 12px; }
+      .image-panel { border-radius: var(--dw-radius-lg); aspect-ratio: 4/3; }
+      .info-panel { border-radius: var(--dw-radius-lg); padding: 12px; gap: 12px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .related-section { margin-top: 16px; }
+      .related-header { margin-bottom: 8px; }
+      .related-row { grid-auto-columns: minmax(132px, 146px); gap: 8px; }
+      .related-card img { height: 136px; }
+      .related-meta { padding: 8px; }
+      .related-nav { display: none; }
+    }
   `]
 })
 export class AccessoryDetailComponent implements OnInit, AfterViewInit {

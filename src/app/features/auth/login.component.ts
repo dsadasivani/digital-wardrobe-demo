@@ -118,6 +118,83 @@ import { AuthService } from '../../core/services/auth.service';
     .social-btn img { width: 20px; height: 20px; }
     .auth-footer { text-align: center; margin-top: 24px; color: var(--dw-text-secondary); }
     .auth-footer a { color: var(--dw-primary-light); text-decoration: none; font-weight: 500; }
+
+    @media (max-width: 768px) {
+      .auth-page {
+        align-items: flex-start;
+        padding: 12px;
+      }
+
+      .auth-container {
+        margin-top: 8px;
+        padding: 20px 16px;
+        border-radius: var(--dw-radius-lg);
+      }
+
+      .auth-header {
+        margin-bottom: 20px;
+      }
+
+      .logo {
+        width: 54px;
+        height: 54px;
+        margin-bottom: 10px;
+      }
+
+      .logo mat-icon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+      }
+
+      .auth-header h1 {
+        font-size: 1.4rem;
+      }
+
+      .auth-header p {
+        font-size: 13px;
+      }
+
+      .auth-form {
+        gap: 12px;
+      }
+
+      .form-options {
+        flex-wrap: wrap;
+        gap: 6px 10px;
+      }
+
+      .forgot-link {
+        font-size: 13px;
+      }
+
+      .submit-btn {
+        height: 44px;
+        font-size: 15px;
+        margin-top: 4px;
+      }
+
+      .divider {
+        margin: 16px 0;
+        font-size: 12px;
+      }
+
+      .social-buttons {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .social-btn {
+        min-height: 42px;
+        font-size: 13px;
+      }
+
+      .auth-footer {
+        margin-top: 16px;
+        font-size: 13px;
+      }
+    }
   `]
 })
 export class LoginComponent {

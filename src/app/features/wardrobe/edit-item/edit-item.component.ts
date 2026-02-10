@@ -101,7 +101,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
 
           <div class="actions">
             <button mat-stroked-button type="button" (click)="goBack()">Cancel</button>
-            <button mat-flat-button color="primary" type="submit">Save Changes</button>
+            <button mat-flat-button color="primary" type="submit" class="save-btn">Save Changes</button>
           </div>
         </form>
       </div>
@@ -124,11 +124,32 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     mat-form-field { width: 100%; }
     .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+    .save-btn {
+      --mdc-filled-button-container-color: transparent !important;
+      --mdc-filled-button-label-text-color: var(--dw-primary) !important;
+      background: transparent !important;
+      color: var(--dw-primary) !important;
+      border: none !important;
+      box-shadow: none !important;
+      min-width: 140px;
+      font-weight: 600;
+    }
+    .save-btn:hover {
+      background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
+    }
     .not-found { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 12px; }
     .not-found mat-icon { font-size: 56px; width: 56px; height: 56px; color: var(--dw-text-muted); }
     @media (max-width: 768px) {
-      .edit-item-page { padding: var(--dw-spacing-md); }
-      .row { grid-template-columns: 1fr; }
+      .edit-item-page { padding: 12px; }
+      .page-header { align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+      .page-header h1 { font-size: 1.25rem; line-height: 1.25; }
+      .page-header p { font-size: 13px; margin-top: 2px; }
+      .edit-form { border-radius: var(--dw-radius-lg); padding: 12px; gap: 10px; }
+      .image-preview { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: var(--dw-radius-lg); }
+      .row { grid-template-columns: 1fr; gap: 10px; }
+      .actions { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .actions button { width: 100%; min-height: 40px; }
+      .save-btn { min-width: 0; }
     }
   `]
 })

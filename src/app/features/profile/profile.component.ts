@@ -90,6 +90,68 @@ import { AuthService } from '../../core/services';
     .setting-item:last-child { border-bottom: none; }
     .setting-item p { margin: 4px 0 0; color: var(--dw-text-secondary); font-size: 13px; }
     .actions-card { display: flex; gap: 12px; justify-content: flex-end; }
+
+    @media (max-width: 768px) {
+      .profile-page {
+        padding: 12px;
+      }
+
+      .page-header {
+        margin-bottom: 12px;
+      }
+
+      .page-header h1 {
+        font-size: 1.25rem;
+      }
+
+      .profile-card,
+      .settings-card {
+        padding: 12px;
+        border-radius: var(--dw-radius-lg);
+        margin-bottom: 12px;
+      }
+
+      .avatar-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .avatar {
+        width: 76px;
+        height: 76px;
+      }
+
+      .avatar mat-icon {
+        font-size: 36px;
+        width: 36px;
+        height: 36px;
+      }
+
+      .profile-form {
+        gap: 10px;
+      }
+
+      .setting-item {
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .setting-item p {
+        font-size: 12px;
+      }
+
+      .actions-card {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .actions-card button {
+        width: 100%;
+      }
+    }
   `]
 })
 export class ProfileComponent {

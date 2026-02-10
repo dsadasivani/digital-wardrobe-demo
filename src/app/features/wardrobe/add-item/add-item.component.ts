@@ -109,7 +109,66 @@ import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
       font-weight: 600;
     }
     .submit-btn:hover { background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important; }
-    @media (max-width: 600px) { .form-row { flex-direction: column; } }
+    @media (max-width: 768px) {
+      .add-item-page {
+        padding: 12px;
+      }
+
+      .page-header {
+        margin-bottom: 12px;
+      }
+
+      .page-header h1 {
+        font-size: 1.25rem;
+      }
+
+      .upload-section {
+        padding: 12px;
+        margin-bottom: 12px;
+        border-radius: var(--dw-radius-lg);
+      }
+
+      .drop-zone {
+        aspect-ratio: 4 / 3;
+        max-height: none;
+        min-height: 220px;
+      }
+
+      .drop-zone mat-icon {
+        font-size: 40px;
+        width: 40px;
+        height: 40px;
+        margin-bottom: 10px;
+      }
+
+      .drop-zone p {
+        font-size: 13px;
+      }
+
+      .drop-zone span {
+        font-size: 11px;
+      }
+
+      .item-form {
+        gap: 10px;
+      }
+
+      .form-row {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .form-actions {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .form-actions button {
+        width: 100%;
+      }
+    }
   `]
 })
 export class AddItemComponent {

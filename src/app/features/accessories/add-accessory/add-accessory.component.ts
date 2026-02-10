@@ -134,8 +134,20 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
     }
     @media (max-width: 768px) {
-      .add-accessory-page { padding: var(--dw-spacing-md); }
-      .row { grid-template-columns: 1fr; }
+      .add-accessory-page { padding: 12px; }
+      .page-header { align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+      .page-header h1 { font-size: 1.25rem; line-height: 1.25; }
+      .page-header p { font-size: 13px; margin-top: 2px; }
+      .upload-section { padding: 12px; margin-bottom: 12px; border-radius: var(--dw-radius-lg); }
+      .drop-zone { min-height: 220px; max-height: none; }
+      .drop-zone mat-icon { font-size: 40px; width: 40px; height: 40px; margin-bottom: 10px; }
+      .drop-zone p { font-size: 13px; }
+      .drop-zone span { font-size: 11px; }
+      .accessory-form { border-radius: var(--dw-radius-lg); padding: 12px; gap: 10px; }
+      .row { grid-template-columns: 1fr; gap: 10px; }
+      .actions { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .actions button { width: 100%; min-height: 40px; }
+      .save-btn { min-width: 0; }
     }
   `],
 })
