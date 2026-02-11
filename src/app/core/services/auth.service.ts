@@ -1,4 +1,4 @@
-import { Injectable, effect, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { MOCK_USER } from '../mock-data';
 import { User } from '../models';
 
@@ -13,18 +13,9 @@ interface AuthSessionState {
 export class AuthService {
     private static readonly SESSION_KEY = 'dw-session-auth-state';
 
-    private isAuthenticated = signal(true); // Default to true for demo
-    private currentUser = signal<User | null>(MOCK_USER);
-
-    constructor() {
-        this.hydrateFromSession();
-        effect(() => {
-            this.persistToSession({
-                isAuthenticated: this.isAuthenticated(),
-                user: this.currentUser(),
-            });
-        });
-    }
+    private readonly initialState = this.hydrateFromSession();
+    private isAuthenticated = signal(this.initialState.isAuthenticated);
+    private currentUser = signal<User | null>(this.initialState.user);
 
     readonly authenticated = this.isAuthenticated.asReadonly();
     readonly user = this.currentUser.asReadonly();
@@ -35,6 +26,7 @@ export class AuthService {
             setTimeout(() => {
                 this.isAuthenticated.set(true);
                 this.currentUser.set(MOCK_USER);
+                this.persistSnapshot();
                 resolve(true);
             }, 800);
         });
@@ -63,6 +55,7 @@ export class AuthService {
                 };
                 this.currentUser.set(newUser);
                 this.isAuthenticated.set(true);
+                this.persistSnapshot();
                 resolve(true);
             }, 800);
         });
@@ -71,30 +64,56 @@ export class AuthService {
     logout(): void {
         this.isAuthenticated.set(false);
         this.currentUser.set(null);
+        this.persistSnapshot();
     }
 
     updateProfile(updates: Partial<User>): void {
         this.currentUser.update(user => user ? { ...user, ...updates } : null);
+        this.persistSnapshot();
     }
 
-    private hydrateFromSession(): void {
+    private hydrateFromSession(): AuthSessionState {
+        const fallback: AuthSessionState = {
+            isAuthenticated: true,
+            user: MOCK_USER,
+        };
+
         try {
             const raw = window.sessionStorage.getItem(AuthService.SESSION_KEY);
             if (!raw) {
-                return;
+                return fallback;
             }
             const parsed = JSON.parse(raw) as Partial<AuthSessionState>;
-            if (typeof parsed.isAuthenticated === 'boolean') {
-                this.isAuthenticated.set(parsed.isAuthenticated);
-            }
+            const isAuthenticated = typeof parsed.isAuthenticated === 'boolean'
+                ? parsed.isAuthenticated
+                : fallback.isAuthenticated;
             if (parsed.user) {
-                this.currentUser.set(this.hydrateUser(parsed.user));
-            } else if (parsed.isAuthenticated === false) {
-                this.currentUser.set(null);
+                return {
+                    isAuthenticated,
+                    user: this.hydrateUser(parsed.user),
+                };
             }
+            if (isAuthenticated === false) {
+                return {
+                    isAuthenticated: false,
+                    user: null,
+                };
+            }
+            return {
+                isAuthenticated,
+                user: fallback.user,
+            };
         } catch {
             // Ignore invalid session data and continue with defaults.
+            return fallback;
         }
+    }
+
+    private persistSnapshot(): void {
+        this.persistToSession({
+            isAuthenticated: this.isAuthenticated(),
+            user: this.currentUser(),
+        });
     }
 
     private persistToSession(state: AuthSessionState): void {

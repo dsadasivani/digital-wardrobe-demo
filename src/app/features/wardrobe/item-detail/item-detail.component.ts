@@ -1,5 +1,15 @@
 import { CommonModule, Location } from '@angular/common';
-import {AfterViewInit, ChangeDetectionStrategy, Component, computed, ElementRef, inject, OnInit, signal, ViewChild} from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
@@ -205,7 +215,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   private router = inject(Router);
   private location = inject(Location);
   private wardrobeService = inject(WardrobeService);
-  @ViewChild('relatedRow') private relatedRowRef?: ElementRef<HTMLElement>;
+  private relatedRowRef = viewChild<ElementRef<HTMLElement>>('relatedRow');
 
   item = signal<WardrobeItem | undefined>(undefined);
   canScrollLeft = signal(false);
@@ -269,7 +279,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   }
 
   private refreshRelatedScrollState(): void {
-    const container = this.relatedRowRef?.nativeElement;
+    const container = this.relatedRowRef()?.nativeElement;
     if (!container) {
       this.canScrollLeft.set(false);
       this.canScrollRight.set(false);

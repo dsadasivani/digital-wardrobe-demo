@@ -4,9 +4,9 @@ import {
   Component,
   ElementRef,
   HostListener,
-  ViewChild,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -876,7 +876,7 @@ export class DashboardComponent implements AfterViewInit {
   private wardrobeService = inject(WardrobeService);
   private authService = inject(AuthService);
   private router = inject(Router);
-  @ViewChild('statsRow') private statsRow?: ElementRef<HTMLDivElement>;
+  private statsRow = viewChild<ElementRef<HTMLDivElement>>('statsRow');
 
   user = this.authService.user;
   stats = this.wardrobeService.dashboardStats;
@@ -962,7 +962,7 @@ export class DashboardComponent implements AfterViewInit {
   }
 
   scrollStats(direction: 'left' | 'right'): void {
-    const container = this.statsRow?.nativeElement;
+    const container = this.statsRow()?.nativeElement;
     if (!container) {
       return;
     }
@@ -974,7 +974,7 @@ export class DashboardComponent implements AfterViewInit {
   }
 
   private refreshStatsScrollState(): void {
-    const container = this.statsRow?.nativeElement;
+    const container = this.statsRow()?.nativeElement;
     if (!container) {
       this.canScrollStatsLeft.set(false);
       this.canScrollStatsRight.set(false);

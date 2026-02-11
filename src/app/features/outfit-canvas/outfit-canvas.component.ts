@@ -5,11 +5,11 @@ import {
   Component,
   ElementRef,
   HostListener,
-  ViewChild,
   computed,
   inject,
   OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -86,9 +86,14 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
 
       <main class="canvas-area">
         <header class="canvas-header">
-          <mat-form-field appearance="outline" class="outfit-name-field">
-            <mat-label>Outfit Name</mat-label>
-            <input matInput [(ngModel)]="outfitName" placeholder="My New Outfit" />
+            <mat-form-field appearance="outline" class="outfit-name-field">
+              <mat-label>Outfit Name</mat-label>
+            <input
+              matInput
+              [ngModel]="outfitName()"
+              (ngModelChange)="outfitName.set($event)"
+              placeholder="My New Outfit"
+            />
           </mat-form-field>
           <div class="canvas-actions">
             @if (editingOutfitId()) {
@@ -111,7 +116,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
             </button>
           </div>
           <div class="schedule-input-row">
-            <input type="date" [(ngModel)]="dateInput" />
+            <input type="date" [ngModel]="dateInput()" (ngModelChange)="dateInput.set($event)" />
             <button mat-stroked-button type="button" (click)="addDate()">Add Date</button>
           </div>
           <div class="date-chips">
@@ -367,7 +372,7 @@ export class OutfitCanvasComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
-  @ViewChild('canvasEl') private canvasRef?: ElementRef<HTMLDivElement>;
+  private canvasRef = viewChild<ElementRef<HTMLDivElement>>('canvasEl');
 
   wardrobeItems = this.wardrobeService.items;
   accessoryItems = this.wardrobeService.accessoryList;
@@ -379,14 +384,14 @@ export class OutfitCanvasComponent implements OnInit {
   });
 
   canvasItems = signal<CanvasPlacedItem[]>([]);
-  outfitName = '';
-  dateInput = '';
+  outfitName = signal('');
+  dateInput = signal('');
   plannedDates = signal<string[]>([]);
   editingOutfitId = signal<string | null>(null);
   mobileCatalogOpen = signal(true);
   sourceFilter = signal<CanvasSourceFilter>('wardrobe');
   selectedMobileItemKey = signal<string | null>(null);
-  private maxZ = 1;
+  private maxZ = signal(1);
 
   filteredAvailableItems = computed(() =>
     this.availableItems().filter(item => item.type === this.sourceFilter())
@@ -408,7 +413,7 @@ export class OutfitCanvasComponent implements OnInit {
     }
 
     this.editingOutfitId.set(id);
-    this.outfitName = outfit.name;
+    this.outfitName.set(outfit.name);
     this.plannedDates.set([...(outfit.plannedDates ?? [])].sort());
 
     const sourceById = new Map(this.availableItems().map(item => [item.id, item]));
@@ -428,7 +433,7 @@ export class OutfitCanvasComponent implements OnInit {
       })
       .filter((item): item is CanvasPlacedItem => item !== null);
     this.canvasItems.set(placed);
-    this.maxZ = Math.max(1, ...placed.map(item => item.zIndex + 1));
+    this.maxZ.set(Math.max(1, ...placed.map(item => item.zIndex + 1)));
   }
 
   addToCanvas(item: CanvasSourceItem): void {
@@ -444,7 +449,7 @@ export class OutfitCanvasComponent implements OnInit {
         x: 12 + Math.random() * safeX,
         y: 12 + Math.random() * safeY,
         scale: 1,
-        zIndex: this.maxZ++,
+        zIndex: this.nextZIndex(),
       },
     ]);
   }
@@ -483,7 +488,7 @@ export class OutfitCanvasComponent implements OnInit {
   bringToFront(index: number): void {
     this.canvasItems.update(items => {
       const next = [...items];
-      next[index] = { ...next[index], zIndex: this.maxZ++ };
+      next[index] = { ...next[index], zIndex: this.nextZIndex() };
       return next;
     });
   }
@@ -498,12 +503,12 @@ export class OutfitCanvasComponent implements OnInit {
   }
 
   addDate(): void {
-    const normalized = this.normalizeDate(this.dateInput);
+    const normalized = this.normalizeDate(this.dateInput());
     if (!normalized) {
       return;
     }
     this.addPlannedDate(normalized);
-    this.dateInput = '';
+    this.dateInput.set('');
   }
 
   removeDate(date: string): void {
@@ -523,7 +528,8 @@ export class OutfitCanvasComponent implements OnInit {
   }
 
   saveOutfit(): void {
-    if (!this.outfitName.trim() || this.canvasItems().length === 0) {
+    const outfitName = this.outfitName().trim();
+    if (!outfitName || this.canvasItems().length === 0) {
       return;
     }
 
@@ -543,14 +549,14 @@ export class OutfitCanvasComponent implements OnInit {
 
     if (editId) {
       this.wardrobeService.updateOutfit(editId, {
-        name: this.outfitName.trim(),
+        name: outfitName,
         items,
         imageUrl,
         plannedDates,
       });
     } else {
       this.wardrobeService.addOutfit({
-        name: this.outfitName.trim(),
+        name: outfitName,
         items,
         favorite: false,
         imageUrl,
@@ -621,7 +627,7 @@ export class OutfitCanvasComponent implements OnInit {
   }
 
   private getCanvasBounds(): { width: number; height: number } {
-    const canvas = this.canvasRef?.nativeElement;
+    const canvas = this.canvasRef()?.nativeElement;
     if (!canvas) {
       return { width: 640, height: 520 };
     }
@@ -629,5 +635,11 @@ export class OutfitCanvasComponent implements OnInit {
       width: canvas.clientWidth || 640,
       height: canvas.clientHeight || 520,
     };
+  }
+
+  private nextZIndex(): number {
+    const current = this.maxZ();
+    this.maxZ.set(current + 1);
+    return current;
   }
 }

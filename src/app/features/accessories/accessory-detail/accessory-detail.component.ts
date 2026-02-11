@@ -8,7 +8,7 @@ import {
   inject,
   OnInit,
   signal,
-  ViewChild,
+  viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -202,7 +202,7 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
   private router = inject(Router);
   private location = inject(Location);
   private wardrobeService = inject(WardrobeService);
-  @ViewChild('relatedRow') private relatedRowRef?: ElementRef<HTMLElement>;
+  private relatedRowRef = viewChild<ElementRef<HTMLElement>>('relatedRow');
 
   accessory = signal<Accessory | undefined>(undefined);
   canScrollLeft = signal(false);
@@ -265,7 +265,7 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
   }
 
   private refreshRelatedScrollState(): void {
-    const container = this.relatedRowRef?.nativeElement;
+    const container = this.relatedRowRef()?.nativeElement;
     if (!container) {
       this.canScrollLeft.set(false);
       this.canScrollRight.set(false);

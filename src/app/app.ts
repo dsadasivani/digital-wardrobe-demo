@@ -1,5 +1,13 @@
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, inject, Renderer2, signal, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  Renderer2,
+  signal,
+} from '@angular/core';
 import {
   MatBottomSheet,
   MatBottomSheetModule,
@@ -20,6 +28,7 @@ import {
   RouterLinkActive,
   RouterOutlet,
 } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { User } from './core/models';
 import { AuthService } from './core/services';
 import { HeaderComponent } from './shared/components/header/header.component';
@@ -1121,7 +1130,7 @@ export class MobileProfileSheetComponent {
     `,
   ],
 })
-export class App {
+export class App implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private router = inject(Router);
   private bottomSheet = inject(MatBottomSheet);
@@ -1154,13 +1163,15 @@ export class App {
   private loadingStartedAt = 0;
   private readonly minLoaderMs = 240;
   private nextScrollBehavior: ScrollBehavior = 'auto';
+  private readonly resizeHandler = () => this.syncViewportState();
+  private routerEventsSubscription: Subscription | null = null;
 
-  constructor() {
+  ngOnInit(): void {
     this.applySavedTheme();
     this.syncViewportState();
-    window.addEventListener('resize', () => this.syncViewportState());
+    window.addEventListener('resize', this.resizeHandler);
 
-    this.router.events.subscribe((event) => {
+    this.routerEventsSubscription = this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
         this.loadingStartedAt = Date.now();
         this.setRouteLoading(true);
@@ -1182,6 +1193,15 @@ export class App {
         this.finishLoading();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('resize', this.resizeHandler);
+    this.routerEventsSubscription?.unsubscribe();
+    if (this.loaderTimer) {
+      clearTimeout(this.loaderTimer);
+      this.loaderTimer = null;
+    }
   }
 
   onToggleSidebar(): void {

@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { WardrobeItem, WardrobeCategory, Accessory, Outfit, User, DashboardStats } from '../models';
 import { MOCK_WARDROBE_ITEMS, MOCK_ACCESSORIES, MOCK_OUTFITS, MOCK_USER, MOCK_WEATHER } from '../mock-data';
 
@@ -15,22 +15,11 @@ interface WardrobeSessionState {
 export class WardrobeService {
     private static readonly SESSION_KEY = 'dw-session-wardrobe-state';
 
-    private wardrobeItems = signal<WardrobeItem[]>(MOCK_WARDROBE_ITEMS);
-    private accessories = signal<Accessory[]>(MOCK_ACCESSORIES);
-    private outfits = signal<Outfit[]>(MOCK_OUTFITS);
-    private currentUser = signal<User>(MOCK_USER);
-
-    constructor() {
-        this.hydrateFromSession();
-        effect(() => {
-            this.persistToSession({
-                wardrobeItems: this.wardrobeItems(),
-                accessories: this.accessories(),
-                outfits: this.outfits(),
-                currentUser: this.currentUser(),
-            });
-        });
-    }
+    private readonly initialState = this.hydrateFromSession();
+    private wardrobeItems = signal<WardrobeItem[]>(this.initialState.wardrobeItems);
+    private accessories = signal<Accessory[]>(this.initialState.accessories);
+    private outfits = signal<Outfit[]>(this.initialState.outfits);
+    private currentUser = signal<User>(this.initialState.currentUser);
 
     // Computed signals
     readonly items = this.wardrobeItems.asReadonly();
@@ -111,6 +100,7 @@ export class WardrobeService {
             worn: 0,
         };
         this.wardrobeItems.update(items => [...items, newItem]);
+        this.persistSnapshot();
     }
 
     addAccessory(accessory: Omit<Accessory, 'id' | 'createdAt'>): void {
@@ -120,17 +110,20 @@ export class WardrobeService {
             createdAt: new Date(),
         };
         this.accessories.update(items => [...items, newAccessory]);
+        this.persistSnapshot();
     }
 
     updateItem(id: string, updates: Partial<WardrobeItem>): void {
         this.wardrobeItems.update(items =>
             items.map(item => item.id === id ? { ...item, ...updates } : item)
         );
+        this.persistSnapshot();
     }
 
     deleteItem(id: string): void {
         this.wardrobeItems.update(items => items.filter(item => item.id !== id));
         this.accessories.update(items => items.filter(item => item.id !== id));
+        this.persistSnapshot();
     }
 
     toggleFavorite(id: string): void {
@@ -144,16 +137,19 @@ export class WardrobeService {
                 item.id === id ? { ...item, favorite: !item.favorite } : item
             )
         );
+        this.persistSnapshot();
     }
 
     updateAccessory(id: string, updates: Partial<Accessory>): void {
         this.accessories.update(items =>
             items.map(item => item.id === id ? { ...item, ...updates } : item)
         );
+        this.persistSnapshot();
     }
 
     deleteAccessory(id: string): void {
         this.accessories.update(items => items.filter(item => item.id !== id));
+        this.persistSnapshot();
     }
 
     toggleAccessoryFavorite(id: string): void {
@@ -162,6 +158,7 @@ export class WardrobeService {
                 item.id === id ? { ...item, favorite: !item.favorite } : item
             )
         );
+        this.persistSnapshot();
     }
 
     addOutfit(outfit: Omit<Outfit, 'id' | 'createdAt'>): void {
@@ -172,6 +169,7 @@ export class WardrobeService {
             plannedDates: [...(outfit.plannedDates ?? [])].sort(),
         };
         this.outfits.update(outfits => [...outfits, newOutfit]);
+        this.persistSnapshot();
     }
 
     updateOutfit(id: string, updates: Partial<Outfit>): void {
@@ -187,10 +185,12 @@ export class WardrobeService {
                 return next;
             })
         );
+        this.persistSnapshot();
     }
 
     deleteOutfit(id: string): void {
         this.outfits.update(outfits => outfits.filter(outfit => outfit.id !== id));
+        this.persistSnapshot();
     }
 
     getOutfitsByDate(date: string): Outfit[] {
@@ -237,28 +237,47 @@ export class WardrobeService {
         return { weather, suggestedItems };
     }
 
-    private hydrateFromSession(): void {
+    private hydrateFromSession(): WardrobeSessionState {
+        const fallback: WardrobeSessionState = {
+            wardrobeItems: MOCK_WARDROBE_ITEMS,
+            accessories: MOCK_ACCESSORIES,
+            outfits: MOCK_OUTFITS,
+            currentUser: MOCK_USER,
+        };
+
         try {
             const raw = window.sessionStorage.getItem(WardrobeService.SESSION_KEY);
             if (!raw) {
-                return;
+                return fallback;
             }
             const parsed = JSON.parse(raw) as Partial<WardrobeSessionState>;
-            if (Array.isArray(parsed.wardrobeItems)) {
-                this.wardrobeItems.set(parsed.wardrobeItems.map(item => this.hydrateWardrobeItem(item)));
-            }
-            if (Array.isArray(parsed.accessories)) {
-                this.accessories.set(parsed.accessories.map(item => this.hydrateAccessory(item)));
-            }
-            if (Array.isArray(parsed.outfits)) {
-                this.outfits.set(parsed.outfits.map(outfit => this.hydrateOutfit(outfit)));
-            }
-            if (parsed.currentUser) {
-                this.currentUser.set(this.hydrateUser(parsed.currentUser));
-            }
+            return {
+                wardrobeItems: Array.isArray(parsed.wardrobeItems)
+                    ? parsed.wardrobeItems.map(item => this.hydrateWardrobeItem(item))
+                    : fallback.wardrobeItems,
+                accessories: Array.isArray(parsed.accessories)
+                    ? parsed.accessories.map(item => this.hydrateAccessory(item))
+                    : fallback.accessories,
+                outfits: Array.isArray(parsed.outfits)
+                    ? parsed.outfits.map(outfit => this.hydrateOutfit(outfit))
+                    : fallback.outfits,
+                currentUser: parsed.currentUser
+                    ? this.hydrateUser(parsed.currentUser)
+                    : fallback.currentUser,
+            };
         } catch {
             // Ignore invalid session data and continue with defaults.
+            return fallback;
         }
+    }
+
+    private persistSnapshot(): void {
+        this.persistToSession({
+            wardrobeItems: this.wardrobeItems(),
+            accessories: this.accessories(),
+            outfits: this.outfits(),
+            currentUser: this.currentUser(),
+        });
     }
 
     private persistToSession(state: WardrobeSessionState): void {
