@@ -104,7 +104,7 @@ import { Outfit } from '../../core/models';
       }
       .filter-chips::-webkit-scrollbar { display: none; }
       .chip { flex: 0 0 auto; padding: 7px 12px; font-size: 12px; }
-      .outfits-grid { grid-template-columns: 1fr; gap: var(--dw-spacing-md); }
+      .outfits-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--dw-spacing-md); }
       .outfit-image { aspect-ratio: 4 / 4.2; }
       .outfit-content { padding: 12px; }
       .outfit-content h3 { margin: 0 0 6px; font-size: 1rem; }

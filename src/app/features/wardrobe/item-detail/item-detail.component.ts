@@ -3,6 +3,7 @@ import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  HostListener,
   computed,
   ElementRef,
   inject,
@@ -43,7 +44,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
 
         <div class="content-grid">
           <section class="image-panel glass">
-            <img [src]="item()!.imageUrl" [alt]="item()!.name">
+            <img [src]="item()!.imageUrl" [alt]="item()!.name" (click)="openImagePreview()">
           </section>
 
           <section class="info-panel glass">
@@ -89,6 +90,17 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
             }
           </section>
         </div>
+
+        @if (isImageExpanded()) {
+          <div class="image-preview-backdrop" (click)="closeImagePreview()" aria-modal="true" role="dialog">
+            <div class="image-preview-dialog" (click)="$event.stopPropagation()">
+              <button class="preview-close" type="button" (click)="closeImagePreview()" aria-label="Close image preview">
+                <mat-icon>close</mat-icon>
+              </button>
+              <img [src]="item()!.imageUrl" [alt]="item()!.name">
+            </div>
+          </div>
+        }
 
         @if (relatedItems().length) {
           <section class="related-section">
@@ -158,6 +170,56 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .content-grid { display: grid; gap: var(--dw-spacing-xl); grid-template-columns: minmax(280px, 420px) 1fr; }
     .image-panel { border-radius: var(--dw-radius-xl); overflow: hidden; aspect-ratio: 3/4; }
     .image-panel img { width: 100%; height: 100%; object-fit: cover; }
+    .image-preview-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      background: rgba(0, 0, 0, 0.82);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      animation: previewFadeIn 220ms ease-out;
+    }
+    .image-preview-dialog {
+      position: relative;
+      width: min(100%, 560px);
+      max-height: calc(100vh - 40px);
+      border-radius: 16px;
+      overflow: hidden;
+      animation: previewZoomIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .image-preview-dialog img {
+      width: 100%;
+      height: 100%;
+      max-height: calc(100vh - 40px);
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+    .preview-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+    .preview-close mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    @keyframes previewFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes previewZoomIn {
+      from { transform: scale(0.94); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
     .info-panel { border-radius: var(--dw-radius-xl); padding: var(--dw-spacing-lg); display: flex; flex-direction: column; gap: var(--dw-spacing-lg); }
     .top-meta { display: flex; flex-wrap: wrap; gap: 8px; }
     .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--dw-surface-card); font-size: 12px; }
@@ -199,6 +261,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       .actions button { width: 100%; min-height: 40px; }
       .content-grid { gap: 12px; }
       .image-panel { border-radius: var(--dw-radius-lg); aspect-ratio: 4/3; }
+      .image-panel img { cursor: zoom-in; }
       .info-panel { border-radius: var(--dw-radius-lg); padding: 12px; gap: 12px; }
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .related-section { margin-top: 16px; }
@@ -218,6 +281,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   private relatedRowRef = viewChild<ElementRef<HTMLElement>>('relatedRow');
 
   item = signal<WardrobeItem | undefined>(undefined);
+  isImageExpanded = signal(false);
   canScrollLeft = signal(false);
   canScrollRight = signal(true);
 
@@ -276,6 +340,24 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     const delta = direction === 'right' ? 280 : -280;
     container.scrollBy({ left: delta, behavior: 'smooth' });
     setTimeout(() => this.updateScrollControls(container), 220);
+  }
+
+  openImagePreview(): void {
+    if (window.innerWidth > 768 || !this.item()) {
+      return;
+    }
+    this.isImageExpanded.set(true);
+  }
+
+  closeImagePreview(): void {
+    this.isImageExpanded.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.isImageExpanded()) {
+      this.closeImagePreview();
+    }
   }
 
   private refreshRelatedScrollState(): void {
