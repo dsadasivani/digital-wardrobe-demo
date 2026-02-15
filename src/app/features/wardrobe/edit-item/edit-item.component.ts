@@ -1,5 +1,6 @@
 import { CommonModule, Location } from '@angular/common';
-import {Component, inject, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
+import {Component, computed, inject, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,7 +8,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { WARDROBE_CATEGORIES, WardrobeCategory, WardrobeItem } from '../../../core/models';
+import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory, WardrobeItem } from '../../../core/models';
+import { ImageCropperService } from '../../../core/services';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 
 @Component({
@@ -35,8 +37,38 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
         </header>
 
         <form class="edit-form glass" (ngSubmit)="save()">
-          <div class="image-preview">
-            <img [src]="imageUrl" alt="Item image preview">
+          <div class="image-editor">
+            <div class="image-preview">
+              <img [src]="primaryImage()" alt="Item image preview">
+            </div>
+            <div class="image-actions">
+              <button mat-stroked-button type="button" (click)="imageInput.click()">
+                <mat-icon>photo_camera</mat-icon>
+                Add Images
+              </button>
+              <input #imageInput type="file" hidden multiple accept="image/*" (change)="onImageSelected($event)">
+              <span class="image-hint">Select one or more images and crop each</span>
+            </div>
+            @if (imageUrls().length > 0) {
+              <div class="preview-grid">
+                @for (url of imageUrls(); track i; let i = $index) {
+                  <div class="preview-thumb" [class.active]="i === selectedImageIndex()">
+                    <img [src]="url" [alt]="'Image ' + (i + 1)" (click)="setPrimaryImage(i, $event)">
+                    @if (i === selectedImageIndex()) {
+                      <span class="primary-chip" aria-label="Primary image">
+                        <mat-icon>workspace_premium</mat-icon>
+                        Primary
+                      </span>
+                    } @else {
+                      <button type="button" class="primary-btn" (click)="setPrimaryImage(i, $event)">Set primary</button>
+                    }
+                    <button type="button" class="thumb-remove" (click)="removeImage(i, $event)">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
           </div>
 
           <mat-form-field appearance="outline">
@@ -72,6 +104,16 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
             </mat-form-field>
           </div>
 
+          <mat-form-field appearance="outline">
+            <mat-label>Occasion</mat-label>
+            <mat-select [(ngModel)]="occasion" name="occasion">
+              <mat-option [value]="''">None</mat-option>
+              @for (option of occasionOptions; track option) {
+                <mat-option [value]="option">{{ option | titlecase }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
           <div class="row">
             <mat-form-field appearance="outline">
               <mat-label>Price</mat-label>
@@ -85,11 +127,6 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
           </div>
 
           <mat-form-field appearance="outline">
-            <mat-label>Image URL</mat-label>
-            <input matInput [(ngModel)]="imageUrl" name="imageUrl">
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
             <mat-label>Tags (comma separated)</mat-label>
             <input matInput [(ngModel)]="tags" name="tags">
           </mat-form-field>
@@ -99,9 +136,13 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
             <textarea matInput rows="3" [(ngModel)]="notes" name="notes"></textarea>
           </mat-form-field>
 
+          @if (errorMessage()) {
+            <p class="form-error">{{ errorMessage() }}</p>
+          }
+
           <div class="actions">
             <button mat-stroked-button type="button" (click)="goBack()">Cancel</button>
-            <button mat-flat-button color="primary" type="submit" class="save-btn">Save Changes</button>
+            <button mat-flat-button color="primary" type="submit" class="save-btn" [disabled]="isSaving()">Save Changes</button>
           </div>
         </form>
       </div>
@@ -119,10 +160,23 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .page-header h1 { margin: 0; }
     .page-header p { margin: 4px 0 0; color: var(--dw-text-secondary); }
     .edit-form { border-radius: var(--dw-radius-xl); padding: var(--dw-spacing-lg); display: flex; flex-direction: column; gap: 14px; }
+    .image-editor { display: grid; gap: 10px; justify-content: flex-start; }
     .image-preview { width: 180px; height: 220px; border-radius: var(--dw-radius-md); overflow: hidden; border: 1px solid var(--dw-surface-card); }
     .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .image-actions { display: grid; gap: 6px; justify-items: flex-start; }
+    .image-hint { color: var(--dw-text-muted); font-size: 12px; }
+    .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; max-width: 360px; }
+    .preview-thumb { position: relative; border: 1px solid var(--dw-border-subtle); border-radius: 8px; overflow: hidden; aspect-ratio: 1; cursor: pointer; }
+    .preview-thumb.active { border-color: var(--dw-primary); box-shadow: var(--dw-shadow-sm); }
+    .preview-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .primary-chip { position: absolute; left: 4px; top: 4px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--dw-primary) 84%, black 16%); color: var(--dw-on-primary); font-size: 10px; font-weight: 600; }
+    .primary-chip mat-icon { width: 11px; height: 11px; font-size: 11px; }
+    .primary-btn { position: absolute; left: 4px; bottom: 4px; border: none; border-radius: 999px; padding: 2px 8px; font-size: 10px; font-weight: 600; background: color-mix(in srgb, var(--dw-overlay-scrim) 85%, transparent); color: var(--dw-on-primary); }
+    .thumb-remove { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border: none; border-radius: 50%; background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent); color: var(--dw-on-primary); display: inline-flex; align-items: center; justify-content: center; }
+    .thumb-remove mat-icon { width: 13px; height: 13px; font-size: 13px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     mat-form-field { width: 100%; }
+    .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
     .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
     .save-btn {
       --mdc-filled-button-container-color: transparent !important;
@@ -145,7 +199,11 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       .page-header h1 { font-size: 1.25rem; line-height: 1.25; }
       .page-header p { font-size: 13px; margin-top: 2px; }
       .edit-form { border-radius: var(--dw-radius-lg); padding: 12px; gap: 10px; }
+      .image-editor { width: 100%; }
       .image-preview { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: var(--dw-radius-lg); }
+      .image-actions { width: 100%; }
+      .image-actions button { width: 100%; justify-content: center; min-height: 40px; }
+      .preview-grid { max-width: none; }
       .row { grid-template-columns: 1fr; gap: 10px; }
       .actions { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
       .actions button { width: 100%; min-height: 40px; }
@@ -157,9 +215,11 @@ export class EditItemComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private location = inject(Location);
+  private imageCropper = inject(ImageCropperService);
   private wardrobeService = inject(WardrobeService);
 
   categories = WARDROBE_CATEGORIES;
+  occasionOptions = OCCASION_OPTIONS;
   itemId = signal<string | null>(null);
 
   name = '';
@@ -167,11 +227,16 @@ export class EditItemComponent implements OnInit {
   color = '';
   brand = '';
   size = '';
+  occasion = '';
   price = '';
   purchaseDate = '';
-  imageUrl = '';
+  imageUrls = signal<string[]>([]);
+  selectedImageIndex = signal(0);
+  primaryImage = computed(() => this.imageUrls()[this.selectedImageIndex()] ?? this.imageUrls()[0] ?? '');
   tags = '';
   notes = '';
+  isSaving = signal(false);
+  errorMessage = signal<string | null>(null);
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
@@ -188,26 +253,93 @@ export class EditItemComponent implements OnInit {
     this.location.back();
   }
 
-  save(): void {
-    const id = this.itemId();
-    if (!id || !this.name || !this.category || !this.color) {
+  async onImageSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length) {
       return;
     }
+    this.errorMessage.set(null);
+    const croppedUrls: string[] = [];
+    try {
+      for (const file of files) {
+        const cropped = await this.imageCropper.cropFile(file, {
+          title: 'Crop Item Image',
+          aspectRatio: 3 / 4,
+          maxOutputWidth: 1200,
+          maxOutputHeight: 1600,
+          quality: 0.9,
+        });
+        if (cropped) {
+          croppedUrls.push(cropped);
+        }
+      }
+      if (croppedUrls.length) {
+        this.imageUrls.update(existing => [...existing, ...croppedUrls]);
+        this.selectedImageIndex.set(0);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to open image cropper.';
+      this.errorMessage.set(message);
+    }
+  }
 
-    this.wardrobeService.updateItem(id, {
-      name: this.name.trim(),
-      category: this.category,
-      color: this.color.trim(),
-      brand: this.brand.trim() || undefined,
-      size: this.size.trim() || undefined,
-      price: this.price ? Number(this.price) : undefined,
-      purchaseDate: this.purchaseDate ? new Date(this.purchaseDate) : undefined,
-      imageUrl: this.imageUrl.trim(),
-      tags: this.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-      notes: this.notes.trim() || undefined,
+  removeImage(index: number, event: Event): void {
+    event.stopPropagation();
+    this.imageUrls.update(images => images.filter((_, i) => i !== index));
+    this.selectedImageIndex.update(current => {
+      if (current === index) {
+        return 0;
+      }
+      if (current > index) {
+        return current - 1;
+      }
+      return current;
     });
+  }
 
-    this.router.navigate(['/wardrobe', id]);
+  setPrimaryImage(index: number, event: Event): void {
+    event.stopPropagation();
+    this.selectedImageIndex.set(index);
+  }
+
+  async save(): Promise<void> {
+    const id = this.itemId();
+    if (!id || !this.name || !this.category || !this.color) {
+      this.errorMessage.set('Please fill all required fields.');
+      return;
+    }
+    if (!this.imageUrls().length) {
+      this.errorMessage.set('Please add at least one image.');
+      return;
+    }
+    this.isSaving.set(true);
+    this.errorMessage.set(null);
+    try {
+      const imageUrls = this.getOrderedImageUrls();
+      await this.wardrobeService.updateItem(id, {
+        name: this.name.trim(),
+        category: this.category,
+        color: this.color.trim(),
+        brand: this.brand.trim() || undefined,
+        size: this.size.trim() || undefined,
+        occasion: this.occasion || undefined,
+        price: this.price ? Number(this.price) : undefined,
+        purchaseDate: this.purchaseDate ? new Date(this.purchaseDate) : undefined,
+        imageUrl: imageUrls[0]?.trim(),
+        imageUrls,
+        primaryImageUrl: imageUrls[0]?.trim(),
+        tags: this.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        notes: this.notes.trim() || undefined,
+      });
+
+      await this.router.navigate(['/wardrobe', id]);
+    } catch (error) {
+      this.errorMessage.set(this.extractErrorMessage(error));
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   private patchForm(item: WardrobeItem): void {
@@ -216,9 +348,11 @@ export class EditItemComponent implements OnInit {
     this.color = item.color;
     this.brand = item.brand ?? '';
     this.size = item.size ?? '';
+    this.occasion = item.occasion ?? '';
     this.price = item.price?.toString() ?? '';
     this.purchaseDate = item.purchaseDate ? this.toDateInput(item.purchaseDate) : '';
-    this.imageUrl = item.imageUrl;
+    this.imageUrls.set(item.imageUrls?.length ? item.imageUrls : [item.imageUrl]);
+    this.selectedImageIndex.set(0);
     this.tags = item.tags.join(', ');
     this.notes = item.notes ?? '';
   }
@@ -226,5 +360,29 @@ export class EditItemComponent implements OnInit {
   private toDateInput(date: Date): string {
     const actual = date instanceof Date ? date : new Date(date);
     return actual.toISOString().split('T')[0];
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const fieldError = error.error?.fieldErrors?.[0];
+      if (fieldError?.field && fieldError?.message) {
+        return `${fieldError.field}: ${fieldError.message}`;
+      }
+      if (typeof error.error?.message === 'string') {
+        return error.error.message;
+      }
+    }
+    return 'Unable to save changes. Please review your inputs and try again.';
+  }
+
+  private getOrderedImageUrls(): string[] {
+    const images = this.imageUrls();
+    if (images.length <= 1) {
+      return images;
+    }
+    const primaryIndex = this.selectedImageIndex();
+    const normalizedPrimaryIndex = ((primaryIndex % images.length) + images.length) % images.length;
+    const primaryImage = images[normalizedPrimaryIndex];
+    return [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)];
   }
 }

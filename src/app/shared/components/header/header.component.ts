@@ -170,7 +170,7 @@ import { AuthService } from '../../../core/services/auth.service';
         left: 0;
         right: 0;
         z-index: 1000;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid var(--dw-border-subtle);
       }
 
       .header-left {
@@ -320,9 +320,9 @@ import { AuthService } from '../../../core/services/auth.service';
         mat-button-toggle-group {
           height: 36px;
           align-items: center;
-          border: 1px solid rgba(0, 0, 0, 0.08);
+          border: 1px solid var(--dw-border-subtle);
           border-radius: 20px;
-          background: rgba(0, 0, 0, 0.04);
+          background: var(--dw-surface-hover);
           padding: 2px;
 
           mat-button-toggle {
@@ -353,7 +353,7 @@ import { AuthService } from '../../../core/services/auth.service';
 
             &.mat-button-toggle-checked {
               background-color: var(--dw-surface-elevated);
-              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              box-shadow: var(--dw-shadow-sm);
 
               mat-icon {
                 color: var(--dw-accent);

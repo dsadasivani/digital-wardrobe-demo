@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { CdkDrag, CdkDragEnd, DragDropModule } from '@angular/cdk/drag-drop';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -102,11 +103,15 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
               </button>
             }
             <button mat-stroked-button (click)="clearCanvas()"><mat-icon>delete_sweep</mat-icon>Clear</button>
-            <button mat-raised-button color="primary" class="save-btn" (click)="saveOutfit()">
+            <button mat-raised-button color="primary" class="save-btn" (click)="saveOutfit()" [disabled]="isSaving()">
               <mat-icon>save</mat-icon>{{ editingOutfitId() ? 'Update Outfit' : 'Save Outfit' }}
             </button>
           </div>
         </header>
+
+        @if (saveError()) {
+          <p class="form-error">{{ saveError() }}</p>
+        }
 
         <section class="schedule-panel glass">
           <div class="schedule-header">
@@ -207,7 +212,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
   `,
   styles: [`
     .outfit-canvas-page { display: flex; min-height: calc(100vh - var(--dw-header-height)); }
-    .items-panel { width: 280px; padding: var(--dw-spacing-md); border-right: 1px solid rgba(255,255,255,0.06); overflow-y: auto; flex-shrink: 0; }
+    .items-panel { width: 280px; padding: var(--dw-spacing-md); border-right: 1px solid var(--dw-border-subtle); overflow-y: auto; flex-shrink: 0; }
     .items-panel h3 { margin: 0 0 var(--dw-spacing-md); }
     .source-filters { display: flex; gap: 8px; margin-bottom: 10px; }
     .filter-chip {
@@ -280,6 +285,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     .canvas-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .outfit-name-field { flex: 1; min-width: 200px; max-width: 400px; }
     .canvas-actions { display: flex; gap: 8px; }
+    .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
     .save-btn {
       --mdc-protected-button-container-color: transparent !important;
       --mdc-protected-button-label-text-color: var(--dw-primary) !important;
@@ -303,7 +309,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     .date-chip mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .empty-date-text { font-size: 12px; color: var(--dw-text-secondary); }
     .mobile-items-panel { display: none; }
-    .canvas { flex: 1; position: relative; background: var(--dw-surface-elevated); border-radius: var(--dw-radius-xl); border: 1px solid rgba(255,255,255,0.06); overflow: hidden; min-height: 520px; }
+    .canvas { flex: 1; position: relative; background: var(--dw-surface-elevated); border-radius: var(--dw-radius-xl); border: 1px solid var(--dw-border-subtle); overflow: hidden; min-height: 520px; }
     .canvas-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dw-text-muted); pointer-events: none; }
     .canvas-item { position: absolute; cursor: move; border-radius: var(--dw-radius-md); transition: box-shadow 0.15s; }
     .canvas-item:hover { box-shadow: 0 0 0 2px var(--dw-primary); }
@@ -391,6 +397,8 @@ export class OutfitCanvasComponent implements OnInit {
   mobileCatalogOpen = signal(true);
   sourceFilter = signal<CanvasSourceFilter>('wardrobe');
   selectedMobileItemKey = signal<string | null>(null);
+  saveError = signal<string | null>(null);
+  isSaving = signal(false);
   private maxZ = signal(1);
 
   filteredAvailableItems = computed(() =>
@@ -527,11 +535,14 @@ export class OutfitCanvasComponent implements OnInit {
     }
   }
 
-  saveOutfit(): void {
+  async saveOutfit(): Promise<void> {
     const outfitName = this.outfitName().trim();
     if (!outfitName || this.canvasItems().length === 0) {
+      this.saveError.set('Outfit name and at least one item are required.');
       return;
     }
+    this.saveError.set(null);
+    this.isSaving.set(true);
 
     const items: OutfitItem[] = this.canvasItems().map(item => ({
       itemId: item.id,
@@ -547,24 +558,30 @@ export class OutfitCanvasComponent implements OnInit {
     const plannedDates = [...this.plannedDates()].sort();
     const editId = this.editingOutfitId();
 
-    if (editId) {
-      this.wardrobeService.updateOutfit(editId, {
-        name: outfitName,
-        items,
-        imageUrl,
-        plannedDates,
-      });
-    } else {
-      this.wardrobeService.addOutfit({
-        name: outfitName,
-        items,
-        favorite: false,
-        imageUrl,
-        plannedDates,
-      });
-    }
+    try {
+      if (editId) {
+        await this.wardrobeService.updateOutfit(editId, {
+          name: outfitName,
+          items,
+          imageUrl,
+          plannedDates,
+        });
+      } else {
+        await this.wardrobeService.addOutfit({
+          name: outfitName,
+          items,
+          favorite: false,
+          imageUrl,
+          plannedDates,
+        });
+      }
 
-    this.router.navigate(['/outfits']);
+      await this.router.navigate(['/outfits']);
+    } catch (error) {
+      this.saveError.set(this.extractErrorMessage(error));
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   cancelEdit(): void {
@@ -641,5 +658,18 @@ export class OutfitCanvasComponent implements OnInit {
     const current = this.maxZ();
     this.maxZ.set(current + 1);
     return current;
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const fieldError = error.error?.fieldErrors?.[0];
+      if (fieldError?.field && fieldError?.message) {
+        return `${fieldError.field}: ${fieldError.message}`;
+      }
+      if (typeof error.error?.message === 'string') {
+        return error.error.message;
+      }
+    }
+    return 'Unable to save outfit. Please review your inputs and try again.';
   }
 }

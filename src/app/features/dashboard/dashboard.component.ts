@@ -71,10 +71,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
 
         <div #statsRow class="stats-row" (scroll)="onStatsScroll()">
           <div class="stat-card" (click)="navigateTo('/wardrobe')">
-            <div
-              class="stat-icon"
-              style="background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)"
-            >
+            <div class="stat-icon wardrobe">
               <mat-icon>checkroom</mat-icon>
             </div>
             <div class="stat-content">
@@ -84,10 +81,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
           </div>
 
           <div class="stat-card" (click)="navigateTo('/accessories')">
-            <div
-              class="stat-icon"
-              style="background: linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)"
-            >
+            <div class="stat-icon accessories">
               <mat-icon>watch</mat-icon>
             </div>
             <div class="stat-content">
@@ -97,10 +91,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
           </div>
 
           <div class="stat-card" (click)="navigateTo('/outfits')">
-            <div
-              class="stat-icon"
-              style="background: linear-gradient(135deg, #EC4899 0%, #F472B6 100%)"
-            >
+            <div class="stat-icon outfits">
               <mat-icon>style</mat-icon>
             </div>
             <div class="stat-content">
@@ -110,10 +101,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
           </div>
 
           <div class="stat-card" (click)="openFavorites()">
-            <div
-              class="stat-icon"
-              style="background: linear-gradient(135deg, #34D399 0%, #6EE7B7 100%)"
-            >
+            <div class="stat-icon favorites">
               <mat-icon>favorite</mat-icon>
             </div>
             <div class="stat-content">
@@ -123,10 +111,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
           </div>
 
           <div class="stat-card" (click)="openRarelyUsed()">
-            <div
-              class="stat-icon"
-              style="background: linear-gradient(135deg, #FBBF24 0%, #FCD34D 100%)"
-            >
+            <div class="stat-icon unused">
               <mat-icon>visibility_off</mat-icon>
             </div>
             <div class="stat-content">
@@ -332,7 +317,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
         border-radius: 999px;
         align-items: center;
         justify-content: center;
-        background: color-mix(in srgb, var(--dw-surface-card) 92%, #fff 8%);
+        background: color-mix(in srgb, var(--dw-surface-card) 90%, var(--dw-surface-elevated) 10%);
         color: var(--dw-text-primary);
         box-shadow: var(--dw-shadow-md);
         opacity: 0;
@@ -361,7 +346,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
         padding: var(--dw-spacing-lg);
         background: var(--dw-gradient-card);
         border-radius: var(--dw-radius-lg);
-        border: 1px solid rgba(0, 0, 0, 0.03); // Subtle border
+        border: 1px solid var(--dw-border-subtle);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         position: relative;
@@ -375,7 +360,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
 
           .stat-icon {
             transform: scale(1.1) rotate(5deg);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--dw-shadow-md);
           }
         }
       }
@@ -395,6 +380,42 @@ import { WardrobeItem, Accessory } from '../../core/models';
           width: 28px;
           height: 28px;
         }
+      }
+
+      .stat-icon.wardrobe {
+        background: linear-gradient(135deg, var(--dw-primary-dark) 0%, var(--dw-primary) 100%);
+      }
+
+      .stat-icon.accessories {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--dw-info) 70%, var(--dw-primary-dark) 30%) 0%,
+          var(--dw-info) 100%
+        );
+      }
+
+      .stat-icon.outfits {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--dw-accent-dark) 74%, var(--dw-primary-dark) 26%) 0%,
+          var(--dw-accent) 100%
+        );
+      }
+
+      .stat-icon.favorites {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--dw-error) 70%, var(--dw-primary-dark) 30%) 0%,
+          color-mix(in srgb, var(--dw-error) 58%, var(--dw-accent) 42%) 100%
+        );
+      }
+
+      .stat-icon.unused {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--dw-warning) 72%, var(--dw-primary-dark) 28%) 0%,
+          var(--dw-warning) 100%
+        );
       }
 
       .stat-content {
@@ -516,7 +537,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
         display: flex;
         align-items: center;
         gap: 4px;
-        color: var(--dw-primary-light);
+        color: var(--dw-primary);
         text-decoration: none;
         font-weight: 500;
         font-size: 14px;
@@ -583,7 +604,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
         transition: all var(--dw-transition-normal);
 
         mat-icon {
-          color: var(--dw-primary-light);
+          color: var(--dw-primary);
           font-size: 24px;
           width: 24px;
           height: 24px;
@@ -687,8 +708,8 @@ import { WardrobeItem, Accessory } from '../../core/models';
       .tag {
         font-size: 12px;
         padding: 4px 12px;
-        background: rgba(124, 58, 237, 0.15);
-        color: var(--dw-primary-light);
+        background: color-mix(in srgb, var(--dw-primary) 15%, transparent);
+        color: var(--dw-primary);
         border-radius: var(--dw-radius-full);
       }
 

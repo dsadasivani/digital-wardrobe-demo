@@ -98,7 +98,7 @@ interface NavItem {
       top: var(--dw-header-height);
       left: 0;
       background: var(--dw-surface-elevated);
-      border-right: 1px solid rgba(255, 255, 255, 0.06);
+      border-right: 1px solid var(--dw-border-subtle);
       display: flex;
       flex-direction: column;
       transition: width var(--dw-transition-normal), transform var(--dw-transition-normal);
@@ -186,8 +186,8 @@ interface NavItem {
       }
 
       &.active {
-        background: rgba(124, 58, 237, 0.15);
-        color: var(--dw-primary-light);
+        background: color-mix(in srgb, var(--dw-primary) 15%, transparent);
+        color: var(--dw-primary);
 
         .nav-icon {
           color: var(--dw-primary);
@@ -228,12 +228,12 @@ interface NavItem {
 
     mat-divider {
       margin: var(--dw-spacing-md) 0;
-      border-color: rgba(255, 255, 255, 0.06);
+      border-color: var(--dw-border-subtle);
     }
 
     .sidebar-footer {
       padding: var(--dw-spacing-md);
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: 1px solid var(--dw-border-subtle);
     }
 
     .collapse-btn {

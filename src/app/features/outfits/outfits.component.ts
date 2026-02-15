@@ -48,6 +48,7 @@ import { Outfit } from '../../core/models';
                 @if (outfit.season) {<span class="badge">{{ outfit.season }}</span>}
               </div>
               <span class="items-count"><mat-icon>layers</mat-icon>{{ outfit.items.length }} items</span>
+              <span class="items-count"><mat-icon>check_circle</mat-icon>{{ outfit.worn }} worn</span>
               @if (outfit.plannedDates?.length) {
                 <span class="planned-on"><mat-icon>event</mat-icon>{{ outfit.plannedDates![0] }}</span>
               }
@@ -68,21 +69,21 @@ import { Outfit } from '../../core/models';
     .header-actions { display: flex; gap: 8px; }
     .subtitle { color: var(--dw-text-secondary); margin: 0; }
     .action-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: var(--dw-radius-md); border: none; background: var(--dw-gradient-primary); color: white; font-weight: 500; cursor: pointer; }
-    .action-btn.secondary { background: var(--dw-surface-card); color: var(--dw-text-primary); border: 1px solid rgba(140,123,112,0.2); }
+    .action-btn.secondary { background: var(--dw-surface-card); color: var(--dw-text-primary); border: 1px solid var(--dw-border-strong); }
     .filter-chips { display: flex; gap: 8px; margin-bottom: var(--dw-spacing-xl); flex-wrap: wrap; }
-    .chip { padding: 8px 16px; border-radius: var(--dw-radius-full); border: 1px solid var(--dw-surface-card); background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; }
+    .chip { padding: 8px 16px; border-radius: var(--dw-radius-full); border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; }
     .chip.active { background: var(--dw-primary); border-color: var(--dw-primary); color: white; }
     .outfits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--dw-spacing-lg); }
-    .outfit-card { background: var(--dw-gradient-card); border-radius: var(--dw-radius-lg); border: 1px solid rgba(255,255,255,0.06); overflow: hidden; transition: all 0.25s; }
+    .outfit-card { background: var(--dw-gradient-card); border-radius: var(--dw-radius-lg); border: 1px solid var(--dw-border-subtle); overflow: hidden; transition: all 0.25s; }
     .outfit-card:hover { transform: translateY(-4px); box-shadow: var(--dw-shadow-glow); }
     .outfit-image { position: relative; aspect-ratio: 4/5; overflow: hidden; }
     .outfit-image img { width: 100%; height: 100%; object-fit: cover; }
-    .rating { position: absolute; bottom: 8px; left: 8px; display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 20px; font-size: 13px; }
+    .rating { position: absolute; bottom: 8px; left: 8px; display: flex; align-items: center; gap: 4px; background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent); padding: 4px 10px; border-radius: 20px; font-size: 13px; color: var(--dw-on-primary); }
     .rating mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--dw-warning); }
     .outfit-content { padding: var(--dw-spacing-md); }
     .outfit-content h3 { font-size: 1.1rem; margin-bottom: 8px; }
     .meta { display: flex; gap: 8px; margin-bottom: 8px; }
-    .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: rgba(124,58,237,0.2); color: var(--dw-primary-light); }
+    .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: color-mix(in srgb, var(--dw-primary) 16%, transparent); color: var(--dw-primary); }
     .items-count { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dw-text-secondary); }
     .items-count mat-icon { font-size: 16px; width: 16px; height: 16px; }
     .planned-on { margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dw-text-secondary); }

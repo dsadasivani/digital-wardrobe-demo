@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheet, MatBottomSheetModule, MatBottomSheetRef } from '@angular/material/bottom-sheet';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -20,7 +21,8 @@ interface CalendarDay {
 interface DaySheetData {
   isoDate: string;
   dateLabel: string;
-  outfits: Outfit[];
+  outfitsForDate: Outfit[];
+  allOutfits: Outfit[];
   fallbackImage: string;
 }
 
@@ -34,31 +36,76 @@ interface DayPopoverState {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-day-outfits-sheet',
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
   template: `
     <div class="day-sheet">
       <div class="sheet-handle"></div>
       <h3>{{ data.dateLabel }}</h3>
-      <button class="add-outfit-btn" type="button" (click)="addOutfitForDay()">
-        <mat-icon>add</mat-icon>
-        Add Outfit
-      </button>
-      <div class="sheet-list">
-        @for (outfit of data.outfits; track outfit.id) {
-          <button class="sheet-card" type="button" (click)="openOutfit(outfit.id)">
-            <img [src]="outfit.imageUrl || data.fallbackImage" [alt]="outfit.name" />
-            <div class="sheet-card-info">
-              <strong>{{ outfit.name }}</strong>
-              <span>{{ outfit.occasion || 'General' }}</span>
-            </div>
+      @if (data.outfitsForDate.length > 0) {
+        <div class="sheet-subtitle">Already Added</div>
+        <div class="sheet-existing-list">
+          @for (outfit of data.outfitsForDate; track outfit.id) {
+            <button class="sheet-card existing" type="button" (click)="openOutfit(outfit.id)">
+              <img [src]="outfit.imageUrl || data.fallbackImage" [alt]="outfit.name" />
+              <div class="sheet-card-info">
+                <strong>{{ outfit.name }}</strong>
+                <span>{{ outfit.occasion || 'General' }}</span>
+              </div>
+              <span class="sheet-pill">Added</span>
+            </button>
+          }
+        </div>
+      }
+      @if (!showExistingPicker()) {
+        <div class="sheet-actions">
+          <button class="add-outfit-btn" type="button" (click)="addOutfitForDay()">
+            <mat-icon>add</mat-icon>
+            Add New Outfit
           </button>
-        } @empty {
-          <div class="empty-sheet-state">
-            <mat-icon>event_busy</mat-icon>
-            <span>No outfits scheduled for this date.</span>
-          </div>
-        }
-      </div>
+          <button
+            class="add-outfit-btn"
+            type="button"
+            [disabled]="addableOutfitsCount() === 0"
+            (click)="showExistingPicker.set(true)">
+            <mat-icon>style</mat-icon>
+            Add Existing Outfit
+          </button>
+        </div>
+      } @else {
+        <div class="sheet-picker-header">
+          <button class="picker-back-btn" type="button" (click)="closeExistingPicker()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+        <input
+          class="sheet-search"
+          type="text"
+          placeholder="Search outfits..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)" />
+        <div class="sheet-list">
+          @for (outfit of filteredOutfits(); track outfit.id) {
+            <button class="sheet-card" type="button" (click)="addExistingOutfit(outfit.id)">
+              <img [src]="outfit.imageUrl || data.fallbackImage" [alt]="outfit.name" />
+              <div class="sheet-card-info">
+                <strong>{{ outfit.name }}</strong>
+                <span>{{ outfit.occasion || 'General' }}</span>
+              </div>
+              @if (isScheduledForDay(outfit)) {
+                <span class="sheet-pill">Added</span>
+              } @else {
+                <span class="sheet-pill add">Add</span>
+              }
+            </button>
+          } @empty {
+            <div class="empty-sheet-state">
+              <mat-icon>event_busy</mat-icon>
+              <span>No matching outfits found.</span>
+            </div>
+          }
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -77,12 +124,71 @@ interface DayPopoverState {
       align-items: center;
       justify-content: center;
       gap: 6px;
+      transition: background-color var(--dw-transition-fast), color var(--dw-transition-fast), border-color var(--dw-transition-fast), opacity var(--dw-transition-fast);
     }
-    .sheet-list { display: grid; gap: 8px; }
+    .add-outfit-btn:disabled {
+      background: color-mix(in srgb, var(--dw-surface-card) 82%, #888 18%);
+      color: color-mix(in srgb, var(--dw-text-secondary) 78%, #666 22%);
+      border-color: rgba(140,123,112,0.12);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    .sheet-actions { display: grid; gap: 10px; }
+    .sheet-existing-list {
+      display: grid;
+      gap: 8px;
+      max-height: 156px;
+      overflow-y: auto;
+      padding-right: 2px;
+      margin-bottom: 10px;
+    }
+    .sheet-picker-header { margin-bottom: 8px; }
+    .picker-back-btn {
+      border: 1px solid rgba(140,123,112,0.2);
+      border-radius: 10px;
+      min-height: 34px;
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 10px;
+    }
+    .sheet-search {
+      width: 100%;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid rgba(140,123,112,0.2);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      padding: 0 10px;
+      margin-bottom: 8px;
+      outline: none;
+    }
+    .sheet-list {
+      display: grid;
+      gap: 8px;
+      max-height: 156px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
     .sheet-card { width: 100%; border: 1px solid rgba(140,123,112,0.18); border-radius: 14px; padding: 8px; background: var(--dw-surface-card); display: flex; align-items: center; gap: 10px; text-align: left; }
+    .sheet-card.existing { cursor: pointer; }
     .sheet-card img { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; }
     .sheet-card-info { display: grid; gap: 2px; }
     .sheet-card-info span { font-size: 12px; color: var(--dw-text-secondary); }
+    .sheet-pill {
+      margin-left: auto;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(140,123,112,0.25);
+      padding: 2px 8px;
+      color: var(--dw-text-secondary);
+    }
+    .sheet-pill.add {
+      border-color: color-mix(in srgb, var(--dw-primary) 40%, transparent);
+      color: var(--dw-primary);
+    }
     .empty-sheet-state {
       min-height: 84px;
       border: 1px dashed rgba(140,123,112,0.2);
@@ -101,7 +207,24 @@ interface DayPopoverState {
 export class DayOutfitsSheetComponent {
   private bottomSheetRef = inject(MatBottomSheetRef<DayOutfitsSheetComponent>);
   private router = inject(Router);
+  private wardrobeService = inject(WardrobeService);
   data = inject<DaySheetData>(MAT_BOTTOM_SHEET_DATA);
+  showExistingPicker = signal(false);
+  searchQuery = signal('');
+  filteredOutfits = computed(() => {
+    const query = this.searchQuery().trim().toLowerCase();
+    if (!query) {
+      return this.data.allOutfits;
+    }
+    return this.data.allOutfits.filter(outfit =>
+      outfit.name.toLowerCase().includes(query) ||
+      (outfit.occasion ?? '').toLowerCase().includes(query) ||
+      (outfit.season ?? '').toLowerCase().includes(query)
+    );
+  });
+  addableOutfitsCount = computed(
+    () => this.data.allOutfits.filter(outfit => !this.isScheduledForDay(outfit)).length
+  );
 
   openOutfit(outfitId: string): void {
     this.bottomSheetRef.dismiss();
@@ -114,12 +237,35 @@ export class DayOutfitsSheetComponent {
       queryParams: { date: this.data.isoDate },
     });
   }
+
+  closeExistingPicker(): void {
+    this.showExistingPicker.set(false);
+    this.searchQuery.set('');
+  }
+
+  isScheduledForDay(outfit: Outfit): boolean {
+    return (outfit.plannedDates ?? []).includes(this.data.isoDate);
+  }
+
+  async addExistingOutfit(outfitId: string): Promise<void> {
+    const outfit = this.wardrobeService.getOutfitById(outfitId);
+    if (!outfit) {
+      return;
+    }
+    if (this.isScheduledForDay(outfit)) {
+      return;
+    }
+    const plannedDates = new Set(outfit.plannedDates ?? []);
+    plannedDates.add(this.data.isoDate);
+    await this.wardrobeService.updateOutfit(outfit.id, { plannedDates: [...plannedDates].sort() });
+    this.bottomSheetRef.dismiss();
+  }
 }
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-calendar',
-  imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, MatBottomSheetModule, DragDropModule],
+  imports: [CommonModule, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, MatBottomSheetModule, DragDropModule],
   template: `
     <div class="calendar-page animate-fade-in">
       <header class="page-header">
@@ -215,20 +361,62 @@ export class DayOutfitsSheetComponent {
                 <mat-icon>close</mat-icon>
               </button>
             </div>
-            <a class="popover-add-btn" [routerLink]="['/outfit-canvas']" [queryParams]="{ date: popover.isoDate }" (click)="closePopover()">
-              <mat-icon>add</mat-icon>
-              Add Outfit
-            </a>
-            <div class="popover-list">
-              @for (outfit of popoverOutfits(); track outfit.id) {
-                <a class="popover-item" [routerLink]="['/outfits', outfit.id]" (click)="closePopover()">
-                  <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
-                  <span>{{ outfit.name }}</span>
+            @if (popoverOutfitsForDate().length > 0) {
+              <div class="popover-subtitle">Already Added</div>
+              <div class="popover-existing-list">
+                @for (outfit of popoverOutfitsForDate(); track outfit.id) {
+                  <a class="popover-item existing" [routerLink]="['/outfits', outfit.id]" (click)="closePopover()">
+                    <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
+                    <span>{{ outfit.name }}</span>
+                    <span class="popover-item-pill">Added</span>
+                  </a>
+                }
+              </div>
+            }
+            @if (!showExistingPicker()) {
+              <div class="popover-actions">
+                <a class="popover-add-btn" [routerLink]="['/outfit-canvas']" [queryParams]="{ date: popover.isoDate }" (click)="closePopover()">
+                  <mat-icon>add</mat-icon>
+                  Add New Outfit
                 </a>
-              } @empty {
-                <div class="popover-empty">No outfits planned for this date.</div>
-              }
-            </div>
+                <button
+                  class="popover-add-btn"
+                  type="button"
+                  [disabled]="addablePopoverOutfitsCount() === 0"
+                  (click)="openExistingPicker()">
+                  <mat-icon>style</mat-icon>
+                  Add Existing Outfit
+                </button>
+              </div>
+            } @else {
+              <div class="popover-picker-header">
+                <button class="picker-back-btn" type="button" (click)="closeExistingPicker()">
+                  <mat-icon>arrow_back</mat-icon>
+                  Back
+                </button>
+              </div>
+              <input
+                class="popover-search"
+                type="text"
+                placeholder="Search outfits..."
+                [ngModel]="existingSearchQuery()"
+                (ngModelChange)="existingSearchQuery.set($event)" />
+              <div class="popover-list">
+                @for (outfit of filteredExistingOutfits(); track outfit.id) {
+                  <button class="popover-item" type="button" (click)="addOutfitToDate(outfit.id, popover.isoDate)">
+                    <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
+                    <span>{{ outfit.name }}</span>
+                    @if (isScheduledOnDate(outfit, popover.isoDate)) {
+                      <span class="popover-item-pill">Added</span>
+                    } @else {
+                      <span class="popover-item-pill add">Add</span>
+                    }
+                  </button>
+                } @empty {
+                  <div class="popover-empty">No matching outfits found.</div>
+                }
+              </div>
+            }
           </div>
         }
       </section>
@@ -305,11 +493,75 @@ export class DayOutfitsSheetComponent {
       font-size: 12px;
       font-weight: 600;
     }
+    .popover-add-btn:disabled {
+      background: color-mix(in srgb, var(--dw-surface-card) 82%, #888 18%);
+      color: color-mix(in srgb, var(--dw-text-secondary) 78%, #666 22%);
+      border-color: rgba(140,123,112,0.12);
+      cursor: not-allowed;
+      box-shadow: none;
+      opacity: 0.72;
+    }
+    .popover-actions { display: grid; gap: 8px; }
+    .popover-subtitle {
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+      margin: 0 0 8px;
+    }
+    .popover-existing-list {
+      display: grid;
+      gap: 8px;
+      max-height: 140px;
+      overflow-y: auto;
+      padding-right: 2px;
+      margin-bottom: 8px;
+    }
+    .popover-picker-header { margin-bottom: 8px; }
+    .picker-back-btn {
+      border: 1px solid rgba(140,123,112,0.2);
+      border-radius: 10px;
+      min-height: 34px;
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 10px;
+    }
+    .popover-search {
+      width: 100%;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid rgba(140,123,112,0.2);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      padding: 0 10px;
+      margin-bottom: 8px;
+      outline: none;
+    }
     .popover-add-btn mat-icon { font-size: 18px; width: 18px; height: 18px; }
-    .popover-list { display: grid; gap: 8px; }
-    .popover-item { text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(140,123,112,0.14); border-radius: 10px; padding: 6px; background: var(--dw-surface-card); }
+    .popover-list {
+      display: grid;
+      gap: 8px;
+      max-height: 140px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .popover-item { text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(140,123,112,0.14); border-radius: 10px; padding: 6px; background: var(--dw-surface-card); width: 100%; text-align: left; }
+    .popover-item.existing { text-decoration: none; }
     .popover-item img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; }
     .popover-item span { font-size: 12px; color: var(--dw-text-primary); }
+    .popover-item-pill {
+      margin-left: auto;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(140,123,112,0.25);
+      padding: 2px 8px;
+      color: var(--dw-text-secondary);
+    }
+    .popover-item-pill.add {
+      border-color: color-mix(in srgb, var(--dw-primary) 40%, transparent);
+      color: var(--dw-primary);
+    }
     .popover-empty {
       min-height: 62px;
       border: 1px dashed rgba(140,123,112,0.2);
@@ -341,6 +593,8 @@ export class CalendarComponent {
   isMobile = signal(window.innerWidth <= 768);
   selectedDate = signal(this.toISODate(new Date()));
   dayPopover = signal<DayPopoverState | null>(null);
+  showExistingPicker = signal(false);
+  existingSearchQuery = signal('');
 
   monthLabel = computed(() => this.monthCursor().toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
 
@@ -367,12 +621,31 @@ export class CalendarComponent {
     return days;
   });
 
-  popoverOutfits = computed(() => {
+  filteredExistingOutfits = computed(() => {
+    const query = this.existingSearchQuery().trim().toLowerCase();
+    if (!query) {
+      return this.outfitList();
+    }
+    return this.outfitList().filter(outfit =>
+      outfit.name.toLowerCase().includes(query) ||
+      (outfit.occasion ?? '').toLowerCase().includes(query) ||
+      (outfit.season ?? '').toLowerCase().includes(query)
+    );
+  });
+
+  popoverOutfitsForDate = computed(() => {
     const popover = this.dayPopover();
     if (!popover) {
       return [];
     }
     return this.wardrobeService.getOutfitsByDate(popover.isoDate);
+  });
+  addablePopoverOutfitsCount = computed(() => {
+    const popover = this.dayPopover();
+    if (!popover) {
+      return 0;
+    }
+    return this.outfitList().filter(outfit => !this.isScheduledOnDate(outfit, popover.isoDate)).length;
   });
 
   changeMonth(step: number): void {
@@ -389,7 +662,8 @@ export class CalendarComponent {
         data: {
           isoDate: day.isoDate,
           dateLabel: this.formatDateLabel(day.isoDate),
-          outfits,
+          outfitsForDate: outfits,
+          allOutfits: this.outfitList(),
           fallbackImage: this.fallbackImage,
         } as DaySheetData,
         panelClass: 'dw-mobile-profile-sheet',
@@ -424,6 +698,8 @@ export class CalendarComponent {
         left,
         top,
       });
+      this.showExistingPicker.set(false);
+      this.existingSearchQuery.set('');
       return;
     }
 
@@ -459,6 +735,34 @@ export class CalendarComponent {
 
   closePopover(): void {
     this.dayPopover.set(null);
+    this.showExistingPicker.set(false);
+    this.existingSearchQuery.set('');
+  }
+
+  openExistingPicker(): void {
+    if (this.addablePopoverOutfitsCount() === 0) {
+      return;
+    }
+    this.showExistingPicker.set(true);
+  }
+
+  closeExistingPicker(): void {
+    this.showExistingPicker.set(false);
+    this.existingSearchQuery.set('');
+  }
+
+  isScheduledOnDate(outfit: Outfit, isoDate: string): boolean {
+    return (outfit.plannedDates ?? []).includes(isoDate);
+  }
+
+  async addOutfitToDate(outfitId: string, isoDate: string): Promise<void> {
+    const outfit = this.wardrobeService.getOutfitById(outfitId);
+    if (!outfit || this.isScheduledOnDate(outfit, isoDate)) {
+      return;
+    }
+    const plannedDates = new Set(outfit.plannedDates ?? []);
+    plannedDates.add(isoDate);
+    await this.wardrobeService.updateOutfit(outfit.id, { plannedDates: [...plannedDates].sort() });
   }
 
   private startOfMonth(date: Date): Date {
@@ -487,6 +791,8 @@ export class CalendarComponent {
     this.isMobile.set(mobile);
     if (mobile) {
       this.dayPopover.set(null);
+      this.showExistingPicker.set(false);
+      this.existingSearchQuery.set('');
     }
     return mobile;
   }

@@ -1,31 +1,36 @@
-import { Injectable, computed, signal } from '@angular/core';
-import { WardrobeItem, WardrobeCategory, Accessory, Outfit, User, DashboardStats } from '../models';
-import { MOCK_WARDROBE_ITEMS, MOCK_ACCESSORIES, MOCK_OUTFITS, MOCK_USER, MOCK_WEATHER } from '../mock-data';
+import { inject, Injectable, computed, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { WardrobeItem, WardrobeCategory, Accessory, Outfit, DashboardStats } from '../models';
+import { WardrobeApi } from '../api/wardrobe.api';
+import { AccessoriesApi } from '../api/accessories.api';
+import { OutfitsApi } from '../api/outfits.api';
+import { mapWardrobeItemDtoToModel, mapWardrobeItemToCreateDto, mapWardrobeItemToUpdateDto } from '../mappers/wardrobe.mapper';
+import { mapAccessoryDtoToModel, mapAccessoryToCreateDto, mapAccessoryToUpdateDto } from '../mappers/accessories.mapper';
+import { mapOutfitDtoToModel, mapOutfitToCreateDto, mapOutfitToUpdateDto } from '../mappers/outfits.mapper';
 
-interface WardrobeSessionState {
-    wardrobeItems: WardrobeItem[];
-    accessories: Accessory[];
-    outfits: Outfit[];
-    currentUser: User;
-}
+const MOCK_WEATHER = {
+    temp: 29,
+    condition: 'Sunny' as const,
+    humidity: 25,
+    location: 'Hyderabad, India',
+};
 
 @Injectable({
     providedIn: 'root'
 })
 export class WardrobeService {
-    private static readonly SESSION_KEY = 'dw-session-wardrobe-state';
+    private readonly wardrobeApi = inject(WardrobeApi);
+    private readonly accessoriesApi = inject(AccessoriesApi);
+    private readonly outfitsApi = inject(OutfitsApi);
 
-    private readonly initialState = this.hydrateFromSession();
-    private wardrobeItems = signal<WardrobeItem[]>(this.initialState.wardrobeItems);
-    private accessories = signal<Accessory[]>(this.initialState.accessories);
-    private outfits = signal<Outfit[]>(this.initialState.outfits);
-    private currentUser = signal<User>(this.initialState.currentUser);
+    private wardrobeItems = signal<WardrobeItem[]>([]);
+    private accessories = signal<Accessory[]>([]);
+    private outfits = signal<Outfit[]>([]);
 
-    // Computed signals
+    // ── Public readonly signals (consumed by components) ─────────
     readonly items = this.wardrobeItems.asReadonly();
     readonly accessoryList = this.accessories.asReadonly();
     readonly outfitList = this.outfits.asReadonly();
-    readonly user = this.currentUser.asReadonly();
 
     readonly totalItems = computed(() => this.wardrobeItems().length + this.accessories().length);
     readonly favoriteItems = computed(() => this.wardrobeItems().filter(item => item.favorite));
@@ -38,21 +43,10 @@ export class WardrobeService {
     readonly categoryBreakdown = computed(() => {
         const items = this.wardrobeItems();
         const breakdown: Record<WardrobeCategory, number> = {
-            tops: 0,
-            bottoms: 0,
-            dresses: 0,
-            outerwear: 0,
-            shoes: 0,
-            accessories: 0,
-            activewear: 0,
-            formal: 0,
-            swimwear: 0,
+            tops: 0, bottoms: 0, dresses: 0, outerwear: 0, shoes: 0,
+            accessories: 0, activewear: 0, formal: 0, swimwear: 0,
         };
-
-        items.forEach(item => {
-            breakdown[item.category]++;
-        });
-
+        items.forEach(item => { breakdown[item.category]++; });
         return Object.entries(breakdown)
             .map(([category, count]) => ({ category: category as WardrobeCategory, count }))
             .filter(item => item.count > 0)
@@ -63,7 +57,6 @@ export class WardrobeService {
         const items = this.wardrobeItems();
         const sortedByWorn = [...items].sort((a, b) => b.worn - a.worn);
         const leastWorn = [...items].sort((a, b) => a.worn - b.worn).slice(0, 3);
-
         return {
             totalItems: this.totalItems(),
             totalAccessories: this.accessories().length,
@@ -75,129 +68,154 @@ export class WardrobeService {
         };
     });
 
-    // CRUD Operations
+    // ── Data loading from backend ────────────────────────────────
+
+    async loadAll(): Promise<void> {
+        const [wardrobeItems, accessoryItems, outfitItems] = await Promise.all([
+            firstValueFrom(this.wardrobeApi.list()),
+            firstValueFrom(this.accessoriesApi.list()),
+            firstValueFrom(this.outfitsApi.list()),
+        ]);
+        this.wardrobeItems.set(wardrobeItems.map(mapWardrobeItemDtoToModel));
+        this.accessories.set(accessoryItems.map(mapAccessoryDtoToModel));
+        this.outfits.set(outfitItems.map(mapOutfitDtoToModel));
+    }
+
+    clearAll(): void {
+        this.wardrobeItems.set([]);
+        this.accessories.set([]);
+        this.outfits.set([]);
+    }
+
+    // ── Wardrobe Item CRUD ───────────────────────────────────────
+
     getItemById(id: string): WardrobeItem | undefined {
         return this.wardrobeItems().find(item => item.id === id);
-    }
-
-    getAccessoryById(id: string): Accessory | undefined {
-        return this.accessories().find(item => item.id === id);
-    }
-
-    getOutfitById(id: string): Outfit | undefined {
-        return this.outfits().find(outfit => outfit.id === id);
     }
 
     getItemsByCategory(category: WardrobeCategory): WardrobeItem[] {
         return this.wardrobeItems().filter(item => item.category === category);
     }
 
-    addItem(item: Omit<WardrobeItem, 'id' | 'createdAt' | 'worn'>): void {
-        const newItem: WardrobeItem = {
-            ...item,
-            id: `w${Date.now()}`,
-            createdAt: new Date(),
-            worn: 0,
-        };
+    async addItem(item: Omit<WardrobeItem, 'id' | 'createdAt' | 'worn'>): Promise<void> {
+        const dto = mapWardrobeItemToCreateDto(item as WardrobeItem);
+        const response = await firstValueFrom(this.wardrobeApi.create(dto));
+        const newItem = mapWardrobeItemDtoToModel(response);
         this.wardrobeItems.update(items => [...items, newItem]);
-        this.persistSnapshot();
     }
 
-    addAccessory(accessory: Omit<Accessory, 'id' | 'createdAt'>): void {
-        const newAccessory: Accessory = {
-            ...accessory,
-            id: `a${Date.now()}`,
-            createdAt: new Date(),
-        };
-        this.accessories.update(items => [...items, newAccessory]);
-        this.persistSnapshot();
-    }
-
-    updateItem(id: string, updates: Partial<WardrobeItem>): void {
+    async updateItem(id: string, updates: Partial<WardrobeItem>): Promise<void> {
+        const dto = mapWardrobeItemToUpdateDto(updates);
+        const response = await firstValueFrom(this.wardrobeApi.update(id, dto));
+        const updated = mapWardrobeItemDtoToModel(response);
         this.wardrobeItems.update(items =>
-            items.map(item => item.id === id ? { ...item, ...updates } : item)
+            items.map(item => item.id === id ? updated : item)
         );
-        this.persistSnapshot();
     }
 
-    deleteItem(id: string): void {
+    async deleteItem(id: string): Promise<void> {
+        await firstValueFrom(this.wardrobeApi.delete(id));
         this.wardrobeItems.update(items => items.filter(item => item.id !== id));
+    }
+
+    async toggleFavorite(id: string): Promise<void> {
+        const item = this.wardrobeItems().find(i => i.id === id);
+        if (item) {
+            await this.updateItem(id, { favorite: !item.favorite });
+            return;
+        }
+        const accessory = this.accessories().find(a => a.id === id);
+        if (accessory) {
+            await this.toggleAccessoryFavorite(id);
+        }
+    }
+
+    // ── Accessory CRUD ───────────────────────────────────────────
+
+    getAccessoryById(id: string): Accessory | undefined {
+        return this.accessories().find(item => item.id === id);
+    }
+
+    async addAccessory(accessory: Omit<Accessory, 'id' | 'createdAt' | 'worn' | 'lastWorn'>): Promise<void> {
+        const dto = mapAccessoryToCreateDto(accessory as Accessory);
+        const response = await firstValueFrom(this.accessoriesApi.create(dto));
+        const newAccessory = mapAccessoryDtoToModel(response);
+        this.accessories.update(items => [...items, newAccessory]);
+    }
+
+    async updateAccessory(id: string, updates: Partial<Accessory>): Promise<void> {
+        const dto = mapAccessoryToUpdateDto(updates);
+        const response = await firstValueFrom(this.accessoriesApi.update(id, dto));
+        const updated = mapAccessoryDtoToModel(response);
+        this.accessories.update(items =>
+            items.map(item => item.id === id ? updated : item)
+        );
+    }
+
+    async deleteAccessory(id: string): Promise<void> {
+        await firstValueFrom(this.accessoriesApi.delete(id));
         this.accessories.update(items => items.filter(item => item.id !== id));
-        this.persistSnapshot();
     }
 
-    toggleFavorite(id: string): void {
-        this.wardrobeItems.update(items =>
-            items.map(item =>
-                item.id === id ? { ...item, favorite: !item.favorite } : item
-            )
-        );
-        this.accessories.update(items =>
-            items.map(item =>
-                item.id === id ? { ...item, favorite: !item.favorite } : item
-            )
-        );
-        this.persistSnapshot();
+    async toggleAccessoryFavorite(id: string): Promise<void> {
+        const accessory = this.accessories().find(a => a.id === id);
+        if (accessory) {
+            await this.updateAccessory(id, { favorite: !accessory.favorite });
+        }
     }
 
-    updateAccessory(id: string, updates: Partial<Accessory>): void {
-        this.accessories.update(items =>
-            items.map(item => item.id === id ? { ...item, ...updates } : item)
-        );
-        this.persistSnapshot();
+    async markAccessoryAsWorn(id: string): Promise<void> {
+        const response = await firstValueFrom(this.accessoriesApi.markAsWorn(id));
+        const updated = mapAccessoryDtoToModel(response);
+        this.accessories.update(items => items.map(item => item.id === id ? updated : item));
     }
 
-    deleteAccessory(id: string): void {
-        this.accessories.update(items => items.filter(item => item.id !== id));
-        this.persistSnapshot();
+    // ── Outfit CRUD ──────────────────────────────────────────────
+
+    getOutfitById(id: string): Outfit | undefined {
+        return this.outfits().find(outfit => outfit.id === id);
     }
 
-    toggleAccessoryFavorite(id: string): void {
-        this.accessories.update(items =>
-            items.map(item =>
-                item.id === id ? { ...item, favorite: !item.favorite } : item
-            )
-        );
-        this.persistSnapshot();
-    }
-
-    addOutfit(outfit: Omit<Outfit, 'id' | 'createdAt'>): void {
-        const newOutfit: Outfit = {
-            ...outfit,
-            id: `o${Date.now()}`,
-            createdAt: new Date(),
-            plannedDates: [...(outfit.plannedDates ?? [])].sort(),
-        };
+    async addOutfit(outfit: Omit<Outfit, 'id' | 'createdAt' | 'worn'>): Promise<void> {
+        const dto = mapOutfitToCreateDto(outfit as Outfit);
+        const response = await firstValueFrom(this.outfitsApi.create(dto));
+        const newOutfit = mapOutfitDtoToModel(response);
         this.outfits.update(outfits => [...outfits, newOutfit]);
-        this.persistSnapshot();
     }
 
-    updateOutfit(id: string, updates: Partial<Outfit>): void {
+    async updateOutfit(id: string, updates: Partial<Outfit>): Promise<void> {
+        const dto = mapOutfitToUpdateDto(updates);
+        const response = await firstValueFrom(this.outfitsApi.update(id, dto));
+        const updated = mapOutfitDtoToModel(response);
         this.outfits.update(outfits =>
-            outfits.map(outfit => {
-                if (outfit.id !== id) {
-                    return outfit;
-                }
-                const next: Outfit = { ...outfit, ...updates };
-                if (updates.plannedDates) {
-                    next.plannedDates = [...updates.plannedDates].sort();
-                }
-                return next;
-            })
+            outfits.map(outfit => outfit.id === id ? updated : outfit)
         );
-        this.persistSnapshot();
     }
 
-    deleteOutfit(id: string): void {
+    async deleteOutfit(id: string): Promise<void> {
+        await firstValueFrom(this.outfitsApi.delete(id));
         this.outfits.update(outfits => outfits.filter(outfit => outfit.id !== id));
-        this.persistSnapshot();
+    }
+
+    async markItemAsWorn(id: string): Promise<void> {
+        const response = await firstValueFrom(this.wardrobeApi.markAsWorn(id));
+        const updated = mapWardrobeItemDtoToModel(response);
+        this.wardrobeItems.update(items => items.map(item => item.id === id ? updated : item));
+    }
+
+    async markOutfitAsWorn(id: string): Promise<void> {
+        const response = await firstValueFrom(this.outfitsApi.markAsWorn(id));
+        const updated = mapOutfitDtoToModel(response);
+        this.outfits.update(outfits => outfits.map(outfit => outfit.id === id ? updated : outfit));
+        await this.loadAll();
     }
 
     getOutfitsByDate(date: string): Outfit[] {
         return this.outfits().filter(outfit => (outfit.plannedDates ?? []).includes(date));
     }
 
-    // Search & Filter
+    // ── Search & Filter ──────────────────────────────────────────
+
     searchItems(query: string): WardrobeItem[] {
         const lowerQuery = query.toLowerCase();
         return this.wardrobeItems().filter(item =>
@@ -215,7 +233,8 @@ export class WardrobeService {
         );
     }
 
-    // Weather suggestion (mock)
+    // ── Weather suggestion (mock — will be replaced by backend) ──
+
     getWeatherSuggestion(): { weather: typeof MOCK_WEATHER; suggestedItems: WardrobeItem[] } {
         const weather = MOCK_WEATHER;
         let suggestedItems: WardrobeItem[] = [];
@@ -235,99 +254,5 @@ export class WardrobeService {
         }
 
         return { weather, suggestedItems };
-    }
-
-    private hydrateFromSession(): WardrobeSessionState {
-        const fallback: WardrobeSessionState = {
-            wardrobeItems: MOCK_WARDROBE_ITEMS,
-            accessories: MOCK_ACCESSORIES,
-            outfits: MOCK_OUTFITS,
-            currentUser: MOCK_USER,
-        };
-
-        try {
-            const raw = window.sessionStorage.getItem(WardrobeService.SESSION_KEY);
-            if (!raw) {
-                return fallback;
-            }
-            const parsed = JSON.parse(raw) as Partial<WardrobeSessionState>;
-            return {
-                wardrobeItems: Array.isArray(parsed.wardrobeItems)
-                    ? parsed.wardrobeItems.map(item => this.hydrateWardrobeItem(item))
-                    : fallback.wardrobeItems,
-                accessories: Array.isArray(parsed.accessories)
-                    ? parsed.accessories.map(item => this.hydrateAccessory(item))
-                    : fallback.accessories,
-                outfits: Array.isArray(parsed.outfits)
-                    ? parsed.outfits.map(outfit => this.hydrateOutfit(outfit))
-                    : fallback.outfits,
-                currentUser: parsed.currentUser
-                    ? this.hydrateUser(parsed.currentUser)
-                    : fallback.currentUser,
-            };
-        } catch {
-            // Ignore invalid session data and continue with defaults.
-            return fallback;
-        }
-    }
-
-    private persistSnapshot(): void {
-        this.persistToSession({
-            wardrobeItems: this.wardrobeItems(),
-            accessories: this.accessories(),
-            outfits: this.outfits(),
-            currentUser: this.currentUser(),
-        });
-    }
-
-    private persistToSession(state: WardrobeSessionState): void {
-        try {
-            window.sessionStorage.setItem(WardrobeService.SESSION_KEY, JSON.stringify(state));
-        } catch {
-            // Ignore storage failures (private mode/quota).
-        }
-    }
-
-    private hydrateWardrobeItem(item: WardrobeItem): WardrobeItem {
-        return {
-            ...item,
-            purchaseDate: this.toDate(item.purchaseDate),
-            lastWorn: this.toDate(item.lastWorn),
-            createdAt: this.toDate(item.createdAt) ?? new Date(),
-        };
-    }
-
-    private hydrateAccessory(accessory: Accessory): Accessory {
-        return {
-            ...accessory,
-            createdAt: this.toDate(accessory.createdAt) ?? new Date(),
-        };
-    }
-
-    private hydrateOutfit(outfit: Outfit): Outfit {
-        return {
-            ...outfit,
-            createdAt: this.toDate(outfit.createdAt) ?? new Date(),
-            lastWorn: this.toDate(outfit.lastWorn),
-            plannedDates: [...(outfit.plannedDates ?? [])].sort(),
-        };
-    }
-
-    private hydrateUser(user: User): User {
-        return {
-            ...user,
-            createdAt: this.toDate(user.createdAt) ?? new Date(),
-        };
-    }
-
-    private toDate(value: Date | string | undefined): Date | undefined {
-        if (!value) {
-            return undefined;
-        }
-        if (value instanceof Date) {
-            return value;
-        }
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? undefined : date;
     }
 }

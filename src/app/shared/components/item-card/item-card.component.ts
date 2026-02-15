@@ -1,4 +1,4 @@
-import {Component, input, output, ChangeDetectionStrategy} from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, computed, input, linkedSignal, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -21,10 +21,18 @@ import { WardrobeItem, Accessory } from '../../../core/models';
     MatDividerModule,
   ],
   template: `
-    <div class="item-card" [class.favorite]="item().favorite" (click)="onCardClick()">
+    <div
+      class="item-card"
+      [class.favorite]="item().favorite"
+      (click)="onCardClick()"
+      (mouseenter)="onCardHoverStart()"
+      (mouseleave)="onCardHoverEnd()"
+    >
       <div class="card-image">
-        <img [src]="item().imageUrl" [alt]="item().name" loading="lazy">
-        
+        @for (frame of imageFrames(); track frame.key) {
+          <img [src]="frame.url" [alt]="item().name" loading="lazy" class="animated-image">
+        }
+
         <div class="card-overlay">
           <button 
             class="overlay-btn favorite-btn"
@@ -43,6 +51,38 @@ import { WardrobeItem, Accessory } from '../../../core/models';
           </button>
         </div>
 
+        @if (hasMultipleImages()) {
+          <div class="image-mobile-nav" (click)="$event.stopPropagation()">
+            <button
+              type="button"
+              class="image-nav-btn"
+              aria-label="Show previous image"
+              (click)="onMobilePrevious($event)"
+            >
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+            <button
+              type="button"
+              class="image-nav-btn"
+              aria-label="Show next image"
+              (click)="onMobileNext($event)"
+            >
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+          <div class="image-dots" (click)="$event.stopPropagation()">
+            @for (image of imageGallery(); track i; let i = $index) {
+              <button
+                type="button"
+                class="image-dot"
+                [class.active]="selectedImageIndex() === i"
+                [attr.aria-label]="'Show image ' + (i + 1)"
+                (click)="onImageDotSelect(i, $event)"
+              ></button>
+            }
+          </div>
+        }
+
         <div class="color-dot" [style.background-color]="item().colorHex"></div>
       </div>
 
@@ -50,12 +90,10 @@ import { WardrobeItem, Accessory } from '../../../core/models';
         <h4 class="item-name">{{ item().name }}</h4>
         <div class="item-meta">
           <span class="item-category">{{ getCategoryLabel() }}</span>
-          @if (isWardrobeItem(item())) {
-            <span class="item-worn">
-              <mat-icon>repeat</mat-icon>
-              {{ getWornCount() }}x worn
-            </span>
-          }
+          <span class="item-worn">
+            <mat-icon>repeat</mat-icon>
+            {{ getWornCount() }}x worn
+          </span>
         </div>
         
         @if (item().tags.length) {
@@ -92,14 +130,14 @@ import { WardrobeItem, Accessory } from '../../../core/models';
     .item-card {
       background: var(--dw-gradient-card);
       border-radius: var(--dw-radius-lg);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--dw-border-subtle);
       overflow: hidden;
       cursor: pointer;
       transition: all var(--dw-transition-normal);
 
       &:hover {
         transform: translateY(-4px);
-        border-color: rgba(124, 58, 237, 0.3);
+        border-color: var(--dw-border-strong);
         box-shadow: var(--dw-shadow-lg), var(--dw-shadow-glow);
 
         .card-overlay {
@@ -112,7 +150,7 @@ import { WardrobeItem, Accessory } from '../../../core/models';
       }
 
       &.favorite {
-        border-color: rgba(244, 114, 182, 0.3);
+        border-color: color-mix(in srgb, var(--dw-accent) 42%, transparent);
       }
     }
 
@@ -130,6 +168,21 @@ import { WardrobeItem, Accessory } from '../../../core/models';
       }
     }
 
+    .animated-image {
+      animation: cardImageSwap 300ms ease;
+    }
+
+    @keyframes cardImageSwap {
+      from {
+        opacity: 0.25;
+        transform: scale(1.03);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
     .card-overlay {
       position: absolute;
       top: 0;
@@ -140,7 +193,76 @@ import { WardrobeItem, Accessory } from '../../../core/models';
       justify-content: space-between;
       opacity: 0;
       transition: opacity var(--dw-transition-fast);
-      background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%);
+      background: var(--dw-image-overlay);
+    }
+
+    .image-mobile-nav {
+      display: none;
+      position: absolute;
+      inset-inline: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      justify-content: space-between;
+      z-index: 3;
+    }
+
+    .image-nav-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 76%, transparent);
+      color: var(--dw-on-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform var(--dw-transition-fast), background var(--dw-transition-fast);
+
+      mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+      }
+
+      &:hover {
+        transform: scale(1.06);
+        background: color-mix(in srgb, var(--dw-overlay-scrim) 88%, transparent);
+      }
+    }
+
+    .image-dots {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 5px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 65%, transparent);
+      z-index: 2;
+      opacity: 0;
+      transition: opacity var(--dw-transition-fast);
+    }
+
+    .image-dot {
+      width: 6px;
+      height: 6px;
+      border: 0;
+      border-radius: 50%;
+      padding: 0;
+      background: color-mix(in srgb, var(--dw-on-primary) 58%, transparent);
+      transition: transform var(--dw-transition-fast), background var(--dw-transition-fast);
+
+      &.active {
+        background: var(--dw-on-primary);
+        transform: scale(1.2);
+      }
+    }
+
+    .item-card:hover .image-dots {
+      opacity: 1;
     }
 
     .overlay-btn {
@@ -234,8 +356,8 @@ import { WardrobeItem, Accessory } from '../../../core/models';
     .tag {
       font-size: 11px;
       padding: 2px 8px;
-      background: rgba(124, 58, 237, 0.15);
-      color: var(--dw-primary-light);
+      background: color-mix(in srgb, var(--dw-primary) 15%, transparent);
+      color: var(--dw-primary);
       border-radius: var(--dw-radius-full);
     }
 
@@ -257,10 +379,19 @@ import { WardrobeItem, Accessory } from '../../../core/models';
         aspect-ratio: 4 / 5;
       }
 
+      .image-mobile-nav {
+        display: flex;
+      }
+
+      .image-dots {
+        opacity: 1;
+        bottom: 6px;
+      }
+
       .card-overlay {
         opacity: 1;
         padding: 6px;
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, transparent 80%);
+        background: var(--dw-image-overlay);
       }
 
       .overlay-btn {
@@ -312,8 +443,11 @@ import { WardrobeItem, Accessory } from '../../../core/models';
     }
   `]
 })
-export class ItemCardComponent {
+export class ItemCardComponent implements OnDestroy {
   item = input.required<WardrobeItem | Accessory>();
+  selectedImageIndex = linkedSignal(() => this.item().id ? 0 : 0);
+  imageAnimationKey = signal(0);
+  hoverCycleTimerId = signal<number | null>(null);
 
   viewItem = output<WardrobeItem | Accessory>();
   editItem = output<WardrobeItem | Accessory>();
@@ -321,8 +455,31 @@ export class ItemCardComponent {
   addToOutfit = output<WardrobeItem | Accessory>();
   toggleFavorite = output<WardrobeItem | Accessory>();
 
-  isWardrobeItem(item: WardrobeItem | Accessory): item is WardrobeItem {
-    return 'worn' in item;
+  imageGallery = computed(() => {
+    const images = (this.item().imageUrls ?? []).filter(Boolean);
+    if (images.length) {
+      return images;
+    }
+    return this.item().imageUrl ? [this.item().imageUrl] : [];
+  });
+  hasMultipleImages = computed(() => this.imageGallery().length > 1);
+  currentImageUrl = computed(() => {
+    const gallery = this.imageGallery();
+    if (!gallery.length) {
+      return '';
+    }
+    const index = this.selectedImageIndex();
+    return gallery[index] ?? gallery[0];
+  });
+  imageFrames = computed(() => [
+    {
+      key: this.imageAnimationKey(),
+      url: this.currentImageUrl(),
+    },
+  ]);
+
+  ngOnDestroy(): void {
+    this.stopHoverCycle();
   }
 
   getCategoryLabel(): string {
@@ -330,16 +487,89 @@ export class ItemCardComponent {
   }
 
   getWornCount(): number {
-    const item = this.item();
-    return this.isWardrobeItem(item) ? item.worn : 0;
+    return this.item().worn;
   }
 
   onCardClick(): void {
     this.viewItem.emit(this.item());
   }
 
+  onCardHoverStart(): void {
+    if (!this.supportsHover() || !this.hasMultipleImages()) {
+      return;
+    }
+    if (this.hoverCycleTimerId() !== null) {
+      return;
+    }
+    const timerId = window.setInterval(() => {
+      this.showNextImage();
+    }, 1200);
+    this.hoverCycleTimerId.set(timerId);
+  }
+
+  onCardHoverEnd(): void {
+    this.stopHoverCycle();
+    this.setImageIndex(0);
+  }
+
+  onMobilePrevious(event: Event): void {
+    event.stopPropagation();
+    this.showPreviousImage();
+  }
+
+  onMobileNext(event: Event): void {
+    event.stopPropagation();
+    this.showNextImage();
+  }
+
+  onImageDotSelect(index: number, event: Event): void {
+    event.stopPropagation();
+    this.setImageIndex(index);
+  }
+
   onFavoriteClick(event: Event): void {
     event.stopPropagation();
     this.toggleFavorite.emit(this.item());
+  }
+
+  private supportsHover(): boolean {
+    return typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  }
+
+  private showPreviousImage(): void {
+    if (!this.hasMultipleImages()) {
+      return;
+    }
+    const total = this.imageGallery().length;
+    this.setImageIndex(this.selectedImageIndex() - 1 + total);
+  }
+
+  private showNextImage(): void {
+    if (!this.hasMultipleImages()) {
+      return;
+    }
+    this.setImageIndex(this.selectedImageIndex() + 1);
+  }
+
+  private setImageIndex(index: number): void {
+    const total = this.imageGallery().length;
+    if (!total) {
+      return;
+    }
+    const normalized = ((index % total) + total) % total;
+    if (normalized === this.selectedImageIndex()) {
+      return;
+    }
+    this.selectedImageIndex.set(normalized);
+    this.imageAnimationKey.update(value => value + 1);
+  }
+
+  private stopHoverCycle(): void {
+    const timerId = this.hoverCycleTimerId();
+    if (timerId === null) {
+      return;
+    }
+    clearInterval(timerId);
+    this.hoverCycleTimerId.set(null);
   }
 }

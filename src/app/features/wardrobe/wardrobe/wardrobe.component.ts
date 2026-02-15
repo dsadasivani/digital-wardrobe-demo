@@ -201,7 +201,7 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
       gap: var(--dw-spacing-sm);
       padding: var(--dw-spacing-sm) var(--dw-spacing-md);
       border-radius: var(--dw-radius-md);
-      border: 1px solid var(--dw-surface-card);
+      border: 1px solid var(--dw-border-subtle);
       background: var(--dw-surface-card);
       color: var(--dw-text-primary);
       font-weight: 500;
@@ -209,7 +209,8 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
       transition: all var(--dw-transition-fast);
 
       &:hover {
-        border-color: var(--dw-primary);
+        border-color: var(--dw-border-strong);
+        background: var(--dw-surface-hover);
       }
 
       &.primary {
@@ -345,7 +346,7 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
         }
 
         .mat-mdc-tab-header {
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          border-bottom: 1px solid var(--dw-border-subtle);
         }
       }
     }
@@ -637,13 +638,13 @@ export class WardrobeComponent implements OnInit {
   }
 
   onViewItem(item: WardrobeItem | Accessory): void {
-    if ('worn' in item) {
+    if (this.isWardrobeItem(item)) {
       this.router.navigate(['/wardrobe', item.id]);
     }
   }
 
   onEditItem(item: WardrobeItem | Accessory): void {
-    if ('worn' in item) {
+    if (this.isWardrobeItem(item)) {
       this.router.navigate(['/wardrobe', item.id, 'edit']);
     }
   }
@@ -657,6 +658,14 @@ export class WardrobeComponent implements OnInit {
   }
 
   onAddToOutfit(item: WardrobeItem | Accessory): void {
-    console.log('Add to outfit:', item.id);
+    if (this.isWardrobeItem(item)) {
+      this.router.navigate(['/outfit-canvas'], { queryParams: { itemId: item.id } });
+      return;
+    }
+    this.router.navigate(['/outfit-canvas'], { queryParams: { accessoryId: item.id } });
+  }
+
+  private isWardrobeItem(item: WardrobeItem | Accessory): item is WardrobeItem {
+    return 'purchaseDate' in item;
   }
 }

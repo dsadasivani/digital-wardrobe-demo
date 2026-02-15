@@ -84,50 +84,58 @@ html {
 // 4. CSS CUSTOM PROPERTIES (Design Tokens)
 // -----------------------------------------
 :root {
-  // Primary Colors - Sophisticated Taupe
-  --dw-primary: #8C7B70;
-  --dw-primary-light: #B5A8A0;
-  --dw-primary-dark: #6D5F56;
-  --dw-primary-glow: rgba(140, 123, 112, 0.15);
-  --dw-on-primary: #FFFFFF;
+  // Brand Colors - Warm Heritage
+  --dw-primary: #7d624a;
+  --dw-primary-light: #a78b72;
+  --dw-primary-dark: #5f4937;
+  --dw-primary-glow: color-mix(in srgb, var(--dw-primary) 24%, transparent);
+  --dw-on-primary: #fffdf9;
 
-  // Accent Colors - Muted Sage & Clay
-  --dw-accent: #A3B18A;
-  --dw-accent-light: #C4D1AD;
-  --dw-accent-dark: #7A8568;
+  // Accent Colors - Burnished Copper
+  --dw-accent: #c47a34;
+  --dw-accent-light: #dc9a5c;
+  --dw-accent-dark: #995a24;
 
-  // Surface Colors - Premium Alabaster
-  --dw-surface-base: #FFFCF7; // Warm off-white background
-  --dw-surface-elevated: #FFFFFF; // Pure white for elevation
-  --dw-surface-card: #F9F7F2; // Subtle beige for cards
-  --dw-surface-overlay: rgba(255, 252, 247, 0.98); // High opacity for glass items
+  // Semantic Colors
+  --dw-success: #4f8f67;
+  --dw-warning: #c9822d;
+  --dw-error: #b8514d;
+  --dw-info: #3f7ca8;
 
-  // Text Colors - Stone & Earth
-  --dw-text-primary: #4A4238; // Dark warm grey/brown
-  --dw-text-secondary: #857F76; // Muted grey-green
-  --dw-text-muted: #B0ADA8; // Light stone
+  // Surface Colors
+  --dw-surface-base: #f5f2ed;
+  --dw-surface-elevated: #fffdf9;
+  --dw-surface-card: #f1ece4;
+  --dw-surface-overlay: color-mix(in srgb, var(--dw-surface-elevated) 92%, transparent);
+  --dw-surface-hover: color-mix(in srgb, var(--dw-surface-card) 76%, var(--dw-surface-elevated) 24%);
 
-  // Accent Colors - Deep Cognac/Bronze
-  --dw-accent: #92400E; // Amber 800
-  --dw-accent-light: #D97706; // Amber 600
-  --dw-accent-dark: #78350F; // Amber 900
+  // Text Colors
+  --dw-text-primary: #2f241b;
+  --dw-text-secondary: #6e6052;
+  --dw-text-muted: #9a8d80;
 
-  // Semantic Colors - Desaturated
-  --dw-success: #7EA172;
-  --dw-warning: #92400E; // Match accent
-  --dw-error: #C17C74;
-  --dw-info: #8DA9C4;
+  // Structural Colors
+  --dw-border-subtle: color-mix(in srgb, var(--dw-primary) 14%, transparent);
+  --dw-border-strong: color-mix(in srgb, var(--dw-primary) 28%, transparent);
+  --dw-overlay-scrim: rgba(18, 14, 10, 0.42);
+  --dw-image-overlay: linear-gradient(180deg, rgba(14, 11, 8, 0.58) 0%, transparent 82%);
 
-  // Gradients - Very subtle and refined
-  --dw-gradient-primary: linear-gradient(135deg, #8C7B70 0%, #9E8F85 100%);
-  --dw-gradient-subtle: linear-gradient(180deg, rgba(140, 123, 112, 0.1) 0%, transparent 100%);
-  --dw-gradient-card: linear-gradient(145deg, #FFFFFF 0%, #F9F7F2 100%);
+  // Gradients
+  --dw-gradient-primary: linear-gradient(135deg, #6a4f39 0%, #87664a 46%, #a97b55 100%);
+  --dw-gradient-subtle: linear-gradient(180deg,
+      color-mix(in srgb, var(--dw-primary) 15%, transparent) 0%,
+      transparent 100%);
+  --dw-gradient-card: linear-gradient(148deg, #fffdf9 0%, #f2ece4 100%);
+  --dw-hover-gradient: linear-gradient(150deg,
+      color-mix(in srgb, var(--dw-surface-elevated) 82%, var(--dw-primary) 18%) 0%,
+      var(--dw-surface-card) 100%);
 
-  // Shadows - Soft & Ambient
-  --dw-shadow-sm: 0 2px 8px rgba(74, 66, 56, 0.04);
-  --dw-shadow-md: 0 8px 24px rgba(74, 66, 56, 0.08);
-  --dw-shadow-lg: 0 16px 48px rgba(74, 66, 56, 0.12);
-  --dw-shadow-glow: 0 0 24px rgba(140, 123, 112, 0.15);
+  // Shadows
+  --dw-shadow-sm: 0 2px 8px rgba(37, 28, 20, 0.06);
+  --dw-shadow-md: 0 12px 28px rgba(37, 28, 20, 0.12);
+  --dw-shadow-lg: 0 22px 46px rgba(37, 28, 20, 0.16);
+  --dw-shadow-glow: 0 0 0 1px color-mix(in srgb, var(--dw-primary) 22%, transparent),
+    0 12px 30px color-mix(in srgb, var(--dw-primary) 18%, transparent);
 
   // Border Radius - Slightly softer
   --dw-radius-sm: 8px;
@@ -161,47 +169,55 @@ html {
   --dw-mobile-nav-height: 72px;
   --dw-safe-bottom: env(safe-area-inset-bottom, 0px);
 
-  // Animation States
-  --dw-hover-gradient: linear-gradient(135deg, #FFFFFF 0%, #ECFDF5 100%); // White -> Emerald 50
 }
 
 // -----------------------------------------
 // 4b. DARK MODE VARIABLES
 // -----------------------------------------
 [data-theme='dark'] {
-  // Primary - Neutral Slate (No Green)
-  --dw-primary: #CBD5E1; // Slate 300
-  --dw-primary-light: #F1F5F9; // Slate 100
-  --dw-primary-dark: #64748B; // Slate 500
-  --dw-primary-glow: rgba(203, 213, 225, 0.15);
-  --dw-on-primary: #0F172A;
+  --dw-primary: #e2c9ae;
+  --dw-primary-light: #f2e3d3;
+  --dw-primary-dark: #b99573;
+  --dw-primary-glow: color-mix(in srgb, var(--dw-primary) 20%, transparent);
+  --dw-on-primary: #1b140e;
 
-  // Accent - Rich Amber/Bronze (unchanged)
-  --dw-accent: #F59E0B;
-  --dw-accent-light: #FCD34D;
-  --dw-accent-dark: #B45309;
+  --dw-accent: #efad66;
+  --dw-accent-light: #f6c88f;
+  --dw-accent-dark: #d28b41;
+  --dw-success: #70b08a;
+  --dw-warning: #efb15a;
+  --dw-error: #df8d86;
+  --dw-info: #84b7de;
 
-  // Surface - Deepest Emerald/Slate
-  --dw-surface-base: #020617; // Slate 950 (Almost Black)
-  --dw-surface-elevated: #0f172a; // Slate 900
-  --dw-surface-card: #1e293b; // Slate 800
-  --dw-surface-overlay: rgba(2, 6, 23, 0.95);
+  --dw-surface-base: #11100f;
+  --dw-surface-elevated: #1a1816;
+  --dw-surface-card: #26221e;
+  --dw-surface-overlay: color-mix(in srgb, var(--dw-surface-elevated) 88%, transparent);
+  --dw-surface-hover: color-mix(in srgb, var(--dw-surface-card) 78%, var(--dw-primary) 22%);
 
-  // Text - Light
-  --dw-text-primary: #F8FAFC; // Slate 50
-  --dw-text-secondary: #94A3B8; // Slate 400
-  --dw-text-muted: #64748B; // Slate 500
+  --dw-text-primary: #f5ede2;
+  --dw-text-secondary: #ccbca9;
+  --dw-text-muted: #9d8b77;
 
-  // Gradients
-  --dw-gradient-primary: linear-gradient(135deg, #064E3B 0%, #065F46 100%);
-  --dw-gradient-card: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+  --dw-border-subtle: color-mix(in srgb, var(--dw-primary) 20%, transparent);
+  --dw-border-strong: color-mix(in srgb, var(--dw-primary) 36%, transparent);
+  --dw-overlay-scrim: rgba(4, 3, 2, 0.62);
+  --dw-image-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0%, transparent 86%);
 
-  // Shadows
-  --dw-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-  --dw-shadow-card: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --dw-gradient-primary: linear-gradient(135deg, #b48b62 0%, #d4aa79 55%, #efbd87 100%);
+  --dw-gradient-subtle: linear-gradient(180deg,
+      color-mix(in srgb, var(--dw-primary) 20%, transparent) 0%,
+      transparent 100%);
+  --dw-gradient-card: linear-gradient(148deg, #2a2521 0%, #1b1815 100%);
+  --dw-hover-gradient: linear-gradient(150deg,
+      color-mix(in srgb, var(--dw-surface-card) 78%, var(--dw-primary) 22%) 0%,
+      color-mix(in srgb, var(--dw-surface-elevated) 88%, var(--dw-primary) 12%) 100%);
 
-  // Animation States
-  --dw-hover-gradient: linear-gradient(135deg, #1e293b 0%, #334155 100%); // Slate 800 -> Slate 700
+  --dw-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
+  --dw-shadow-md: 0 16px 30px rgba(0, 0, 0, 0.38);
+  --dw-shadow-lg: 0 26px 56px rgba(0, 0, 0, 0.5);
+  --dw-shadow-glow: 0 0 0 1px color-mix(in srgb, var(--dw-primary) 20%, transparent),
+    0 14px 36px color-mix(in srgb, var(--dw-primary) 16%, transparent);
 }
 
 // -----------------------------------------
@@ -221,6 +237,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+body[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 *,
@@ -302,7 +322,7 @@ h4 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D4CEC4;
+  background: color-mix(in srgb, var(--dw-primary) 34%, transparent);
   border-radius: var(--dw-radius-full);
 
   &:hover {
@@ -319,7 +339,7 @@ h4 {
   background: var(--dw-surface-overlay);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(140, 123, 112, 0.08); // Subtle taupe border
+  border: 1px solid var(--dw-border-subtle);
   box-shadow: var(--dw-shadow-sm);
 }
 
@@ -327,11 +347,11 @@ h4 {
 .card {
   background: var(--dw-gradient-card);
   border-radius: var(--dw-radius-lg);
-  border: 1px solid rgba(140, 123, 112, 0.06);
+  border: 1px solid var(--dw-border-subtle);
   transition: all var(--dw-transition-normal);
 
   &:hover {
-    border-color: rgba(140, 123, 112, 0.2);
+    border-color: var(--dw-border-strong);
     box-shadow: var(--dw-shadow-md);
     transform: translateY(-2px);
   }
@@ -397,17 +417,17 @@ h4 {
   font-weight: 500;
 
   &.badge-primary {
-    background: rgba(140, 123, 112, 0.1);
-    color: var(--dw-primary);
+    background: color-mix(in srgb, var(--dw-primary) 16%, transparent);
+    color: var(--dw-primary-dark);
   }
 
   &.badge-accent {
-    background: rgba(163, 177, 138, 0.15);
+    background: color-mix(in srgb, var(--dw-accent) 16%, transparent);
     color: var(--dw-accent-dark);
   }
 
   &.badge-success {
-    background: rgba(126, 161, 114, 0.15);
+    background: color-mix(in srgb, var(--dw-success) 16%, transparent);
     color: var(--dw-success);
   }
 }
@@ -687,7 +707,7 @@ h4 {
 .mat-mdc-card {
   --mdc-elevated-card-container-color: var(--dw-surface-card);
   border-radius: var(--dw-radius-lg) !important;
-  border: 1px solid rgba(140, 123, 112, 0.08);
+  border: 1px solid var(--dw-border-subtle);
   box-shadow: var(--dw-shadow-sm) !important;
 }
 
@@ -713,7 +733,7 @@ h4 {
 // Override Material menus (Fix transparency)
 .mat-mdc-menu-panel {
   background-color: var(--dw-surface-elevated) !important;
-  border: 1px solid rgba(140, 123, 112, 0.08);
+  border: 1px solid var(--dw-border-subtle);
   box-shadow: var(--dw-shadow-lg) !important;
   border-radius: var(--dw-radius-lg) !important;
 
@@ -736,7 +756,7 @@ h4 {
 div.mat-mdc-select-panel,
 .cdk-overlay-pane .mat-mdc-select-panel {
   background-color: var(--dw-surface-elevated) !important;
-  border: 1px solid rgba(140, 123, 112, 0.08);
+  border: 1px solid var(--dw-border-subtle);
   box-shadow: var(--dw-shadow-lg) !important;
   border-radius: var(--dw-radius-md) !important;
 }
@@ -764,7 +784,7 @@ div.mat-mdc-select-panel,
   border-radius: 16px !important;
   overflow: hidden !important; // Clip header corners
   border: none !important; // Override default border
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: var(--dw-shadow-lg) !important;
 
   .mat-mdc-menu-content {
     padding-top: 0 !important;
@@ -773,7 +793,7 @@ div.mat-mdc-select-panel,
 
   // User Info Header
   .menu-user-info {
-    background: linear-gradient(135deg, var(--dw-primary) 0%, #047857 100%); // Gradient
+    background: linear-gradient(135deg, var(--dw-primary) 0%, var(--dw-accent) 100%);
     padding: 24px 20px;
     display: flex;
     align-items: center;
@@ -861,7 +881,7 @@ div.mat-mdc-select-panel,
   }
 
   // Menu Items
-  .mat-mdc-menu-item {
+    .mat-mdc-menu-item {
     font-family: 'Outfit', sans-serif !important;
     font-weight: 500 !important;
     font-size: 14px !important;
@@ -879,7 +899,7 @@ div.mat-mdc-select-panel,
     }
 
     &:hover {
-      background-color: #F0FDF4; // Green 50
+      background-color: var(--dw-surface-hover);
       color: var(--dw-primary) !important;
 
       .mat-icon {
@@ -893,16 +913,16 @@ div.mat-mdc-select-panel,
   // Logout Specifics
   .logout-item {
     margin-top: 4px;
-    color: #DC2626 !important; // Red 600
+    color: var(--dw-error) !important;
 
     .mat-icon {
-      color: #DC2626 !important;
+      color: var(--dw-error) !important;
       opacity: 0.7;
     }
 
     &:hover {
-      background-color: #FEF2F2 !important; // Red 50
-      color: #B91C1C !important;
+      background-color: color-mix(in srgb, var(--dw-error) 12%, transparent) !important;
+      color: var(--dw-error) !important;
 
       .mat-icon {
         opacity: 1;
@@ -912,7 +932,7 @@ div.mat-mdc-select-panel,
 
   // Divider
   .mat-divider {
-    border-top-color: rgba(0, 0, 0, 0.06) !important;
+    border-top-color: var(--dw-border-subtle) !important;
     margin: 8px 0 !important;
   }
 
@@ -931,14 +951,14 @@ div.mat-mdc-select-panel,
   .mat-mdc-bottom-sheet-container {
     background: var(--dw-surface-elevated) !important;
     color: var(--dw-text-primary) !important;
-    border: 1px solid rgba(140, 123, 112, 0.1);
+    border: 1px solid var(--dw-border-subtle);
     border-radius: 20px 20px 0 0;
     box-shadow: var(--dw-shadow-lg) !important;
   }
 }
 
 .cdk-overlay-backdrop.dw-mobile-sheet-backdrop {
-  background: rgba(12, 10, 9, 0.35);
+  background: var(--dw-overlay-scrim);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }

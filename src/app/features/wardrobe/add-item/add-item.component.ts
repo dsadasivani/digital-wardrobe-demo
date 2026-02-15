@@ -1,5 +1,6 @@
-import {Component, inject, signal, ChangeDetectionStrategy} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,8 +8,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { WardrobeService } from '../../../core/services';
-import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
+import { ImageCropperService, WardrobeService } from '../../../core/services';
+import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,17 +23,35 @@ import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
       </header>
 
       <div class="upload-section glass">
-        <div class="drop-zone" [class.has-image]="previewUrl()" (click)="fileInput.click()">
-          @if (previewUrl()) {
-            <img [src]="previewUrl()" alt="Preview" class="preview-image">
-            <button class="remove-btn" (click)="removeImage($event)"><mat-icon>close</mat-icon></button>
+        <div class="drop-zone" [class.has-image]="previewUrls().length > 0" (click)="fileInput.click()">
+          @if (previewUrls().length > 0) {
+            <img [src]="primaryPreviewUrl()" alt="Preview" class="preview-image">
+            <div class="image-meta">{{ previewUrls().length }} image{{ previewUrls().length > 1 ? 's' : '' }}</div>
+            <button class="remove-btn" type="button" (click)="clearImages($event)"><mat-icon>close</mat-icon></button>
           } @else {
             <mat-icon>add_photo_alternate</mat-icon>
             <p>Click or drag to upload image</p>
-            <span>PNG, JPG up to 10MB</span>
+            <span>PNG, JPG up to 10MB (crop each image)</span>
           }
         </div>
-        <input #fileInput type="file" accept="image/*" hidden (change)="onFileSelected($event)">
+        <input #fileInput type="file" accept="image/*" multiple hidden (change)="onFileSelected($event)">
+        @if (previewUrls().length > 0) {
+          <div class="preview-grid">
+            @for (url of previewUrls(); track i; let i = $index) {
+              <div class="preview-thumb" [class.active]="i === selectedImageIndex()">
+                <img [src]="url" [alt]="'Image ' + (i + 1)" (click)="setPrimaryImage(i, $event)">
+                @if (i === selectedImageIndex()) {
+                  <span class="primary-chip">Primary</span>
+                } @else {
+                  <button type="button" class="primary-btn" (click)="setPrimaryImage(i, $event)">Set primary</button>
+                }
+                <button type="button" class="thumb-remove" (click)="removeImage(i, $event)">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <form class="item-form" (ngSubmit)="onSubmit()">
@@ -70,13 +89,37 @@ import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
         </div>
 
         <mat-form-field appearance="outline">
+          <mat-label>Purchased Date (optional)</mat-label>
+          <input matInput type="date" [(ngModel)]="purchaseDate" name="purchaseDate">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Price (optional)</mat-label>
+          <input matInput type="number" min="0" step="0.01" [(ngModel)]="price" name="price" placeholder="e.g., 49.99">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Occasion (optional)</mat-label>
+          <mat-select [(ngModel)]="occasion" name="occasion">
+            <mat-option [value]="''">None</mat-option>
+            @for (option of occasionOptions; track option) {
+              <mat-option [value]="option">{{ option | titlecase }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
           <mat-label>Tags (comma separated)</mat-label>
           <input matInput [(ngModel)]="tags" name="tags" placeholder="e.g., casual, work, summer">
         </mat-form-field>
 
+        @if (errorMessage()) {
+          <p class="form-error">{{ errorMessage() }}</p>
+        }
+
         <div class="form-actions">
           <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
-          <button mat-raised-button color="primary" class="submit-btn" type="submit">Add to Wardrobe</button>
+          <button mat-raised-button color="primary" class="submit-btn" type="submit" [disabled]="isSaving()">Add to Wardrobe</button>
         </div>
       </form>
     </div>
@@ -87,16 +130,26 @@ import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
     .subtitle { color: var(--dw-text-secondary); margin: 0; }
     .upload-section { padding: var(--dw-spacing-lg); border-radius: var(--dw-radius-xl); margin-bottom: var(--dw-spacing-xl); }
     .drop-zone { position: relative; aspect-ratio: 4/3; max-height: 300px; border: 2px dashed var(--dw-surface-card); border-radius: var(--dw-radius-lg); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-    .drop-zone:hover { border-color: var(--dw-primary); background: rgba(124,58,237,0.05); }
+    .drop-zone:hover { border-color: var(--dw-primary); background: color-mix(in srgb, var(--dw-primary) 10%, transparent); }
     .drop-zone mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--dw-text-muted); margin-bottom: 16px; }
     .drop-zone p { color: var(--dw-text-primary); margin: 0 0 8px; }
     .drop-zone span { font-size: 12px; color: var(--dw-text-muted); }
     .drop-zone.has-image { border-style: solid; border-color: var(--dw-primary); }
     .preview-image { width: 100%; height: 100%; object-fit: contain; border-radius: var(--dw-radius-md); }
-    .remove-btn { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .image-meta { position: absolute; left: 10px; bottom: 10px; padding: 4px 10px; border-radius: 999px; font-size: 12px; background: color-mix(in srgb, var(--dw-overlay-scrim) 90%, transparent); color: var(--dw-on-primary); }
+    .remove-btn { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent); border: none; color: var(--dw-on-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .preview-grid { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+    .preview-thumb { position: relative; border: 1px solid var(--dw-border-subtle); border-radius: 10px; overflow: hidden; aspect-ratio: 1; background: var(--dw-surface-card); }
+    .preview-thumb.active { border-color: var(--dw-primary); box-shadow: var(--dw-shadow-sm); }
+    .preview-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .primary-chip { position: absolute; left: 4px; top: 4px; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--dw-primary) 84%, black 16%); color: var(--dw-on-primary); font-size: 10px; font-weight: 600; }
+    .primary-btn { position: absolute; left: 4px; bottom: 4px; border: none; border-radius: 999px; padding: 2px 8px; font-size: 10px; font-weight: 600; background: color-mix(in srgb, var(--dw-overlay-scrim) 85%, transparent); color: var(--dw-on-primary); }
+    .thumb-remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border: none; border-radius: 50%; background: color-mix(in srgb, var(--dw-overlay-scrim) 90%, transparent); color: var(--dw-on-primary); display: inline-flex; align-items: center; justify-content: center; }
+    .thumb-remove mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .item-form { display: flex; flex-direction: column; gap: 16px; }
     .form-row { display: flex; gap: 16px; }
     .form-row mat-form-field { flex: 1; }
+    .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
     .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
     .submit-btn {
       --mdc-protected-button-container-color: transparent !important;
@@ -173,49 +226,143 @@ import { WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
 })
 export class AddItemComponent {
     private wardrobeService = inject(WardrobeService);
+    private imageCropper = inject(ImageCropperService);
     private router = inject(Router);
 
     categories = WARDROBE_CATEGORIES;
+    occasionOptions = OCCASION_OPTIONS;
     itemName = '';
     category = '';
     color = '';
     brand = '';
     size = '';
+    purchaseDate = '';
+    price = '';
+    occasion = '';
     tags = '';
-    previewUrl = signal<string | null>(null);
+    previewUrls = signal<string[]>([]);
+    selectedImageIndex = signal(0);
+    primaryPreviewUrl = computed(() => this.previewUrls()[this.selectedImageIndex()] ?? this.previewUrls()[0] ?? '');
+    isSaving = signal(false);
+    errorMessage = signal<string | null>(null);
 
-    onFileSelected(event: Event) {
-        const file = (event.target as HTMLInputElement).files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = () => this.previewUrl.set(reader.result as string);
-            reader.readAsDataURL(file);
+    async onFileSelected(event: Event): Promise<void> {
+        const input = event.target as HTMLInputElement;
+        const files = Array.from(input.files ?? []);
+        input.value = '';
+        if (!files.length) {
+          return;
+        }
+
+        this.errorMessage.set(null);
+        const croppedUrls: string[] = [];
+        try {
+          for (const file of files) {
+            const cropped = await this.imageCropper.cropFile(file, {
+              title: 'Crop Item Image',
+              aspectRatio: 3 / 4,
+              maxOutputWidth: 1200,
+              maxOutputHeight: 1600,
+              quality: 0.9,
+            });
+            if (cropped) {
+              croppedUrls.push(cropped);
+            }
+          }
+          if (croppedUrls.length) {
+            this.previewUrls.update(existing => [...existing, ...croppedUrls]);
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unable to open image cropper.';
+          this.errorMessage.set(message);
         }
     }
 
-    removeImage(event: Event) {
+    removeImage(index: number, event: Event) {
         event.stopPropagation();
-        this.previewUrl.set(null);
+        this.previewUrls.update(images => images.filter((_, i) => i !== index));
+        this.selectedImageIndex.update(current => {
+          if (current === index) {
+            return 0;
+          }
+          if (current > index) {
+            return current - 1;
+          }
+          return current;
+        });
     }
 
-    onSubmit() {
-        if (this.itemName && this.category && this.color) {
-            this.wardrobeService.addItem({
+    clearImages(event: Event): void {
+        event.stopPropagation();
+        this.previewUrls.set([]);
+        this.selectedImageIndex.set(0);
+    }
+
+    setPrimaryImage(index: number, event: Event): void {
+        event.stopPropagation();
+        this.selectedImageIndex.set(index);
+    }
+
+    async onSubmit(): Promise<void> {
+        if (!this.itemName || !this.category || !this.color) {
+            this.errorMessage.set('Please fill all required fields.');
+            return;
+        }
+        this.isSaving.set(true);
+        this.errorMessage.set(null);
+        try {
+            const imageUrls = this.previewUrls().length
+              ? this.getOrderedImageUrls()
+              : ['https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=500&fit=crop'];
+            await this.wardrobeService.addItem({
                 name: this.itemName,
                 category: this.category as WardrobeCategory,
                 color: this.color,
                 colorHex: '#7c3aed',
                 brand: this.brand || undefined,
                 size: this.size || undefined,
-                imageUrl: this.previewUrl() || 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=500&fit=crop',
+                purchaseDate: this.purchaseDate ? new Date(this.purchaseDate) : undefined,
+                price: this.price ? Number(this.price) : undefined,
+                occasion: this.occasion || undefined,
+                imageUrl: imageUrls[0],
+                imageUrls,
+                primaryImageUrl: imageUrls[0],
                 favorite: false,
                 tags: this.tags.split(',').map(t => t.trim()).filter(t => t),
             });
-            this.router.navigate(['/wardrobe']);
+            await this.router.navigate(['/wardrobe']);
+        } catch (error) {
+            this.errorMessage.set(this.extractErrorMessage(error));
+        } finally {
+            this.isSaving.set(false);
         }
     }
 
     cancel() {
         this.router.navigate(['/wardrobe']);
+    }
+
+    private extractErrorMessage(error: unknown): string {
+        if (error instanceof HttpErrorResponse) {
+            const fieldError = error.error?.fieldErrors?.[0];
+            if (fieldError?.field && fieldError?.message) {
+                return `${fieldError.field}: ${fieldError.message}`;
+            }
+            if (typeof error.error?.message === 'string') {
+                return error.error.message;
+            }
+        }
+        return 'Unable to save item. Please review your inputs and try again.';
+    }
+
+    private getOrderedImageUrls(): string[] {
+        const images = this.previewUrls();
+        if (images.length <= 1) {
+          return images;
+        }
+        const primaryIndex = this.selectedImageIndex();
+        const normalizedPrimaryIndex = ((primaryIndex % images.length) + images.length) % images.length;
+        const primaryImage = images[normalizedPrimaryIndex];
+        return [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)];
     }
 }

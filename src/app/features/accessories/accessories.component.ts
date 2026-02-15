@@ -129,10 +129,10 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
     .sort-select { width: 180px; }
     .category-chips, .quick-filters { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; margin-bottom: 2px; scrollbar-width: none; }
     .category-chips::-webkit-scrollbar, .quick-filters::-webkit-scrollbar { display: none; }
-    .chip { border: 1px solid rgba(0, 0, 0, 0.08); background: var(--dw-surface-card); color: var(--dw-text-primary); border-radius: 999px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .chip { border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-card); color: var(--dw-text-primary); border-radius: 999px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
     .chip span { font-size: 11px; color: var(--dw-text-secondary); }
-    .chip.active { background: var(--dw-gradient-primary); color: #fff; border-color: transparent; }
-    .chip.active span { color: rgba(255, 255, 255, 0.86); }
+    .chip.active { background: var(--dw-gradient-primary); color: var(--dw-on-primary); border-color: transparent; }
+    .chip.active span { color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent); }
     .chip mat-icon { width: 16px; height: 16px; font-size: 16px; }
     .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--dw-spacing-lg); }
     .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; padding: 48px; text-align: center; }

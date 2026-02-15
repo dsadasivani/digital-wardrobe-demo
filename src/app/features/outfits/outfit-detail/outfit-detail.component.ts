@@ -26,6 +26,9 @@ interface OutfitResolvedItem {
         </button>
         <h1>{{ selectedOutfit.name }}</h1>
         <div class="actions">
+          <button mat-stroked-button color="primary" (click)="markAsWorn()">
+            <mat-icon>check_circle</mat-icon> Mark as Worn
+          </button>
           <button mat-stroked-button color="warn" (click)="deleteOutfit()">
             <mat-icon>delete</mat-icon> Delete
           </button>
@@ -82,6 +85,11 @@ interface OutfitResolvedItem {
             </section>
           }
           
+          <section class="dates-section">
+             <h3>Worn Count</h3>
+             <p>{{ selectedOutfit.worn }} times</p>
+          </section>
+
           <section class="dates-section">
              <h3>Last Worn</h3>
              <p>{{ selectedOutfit.lastWorn ? (selectedOutfit.lastWorn | date) : 'Never' }}</p>
@@ -188,8 +196,8 @@ interface OutfitResolvedItem {
         gap: 8px;
         
         .badge {
-          background: rgba(0,0,0,0.6);
-          color: white;
+          background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent);
+          color: var(--dw-on-primary);
           padding: 4px 12px;
           border-radius: 99px;
           font-size: 12px;
@@ -268,7 +276,7 @@ interface OutfitResolvedItem {
       padding: 4px 10px;
       border-radius: 999px;
       background: var(--dw-surface-card);
-      border: 1px solid rgba(140,123,112,0.18);
+      border: 1px solid var(--dw-border-subtle);
       color: var(--dw-text-primary);
     }
 
@@ -388,5 +396,14 @@ export class OutfitDetailComponent implements OnInit {
                 this.router.navigate(['/outfits']);
             }
         }
+    }
+
+    async markAsWorn(): Promise<void> {
+        const id = this.outfit()?.id;
+        if (!id) {
+          return;
+        }
+        await this.wardrobeService.markOutfitAsWorn(id);
+        this.outfit.set(this.wardrobeService.getOutfitById(id));
     }
 }

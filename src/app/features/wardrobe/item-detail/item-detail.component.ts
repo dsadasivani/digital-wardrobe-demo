@@ -4,6 +4,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   HostListener,
+  Signal,
   computed,
   ElementRef,
   inject,
@@ -43,9 +44,44 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
         </header>
 
         <div class="content-grid">
-          <section class="image-panel glass">
-            <img [src]="item()!.imageUrl" [alt]="item()!.name" (click)="openImagePreview()">
-          </section>
+          <div class="image-column">
+            <section class="image-panel glass">
+              <img [src]="currentImageUrl()" [alt]="item()!.name" (click)="openImagePreview()">
+              @if (isCurrentImagePrimary()) {
+                <span class="primary-image-badge" aria-label="Primary image">
+                  <mat-icon>workspace_premium</mat-icon>
+                </span>
+              }
+              @if (imageGallery().length > 1) {
+                <button type="button" class="image-nav-btn image-nav-prev" (click)="showPreviousImage($event)" aria-label="Show previous image">
+                  <mat-icon>chevron_left</mat-icon>
+                </button>
+                <button type="button" class="image-nav-btn image-nav-next" (click)="showNextImage($event)" aria-label="Show next image">
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+                <span class="image-counter">{{ selectedImageIndex() + 1 }} / {{ imageGallery().length }}</span>
+              }
+            </section>
+            @if (imageGallery().length > 1) {
+              <div class="image-gallery">
+                @for (url of imageGallery(); track i; let i = $index) {
+                  <button
+                    type="button"
+                    class="thumb-btn"
+                    [class.active]="selectedImageIndex() === i"
+                    (click)="selectedImageIndex.set(i)"
+                  >
+                    <img [src]="url" [alt]="item()!.name + ' image ' + (i + 1)">
+                    @if (i === primaryImageIndex()) {
+                      <span class="thumb-primary-icon" aria-label="Primary image">
+                        <mat-icon>workspace_premium</mat-icon>
+                      </span>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
 
           <section class="info-panel glass">
             <div class="top-meta">
@@ -68,11 +104,17 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
             <div class="stats">
               <div><span class="label">Worn</span><strong>{{ item()!.worn }} times</strong></div>
               <div><span class="label">Last Worn</span><strong>{{ item()!.lastWorn ? (item()!.lastWorn | date) : 'Never' }}</strong></div>
+              <div><span class="label">Occasion</span><strong>{{ item()!.occasion || 'N/A' }}</strong></div>
               <div><span class="label">Brand</span><strong>{{ item()!.brand || 'N/A' }}</strong></div>
               <div><span class="label">Size</span><strong>{{ item()!.size || 'N/A' }}</strong></div>
               <div><span class="label">Price</span><strong>{{ item()!.price ? ('$' + item()!.price) : 'N/A' }}</strong></div>
               <div><span class="label">Purchased</span><strong>{{ item()!.purchaseDate ? (item()!.purchaseDate | date) : 'N/A' }}</strong></div>
             </div>
+
+            <button mat-stroked-button color="primary" (click)="markAsWorn()">
+              <mat-icon>check_circle</mat-icon>
+              Mark as Worn
+            </button>
 
             @if (item()!.tags.length) {
               <div class="tags">
@@ -97,7 +139,15 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
               <button class="preview-close" type="button" (click)="closeImagePreview()" aria-label="Close image preview">
                 <mat-icon>close</mat-icon>
               </button>
-              <img [src]="item()!.imageUrl" [alt]="item()!.name">
+              @if (imageGallery().length > 1) {
+                <button type="button" class="preview-nav-btn preview-nav-prev" (click)="showPreviousImage($event)" aria-label="Show previous image">
+                  <mat-icon>chevron_left</mat-icon>
+                </button>
+                <button type="button" class="preview-nav-btn preview-nav-next" (click)="showNextImage($event)" aria-label="Show next image">
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              }
+              <img [src]="currentImageUrl()" [alt]="item()!.name">
             </div>
           </div>
         }
@@ -168,13 +218,87 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
     }
     .content-grid { display: grid; gap: var(--dw-spacing-xl); grid-template-columns: minmax(280px, 420px) 1fr; }
-    .image-panel { border-radius: var(--dw-radius-xl); overflow: hidden; aspect-ratio: 3/4; }
+    .image-column { display: grid; gap: 10px; align-content: start; }
+    .image-panel { position: relative; border-radius: var(--dw-radius-xl); overflow: hidden; aspect-ratio: 3/4; }
     .image-panel img { width: 100%; height: 100%; object-fit: cover; }
+    .primary-image-badge {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      z-index: 3;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      color: var(--dw-on-primary);
+      border: 1px solid color-mix(in srgb, var(--dw-on-primary) 28%, transparent);
+      background:
+        radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--dw-on-primary) 35%, transparent), transparent 45%),
+        linear-gradient(145deg, color-mix(in srgb, var(--dw-primary) 86%, black 14%), color-mix(in srgb, var(--dw-primary) 62%, black 38%));
+      box-shadow:
+        0 8px 18px color-mix(in srgb, var(--dw-primary) 36%, transparent),
+        0 2px 6px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(4px);
+    }
+    .primary-image-badge mat-icon { width: 17px; height: 17px; font-size: 17px; }
+    .image-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 78%, transparent);
+      color: var(--dw-on-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .image-nav-prev { left: 10px; }
+    .image-nav-next { right: 10px; }
+    .image-nav-btn mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    .image-counter {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--dw-on-primary);
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 72%, transparent);
+    }
+    .image-gallery { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .thumb-btn { position: relative; width: 64px; height: 64px; padding: 0; border: 1px solid var(--dw-border-subtle); border-radius: 10px; overflow: hidden; background: var(--dw-surface-card); }
+    .thumb-btn.active { border-color: var(--dw-primary); box-shadow: var(--dw-shadow-sm); }
+    .thumb-primary-icon {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--dw-on-primary) 24%, transparent);
+      background: linear-gradient(145deg, color-mix(in srgb, var(--dw-primary) 82%, black 18%), color-mix(in srgb, var(--dw-primary) 56%, black 44%));
+      color: var(--dw-on-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px color-mix(in srgb, var(--dw-primary) 34%, transparent);
+    }
+    .thumb-primary-icon mat-icon { width: 12px; height: 12px; font-size: 12px; }
+    .thumb-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .image-preview-backdrop {
       position: fixed;
       inset: 0;
       z-index: 1200;
-      background: rgba(0, 0, 0, 0.82);
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent);
       display: grid;
       place-items: center;
       padding: 20px;
@@ -194,7 +318,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       max-height: calc(100vh - 40px);
       object-fit: contain;
       display: block;
-      background: #000;
+      background: var(--dw-surface-base);
     }
     .preview-close {
       position: absolute;
@@ -204,14 +328,32 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       height: 36px;
       border: none;
       border-radius: 999px;
-      background: rgba(0, 0, 0, 0.6);
-      color: #fff;
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 88%, transparent);
+      color: var(--dw-on-primary);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       z-index: 1;
     }
     .preview-close mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    .preview-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 78%, transparent);
+      color: var(--dw-on-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+    .preview-nav-prev { left: 10px; }
+    .preview-nav-next { right: 10px; }
+    .preview-nav-btn mat-icon { font-size: 21px; width: 21px; height: 21px; }
     @keyframes previewFadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -237,12 +379,12 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .related-container { position: relative; }
     .related-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(160px, 180px); gap: 12px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; -ms-overflow-style: none; }
     .related-row::-webkit-scrollbar { display: none; }
-    .related-card { border-radius: var(--dw-radius-lg); overflow: hidden; text-decoration: none; color: inherit; border: 1px solid rgba(255, 255, 255, 0.08); }
+    .related-card { border-radius: var(--dw-radius-lg); overflow: hidden; text-decoration: none; color: inherit; border: 1px solid var(--dw-border-subtle); }
     .related-card img { width: 100%; height: 180px; object-fit: cover; display: block; }
     .related-meta { padding: 10px; display: flex; flex-direction: column; gap: 2px; }
     .related-meta .name { font-size: 13px; font-weight: 600; color: var(--dw-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .related-meta .sub { font-size: 12px; color: var(--dw-text-secondary); }
-    .related-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.12); background: var(--dw-surface-elevated); color: var(--dw-text-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--dw-shadow-sm); z-index: 2; }
+    .related-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--dw-border-strong); background: var(--dw-surface-elevated); color: var(--dw-text-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--dw-shadow-sm); z-index: 2; }
     .related-prev { left: 6px; }
     .related-next { right: 6px; }
     .related-nav mat-icon { font-size: 20px; width: 20px; height: 20px; }
@@ -262,6 +404,12 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       .content-grid { gap: 12px; }
       .image-panel { border-radius: var(--dw-radius-lg); aspect-ratio: 4/3; }
       .image-panel img { cursor: zoom-in; }
+      .primary-image-badge { left: 8px; top: 8px; width: 30px; height: 30px; }
+      .image-nav-btn { width: 32px; height: 32px; }
+      .image-nav-prev { left: 8px; }
+      .image-nav-next { right: 8px; }
+      .image-counter { bottom: 8px; }
+      .thumb-btn { width: 56px; height: 56px; }
       .info-panel { border-radius: var(--dw-radius-lg); padding: 12px; gap: 12px; }
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .related-section { margin-top: 16px; }
@@ -280,7 +428,47 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   private wardrobeService = inject(WardrobeService);
   private relatedRowRef = viewChild<ElementRef<HTMLElement>>('relatedRow');
 
-  item = signal<WardrobeItem | undefined>(undefined);
+  itemId = signal<string | null>(null);
+  selectedImageIndex = signal(0);
+  item: Signal<WardrobeItem | undefined> = computed(() => {
+    const id = this.itemId();
+    if (!id) {
+      return undefined;
+    }
+    return this.wardrobeService.items().find(item => item.id === id);
+  });
+  imageGallery = computed(() => {
+    const current = this.item();
+    if (!current) {
+      return [];
+    }
+    return current.imageUrls?.length ? current.imageUrls : [current.imageUrl];
+  });
+  currentImageUrl = computed(() => {
+    const gallery = this.imageGallery();
+    if (!gallery.length) {
+      return '';
+    }
+    const index = this.selectedImageIndex();
+    return gallery[index] ?? gallery[0];
+  });
+  primaryImageUrl = computed(() => {
+    const current = this.item();
+    if (!current) {
+      return '';
+    }
+    return current.primaryImageUrl?.trim() || current.imageUrl?.trim() || '';
+  });
+  primaryImageIndex = computed(() => {
+    const gallery = this.imageGallery();
+    if (!gallery.length) {
+      return -1;
+    }
+    const primaryUrl = this.primaryImageUrl();
+    const index = gallery.findIndex(url => url === primaryUrl);
+    return index >= 0 ? index : 0;
+  });
+  isCurrentImagePrimary = computed(() => this.primaryImageIndex() === this.selectedImageIndex());
   isImageExpanded = signal(false);
   canScrollLeft = signal(false);
   canScrollRight = signal(true);
@@ -308,7 +496,8 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
-      this.item.set(id ? this.wardrobeService.getItemById(id) : undefined);
+      this.itemId.set(id);
+      this.selectedImageIndex.set(0);
       queueMicrotask(() => this.refreshRelatedScrollState());
     });
   }
@@ -332,6 +521,14 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     }
   }
 
+  async markAsWorn(): Promise<void> {
+    const current = this.item();
+    if (!current) {
+      return;
+    }
+    await this.wardrobeService.markItemAsWorn(current.id);
+  }
+
   onRelatedScroll(container: HTMLElement): void {
     this.updateScrollControls(container);
   }
@@ -343,7 +540,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   }
 
   openImagePreview(): void {
-    if (window.innerWidth > 768 || !this.item()) {
+    if (window.innerWidth > 768 || !this.item() || !this.currentImageUrl()) {
       return;
     }
     this.isImageExpanded.set(true);
@@ -353,11 +550,31 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     this.isImageExpanded.set(false);
   }
 
+  showPreviousImage(event?: Event): void {
+    event?.stopPropagation();
+    this.shiftImage(-1);
+  }
+
+  showNextImage(event?: Event): void {
+    event?.stopPropagation();
+    this.shiftImage(1);
+  }
+
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.isImageExpanded()) {
       this.closeImagePreview();
     }
+  }
+
+  @HostListener('document:keydown.arrowleft')
+  onArrowLeft(): void {
+    this.shiftImage(-1);
+  }
+
+  @HostListener('document:keydown.arrowright')
+  onArrowRight(): void {
+    this.shiftImage(1);
   }
 
   private refreshRelatedScrollState(): void {
@@ -374,5 +591,13 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     const maxScrollLeft = container.scrollWidth - container.clientWidth;
     this.canScrollLeft.set(container.scrollLeft > 2);
     this.canScrollRight.set(container.scrollLeft < maxScrollLeft - 2);
+  }
+
+  private shiftImage(step: number): void {
+    const total = this.imageGallery().length;
+    if (total < 2) {
+      return;
+    }
+    this.selectedImageIndex.update(current => ((current + step) % total + total) % total);
   }
 }

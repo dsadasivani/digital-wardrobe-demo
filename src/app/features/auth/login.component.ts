@@ -84,8 +84,28 @@ import { AuthService } from '../../core/services/auth.service';
   `,
   styles: [`
     .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; }
-    .auth-bg { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(124,58,237,0.2) 0%, rgba(236,72,153,0.1) 100%); }
-    .auth-container { position: relative; width: 100%; max-width: 420px; padding: 40px; background: var(--dw-surface-elevated); border-radius: var(--dw-radius-xl); border: 1px solid rgba(255,255,255,0.06); }
+    .auth-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--dw-primary) 24%, transparent) 0%, transparent 52%),
+        radial-gradient(circle at 88% 84%, color-mix(in srgb, var(--dw-accent) 24%, transparent) 0%, transparent 48%),
+        linear-gradient(
+          160deg,
+          color-mix(in srgb, var(--dw-surface-base) 88%, var(--dw-primary) 12%) 0%,
+          var(--dw-surface-base) 100%
+        );
+    }
+    .auth-container {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      padding: 40px;
+      background: var(--dw-surface-elevated);
+      border-radius: var(--dw-radius-xl);
+      border: 1px solid var(--dw-border-subtle);
+      box-shadow: var(--dw-shadow-lg);
+    }
     .auth-header { text-align: center; margin-bottom: 32px; }
     .logo { width: 64px; height: 64px; margin: 0 auto 16px; background: var(--dw-gradient-primary); border-radius: var(--dw-radius-lg); display: flex; align-items: center; justify-content: center; }
     .logo mat-icon { font-size: 32px; width: 32px; height: 32px; color: white; }
@@ -94,7 +114,7 @@ import { AuthService } from '../../core/services/auth.service';
     .auth-form { display: flex; flex-direction: column; gap: 16px; }
     mat-form-field { width: 100%; }
     .form-options { display: flex; justify-content: space-between; align-items: center; }
-    .forgot-link { color: var(--dw-primary-light); text-decoration: none; font-size: 14px; }
+    .forgot-link { color: var(--dw-primary); text-decoration: none; font-size: 14px; }
     .submit-btn {
       width: 100%;
       height: 48px;
@@ -102,22 +122,22 @@ import { AuthService } from '../../core/services/auth.service';
       margin-top: 8px;
       --mdc-protected-button-container-color: var(--dw-primary);
       --mdc-protected-button-label-text-color: var(--dw-on-primary);
-      --mdc-protected-button-container-elevation: 0 8px 18px rgba(140, 123, 112, 0.28);
+      --mdc-protected-button-container-elevation: var(--dw-shadow-md);
       background: var(--dw-primary) !important;
       color: var(--dw-on-primary) !important;
-      border: 1px solid color-mix(in srgb, var(--dw-primary) 78%, #000 22%);
+      border: 1px solid var(--dw-border-strong);
     }
     .submit-btn:disabled {
       opacity: 0.7;
     }
     .divider { display: flex; align-items: center; gap: 16px; margin: 24px 0; color: var(--dw-text-muted); font-size: 14px; }
-    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--dw-border-subtle); }
     .social-buttons { display: flex; gap: 12px; }
-    .social-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: var(--dw-surface-card); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--dw-radius-md); color: var(--dw-text-primary); cursor: pointer; transition: all 0.15s; }
+    .social-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: var(--dw-surface-card); border: 1px solid var(--dw-border-subtle); border-radius: var(--dw-radius-md); color: var(--dw-text-primary); cursor: pointer; transition: all 0.15s; }
     .social-btn:hover { border-color: var(--dw-primary); }
     .social-btn img { width: 20px; height: 20px; }
     .auth-footer { text-align: center; margin-top: 24px; color: var(--dw-text-secondary); }
-    .auth-footer a { color: var(--dw-primary-light); text-decoration: none; font-weight: 500; }
+    .auth-footer a { color: var(--dw-primary); text-decoration: none; font-weight: 500; }
 
     @media (max-width: 768px) {
       .auth-page {
@@ -215,15 +235,15 @@ export class LoginComponent {
 
   async loginWithGoogle() {
     this.loading.set(true);
-    await this.authService.loginWithGoogle();
+    const success = await this.authService.loginWithGoogle();
     this.loading.set(false);
-    this.router.navigate(['/']);
+    if (success) this.router.navigate(['/']);
   }
 
   async loginWithApple() {
     this.loading.set(true);
-    await this.authService.loginWithApple();
+    const success = await this.authService.loginWithApple();
     this.loading.set(false);
-    this.router.navigate(['/']);
+    if (success) this.router.navigate(['/']);
   }
 }
