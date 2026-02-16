@@ -6,7 +6,7 @@ spring:
     name: digital-wardrobe-backend
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/digital_wardrobe}
-    database: ${MONGODB_DATABASE:digital_wardrobe}
+    # database: ${MONGODB_DATABASE:digital_wardrobe}
 management:
   endpoints:
     web:

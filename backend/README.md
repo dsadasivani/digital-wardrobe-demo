@@ -16,6 +16,77 @@ mvn spring-boot:run
 
 From this folder (`backend/`), the API runs on `http://localhost:8080`.
 
+## Docker
+
+### Build image
+
+```bash
+docker build -t digital-wardrobe-backend .
+```
+
+### Run backend container
+
+```bash
+docker run --rm -p 8080:8080 -e MONGODB_URI='mongodb+srv://username:password@cluster-url/digital_wardrobe?retryWrites=true&w=majority' -e JWT_SECRET=replace-with-a-long-random-secret-at-least-32-chars digital-wardrobe-backend
+```
+
+### Run backend with Compose (cloud MongoDB)
+
+```bash
+# macOS/Linux
+cp .env.example .env
+
+# PowerShell
+Copy-Item .env.example .env
+
+docker compose up --build
+```
+
+The compose setup runs:
+- API at `http://localhost:8080`
+
+Compose reads overrides from `.env` (see `.env.example`). Set `MONGODB_URI` in `.env` to your cloud MongoDB connection string.
+
+## JWT secret manual guide
+
+### 1. Generate a strong secret
+
+Use one of these commands to generate a random 32-byte (64 hex chars) secret.
+
+```bash
+# OpenSSL (macOS/Linux/Git Bash)
+openssl rand -hex 32
+```
+
+```powershell
+# PowerShell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+($bytes | ForEach-Object { $_.ToString("x2") }) -join ''
+```
+
+### 2. Set the secret
+
+Put the generated value in `JWT_SECRET` inside your runtime env source (`.env` for local/dev, secret manager in production).
+
+### 3. Rotate the secret manually
+
+1. Generate a new secret using step 1.
+2. Replace `JWT_SECRET` in your runtime env source.
+3. Restart backend container:
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+4. Verify health endpoint:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Note: this app currently uses one active JWT signing secret, so rotating `JWT_SECRET` invalidates existing tokens and users must log in again.
+
 ## Environment variables
 
 - `MONGODB_URI` (default: `mongodb://localhost:27017/digital_wardrobe`)
