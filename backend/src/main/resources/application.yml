@@ -12,6 +12,9 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    mongodb:
+      enabled: false
 springdoc:
   api-docs:
     path: /v3/api-docs
