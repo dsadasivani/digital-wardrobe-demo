@@ -1,0 +1,91 @@
+groups:
+  - name: digital-wardrobe-api-slo
+    interval: 30s
+    rules:
+      - alert: DigitalWardrobeReadLatencyHighWarning
+        expr: |
+          1000 * histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(http_server_requests_seconds_bucket{
+                uri=~"/api/v1/(wardrobe-items|accessories|outfits)(/.*)?",
+                method="GET"
+              }[5m])
+            )
+          ) > 250
+        for: 10m
+        labels:
+          severity: warning
+          service: digital-wardrobe-backend
+          slo: read-latency
+        annotations:
+          summary: Read API p95 latency is above warning threshold
+          description: Read API p95 latency has been above 250ms for 10 minutes.
+
+      - alert: DigitalWardrobeReadLatencyHighCritical
+        expr: |
+          1000 * histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(http_server_requests_seconds_bucket{
+                uri=~"/api/v1/(wardrobe-items|accessories|outfits)(/.*)?",
+                method="GET"
+              }[5m])
+            )
+          ) > 500
+        for: 10m
+        labels:
+          severity: critical
+          service: digital-wardrobe-backend
+          slo: read-latency
+        annotations:
+          summary: Read API p95 latency is above critical threshold
+          description: Read API p95 latency has been above 500ms for 10 minutes.
+
+      - alert: DigitalWardrobeServerErrorRateWarning
+        expr: |
+          100 * (
+            sum(
+              rate(http_server_requests_seconds_count{
+                uri=~"/api/v1/.*",
+                status=~"5.."
+              }[5m])
+            )
+            /
+            clamp_min(
+              sum(rate(http_server_requests_seconds_count{uri=~"/api/v1/.*"}[5m])),
+              0.000001
+            )
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: digital-wardrobe-backend
+          slo: error-rate
+        annotations:
+          summary: API 5xx rate is above warning threshold
+          description: API 5xx error rate has been above 0.5% for 5 minutes.
+
+      - alert: DigitalWardrobeServerErrorRateCritical
+        expr: |
+          100 * (
+            sum(
+              rate(http_server_requests_seconds_count{
+                uri=~"/api/v1/.*",
+                status=~"5.."
+              }[5m])
+            )
+            /
+            clamp_min(
+              sum(rate(http_server_requests_seconds_count{uri=~"/api/v1/.*"}[5m])),
+              0.000001
+            )
+          ) > 2
+        for: 5m
+        labels:
+          severity: critical
+          service: digital-wardrobe-backend
+          slo: error-rate
+        annotations:
+          summary: API 5xx rate is above critical threshold
+          description: API 5xx error rate has been above 2% for 5 minutes.
