@@ -90,6 +90,7 @@ Note: this app currently uses one active JWT signing secret, so rotating `JWT_SE
 ## Environment variables
 
 - `MONGODB_URI` (default: `mongodb://localhost:27017/digital_wardrobe`)
+- `SPRING_PROFILES_ACTIVE` (set to `observability` to enable advanced telemetry profile)
 - `JWT_SECRET` (required, at least 32 characters)
 - `JWT_EXPIRATION_SECONDS` (default: `86400`)
 - `CORS_ALLOWED_ORIGINS` (default: `http://localhost:4200`)
@@ -99,6 +100,16 @@ Note: this app currently uses one active JWT signing secret, so rotating `JWT_SE
 - `DEFAULT_ADMIN_PASSWORD` (required when bootstrap enabled, min 12 chars)
 - `SPRINGDOC_API_DOCS_ENABLED` (default: `true`)
 - `SPRINGDOC_SWAGGER_UI_ENABLED` (default: `true`)
+- `ACTUATOR_PUBLIC_ENDPOINTS` (default: `/actuator/health,/actuator/info`)
+
+When `SPRING_PROFILES_ACTIVE=observability`, these optional vars are used:
+
+- `APP_ENV` (default: `dev`, used as metrics tag)
+- `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE` (default: `health,info,metrics,prometheus`)
+- `MANAGEMENT_ENDPOINT_METRICS_ENABLED` (default: `true`)
+- `MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED` (default: `true`)
+- `MANAGEMENT_PROMETHEUS_METRICS_EXPORT_ENABLED` (default: `true`)
+- `ACTUATOR_PUBLIC_ENDPOINTS` can be widened to include `/actuator/metrics,/actuator/prometheus`
 
 ## Starter endpoints
 
@@ -112,3 +123,9 @@ Note: this app currently uses one active JWT signing secret, so rotating `JWT_SE
 
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+## Observability stack
+
+Monitoring assets are maintained separately in `../observability` (or an external `digital-wardrobe-observability` repository).
+
+Advanced telemetry tuning for p95/p99 histograms is in `backend/src/main/resources/application-observability.yml` and is activated only when the `observability` profile is enabled.

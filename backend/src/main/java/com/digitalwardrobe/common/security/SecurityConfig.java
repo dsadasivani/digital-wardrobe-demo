@@ -21,12 +21,15 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final String corsAllowedOrigins;
+    private final String actuatorPublicEndpoints;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            @Value("${app.security.cors-allowed-origins}") String corsAllowedOrigins) {
+            @Value("${app.security.cors-allowed-origins}") String corsAllowedOrigins,
+            @Value("${app.security.actuator-public-endpoints}") String actuatorPublicEndpoints) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.corsAllowedOrigins = corsAllowedOrigins;
+        this.actuatorPublicEndpoints = actuatorPublicEndpoints;
     }
 
     @Bean
@@ -38,7 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers(resolvePublicActuatorEndpoints()).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -60,5 +63,12 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private String[] resolvePublicActuatorEndpoints() {
+        return Arrays.stream(actuatorPublicEndpoints.split(","))
+                .map(String::trim)
+                .filter(endpoint -> !endpoint.isBlank())
+                .toArray(String[]::new);
     }
 }
