@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -35,18 +35,33 @@ import { AuthService } from '../../core/services/auth.service';
           <p>Start building your Digital Wardrobe</p>
         </div>
 
-        <form class="auth-form" (ngSubmit)="onSubmit()">
+        <form class="auth-form" #signupForm="ngForm" (ngSubmit)="onSubmit(signupForm)" novalidate>
           <mat-form-field appearance="outline">
             <mat-label>Full Name</mat-label>
             <input
               matInput
-              [ngModel]="name()"
-              (ngModelChange)="name.set($event)"
               name="name"
               required
+              minlength="2"
               maxlength="120"
+              [ngModel]="name()"
+              (ngModelChange)="onNameChange($event)"
+              #nameModel="ngModel"
             />
             <mat-icon matPrefix>person</mat-icon>
+            @if ((nameModel.invalid && (nameModel.touched || submitted())) || fieldError('name')) {
+              <mat-error>
+                @if (fieldError('name')) {
+                  {{ fieldError('name') }}
+                } @else if (nameModel.hasError('required')) {
+                  Name is required.
+                } @else if (nameModel.hasError('minlength')) {
+                  Name must be at least 2 characters.
+                } @else if (nameModel.hasError('maxlength')) {
+                  Name must be 120 characters or fewer.
+                }
+              </mat-error>
+            }
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -54,12 +69,28 @@ import { AuthService } from '../../core/services/auth.service';
             <input
               matInput
               type="email"
-              [ngModel]="email()"
-              (ngModelChange)="email.set($event)"
               name="email"
               required
+              email
+              maxlength="320"
+              [ngModel]="email()"
+              (ngModelChange)="onEmailChange($event)"
+              #emailModel="ngModel"
             />
             <mat-icon matPrefix>email</mat-icon>
+            @if ((emailModel.invalid && (emailModel.touched || submitted())) || fieldError('email')) {
+              <mat-error>
+                @if (fieldError('email')) {
+                  {{ fieldError('email') }}
+                } @else if (emailModel.hasError('required')) {
+                  Email is required.
+                } @else if (emailModel.hasError('email')) {
+                  Enter a valid email address.
+                } @else if (emailModel.hasError('maxlength')) {
+                  Email must be 320 characters or fewer.
+                }
+              </mat-error>
+            }
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -67,16 +98,31 @@ import { AuthService } from '../../core/services/auth.service';
             <input
               matInput
               [type]="showPassword() ? 'text' : 'password'"
-              [ngModel]="password()"
-              (ngModelChange)="password.set($event)"
               name="password"
               required
               minlength="8"
+              maxlength="200"
+              [ngModel]="password()"
+              (ngModelChange)="onPasswordChange($event)"
+              #passwordModel="ngModel"
             />
             <mat-icon matPrefix>lock</mat-icon>
             <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())">
               <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
+            @if ((passwordModel.invalid && (passwordModel.touched || submitted())) || fieldError('password')) {
+              <mat-error>
+                @if (fieldError('password')) {
+                  {{ fieldError('password') }}
+                } @else if (passwordModel.hasError('required')) {
+                  Password is required.
+                } @else if (passwordModel.hasError('minlength')) {
+                  Password must be at least 8 characters.
+                } @else if (passwordModel.hasError('maxlength')) {
+                  Password must be 200 characters or fewer.
+                }
+              </mat-error>
+            }
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -84,23 +130,44 @@ import { AuthService } from '../../core/services/auth.service';
             <input
               matInput
               [type]="showConfirmPassword() ? 'text' : 'password'"
-              [ngModel]="confirmPassword()"
-              (ngModelChange)="confirmPassword.set($event)"
               name="confirmPassword"
               required
               minlength="8"
+              maxlength="200"
+              [ngModel]="confirmPassword()"
+              (ngModelChange)="onConfirmPasswordChange($event)"
+              #confirmPasswordModel="ngModel"
             />
             <mat-icon matPrefix>verified_user</mat-icon>
             <button mat-icon-button matSuffix type="button" (click)="showConfirmPassword.set(!showConfirmPassword())">
               <mat-icon>{{ showConfirmPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
+            @if (confirmPasswordModel.invalid && (confirmPasswordModel.touched || submitted())) {
+              <mat-error>
+                @if (confirmPasswordModel.hasError('required')) {
+                  Confirm password is required.
+                } @else if (confirmPasswordModel.hasError('minlength')) {
+                  Confirm password must be at least 8 characters.
+                } @else if (confirmPasswordModel.hasError('maxlength')) {
+                  Confirm password must be 200 characters or fewer.
+                }
+              </mat-error>
+            }
           </mat-form-field>
+          @if (showPasswordMismatch() && (confirmPasswordModel.touched || submitted())) {
+            <p class="field-error">Passwords do not match.</p>
+          }
 
           @if (errorMessage()) {
             <p class="form-error">{{ errorMessage() }}</p>
           }
 
-          <button mat-raised-button color="primary" class="submit-btn" type="submit" [disabled]="loading()">
+          <button
+            mat-raised-button
+            color="primary"
+            class="submit-btn"
+            type="submit"
+            [disabled]="loading() || signupForm.invalid || passwordsMismatch()">
             @if (loading()) {
               <mat-spinner diameter="20"></mat-spinner>
             } @else {
@@ -145,7 +212,16 @@ import { AuthService } from '../../core/services/auth.service';
       .auth-header p { color: var(--dw-text-secondary); margin: 0; }
       .auth-form { display: flex; flex-direction: column; gap: 16px; }
       mat-form-field { width: 100%; }
-      .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
+      .auth-form mat-error,
+      .field-error,
+      .form-error {
+        color: var(--dw-error);
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.35;
+      }
+      .field-error { margin: -10px 0 0; }
+      .form-error { margin: 0; }
       .submit-btn {
         width: 100%;
         height: 48px;
@@ -188,36 +264,93 @@ export class SignupComponent {
   showPassword = signal(false);
   showConfirmPassword = signal(false);
   loading = signal(false);
+  submitted = signal(false);
   errorMessage = signal('');
+  serverFieldErrors = signal<Record<string, string>>({});
+  passwordsMismatch = computed(
+    () => this.confirmPassword().length > 0 && this.password() !== this.confirmPassword()
+  );
+  showPasswordMismatch = computed(
+    () =>
+      this.passwordsMismatch() &&
+      this.password().length >= 8 &&
+      this.password().length <= 200 &&
+      this.confirmPassword().length >= 8 &&
+      this.confirmPassword().length <= 200
+  );
 
-  async onSubmit(): Promise<void> {
-    this.errorMessage.set('');
+  async onSubmit(form: NgForm): Promise<void> {
+    this.submitted.set(true);
+    this.clearServerErrors();
     const name = this.name().trim();
     const email = this.email().trim();
     const password = this.password();
     const confirmPassword = this.confirmPassword();
+    this.name.set(name);
+    this.email.set(email);
 
-    if (!name || !email || !password || !confirmPassword) {
-      this.errorMessage.set('Please fill all required fields.');
+    if (form.invalid) {
       return;
     }
-    if (password.length < 8) {
-      this.errorMessage.set('Password must be at least 8 characters.');
-      return;
-    }
+
     if (password !== confirmPassword) {
-      this.errorMessage.set('Passwords do not match.');
       return;
     }
 
     this.loading.set(true);
-    const success = await this.authService.signup(name, email, password);
+    const result = await this.authService.signup(name, email, password);
     this.loading.set(false);
 
-    if (success) {
+    if (result.success) {
       await this.router.navigate(['/']);
       return;
     }
-    this.errorMessage.set('Unable to create account. Email may already be in use.');
+
+    this.serverFieldErrors.set(result.fieldErrors);
+    this.errorMessage.set(
+      result.message === 'Request validation failed'
+        ? 'Please correct the highlighted fields.'
+        : result.message
+    );
+  }
+
+  onNameChange(value: string): void {
+    this.name.set(value ?? '');
+    this.clearServerFieldError('name');
+  }
+
+  onEmailChange(value: string): void {
+    this.email.set(value ?? '');
+    this.clearServerFieldError('email');
+  }
+
+  onPasswordChange(value: string): void {
+    this.password.set(value ?? '');
+    this.clearServerFieldError('password');
+  }
+
+  onConfirmPasswordChange(value: string): void {
+    this.confirmPassword.set(value ?? '');
+    this.errorMessage.set('');
+  }
+
+  fieldError(field: string): string {
+    return this.serverFieldErrors()[field] ?? '';
+  }
+
+  private clearServerErrors(): void {
+    this.errorMessage.set('');
+    this.serverFieldErrors.set({});
+  }
+
+  private clearServerFieldError(field: string): void {
+    const current = this.serverFieldErrors();
+    if (!current[field] && !this.errorMessage()) {
+      return;
+    }
+
+    const { [field]: _, ...rest } = current;
+    this.serverFieldErrors.set(rest);
+    this.errorMessage.set('');
   }
 }

@@ -20,6 +20,20 @@ export interface AuthResponseDto {
   user: UserDto;
 }
 
+export interface ApiFieldErrorDto {
+  field: string;
+  message: string;
+}
+
+export interface ApiErrorDto {
+  timestamp: string;
+  status: number;
+  code: string;
+  message: string;
+  path: string;
+  fieldErrors: ApiFieldErrorDto[];
+}
+
 export interface LoginRequestDto {
   email: string;
   password: string;

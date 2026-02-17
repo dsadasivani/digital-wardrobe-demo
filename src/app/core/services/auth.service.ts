@@ -3,6 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthApi } from '../api/auth.api';
+import { ApiErrorDto } from '../dto/auth.dto';
 import { mapUserDtoToModel, mapUserUpdatesToUpdateRequestDto } from '../mappers/auth.mapper';
 import { User, UserPreferences } from '../models';
 import { AuthTokenService } from './auth-token.service';
@@ -12,6 +13,10 @@ interface AuthSessionState {
   isAuthenticated: boolean;
   user: User | null;
 }
+
+export type AuthActionResult =
+  | { success: true }
+  | { success: false; message: string; fieldErrors: Record<string, string> };
 
 @Injectable({
   providedIn: 'root'
@@ -37,7 +42,7 @@ export class AuthService {
     }
   }
 
-  async login(email: string, password: string): Promise<boolean> {
+  async login(email: string, password: string): Promise<AuthActionResult> {
     try {
       const response = await firstValueFrom(this.authApi.login({ email, password }));
       this.authTokenService.setToken(response.token);
@@ -45,10 +50,10 @@ export class AuthService {
       this.currentUser.set(mapUserDtoToModel(response.user));
       this.persistSnapshot();
       await this.loadWardrobeData();
-      return true;
-    } catch {
+      return { success: true };
+    } catch (error) {
       this.clearLocalSession();
-      return false;
+      return this.buildAuthErrorResult(error, 'Unable to sign in with the provided credentials.');
     }
   }
 
@@ -60,7 +65,7 @@ export class AuthService {
     return false;
   }
 
-  async signup(name: string, email: string, password: string): Promise<boolean> {
+  async signup(name: string, email: string, password: string): Promise<AuthActionResult> {
     try {
       const response = await firstValueFrom(this.authApi.signup({ name, email, password }));
       this.authTokenService.setToken(response.token);
@@ -68,10 +73,10 @@ export class AuthService {
       this.currentUser.set(mapUserDtoToModel(response.user));
       this.persistSnapshot();
       await this.loadWardrobeData();
-      return true;
-    } catch {
+      return { success: true };
+    } catch (error) {
       this.clearLocalSession();
-      return false;
+      return this.buildAuthErrorResult(error, 'Unable to create account right now.');
     }
   }
 
@@ -227,6 +232,68 @@ export class AuthService {
 
   private isUnauthorizedError(error: unknown): boolean {
     return error instanceof HttpErrorResponse && (error.status === 401 || error.status === 403);
+  }
+
+  private buildAuthErrorResult(error: unknown, fallbackMessage: string): AuthActionResult {
+    if (!(error instanceof HttpErrorResponse)) {
+      return { success: false, message: fallbackMessage, fieldErrors: {} };
+    }
+
+    if (error.status === 0) {
+      return {
+        success: false,
+        message: 'Unable to connect to the server. Please try again.',
+        fieldErrors: {},
+      };
+    }
+
+    const apiError = this.parseApiError(error.error);
+    if (!apiError) {
+      return { success: false, message: fallbackMessage, fieldErrors: {} };
+    }
+
+    const fieldErrors = apiError.fieldErrors.reduce<Record<string, string>>((acc, fieldError) => {
+      if (fieldError.field && !acc[fieldError.field]) {
+        acc[fieldError.field] = fieldError.message;
+      }
+      return acc;
+    }, {});
+
+    return {
+      success: false,
+      message: apiError.message || fallbackMessage,
+      fieldErrors,
+    };
+  }
+
+  private parseApiError(payload: unknown): ApiErrorDto | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const candidate = payload as Partial<ApiErrorDto>;
+    if (typeof candidate.message !== 'string') {
+      return null;
+    }
+
+    const fieldErrors = Array.isArray(candidate.fieldErrors)
+      ? candidate.fieldErrors.filter(
+          (item): item is { field: string; message: string } =>
+            !!item &&
+            typeof item === 'object' &&
+            typeof item.field === 'string' &&
+            typeof item.message === 'string'
+        )
+      : [];
+
+    return {
+      timestamp: typeof candidate.timestamp === 'string' ? candidate.timestamp : '',
+      status: typeof candidate.status === 'number' ? candidate.status : 0,
+      code: typeof candidate.code === 'string' ? candidate.code : '',
+      message: candidate.message,
+      path: typeof candidate.path === 'string' ? candidate.path : '',
+      fieldErrors,
+    };
   }
 
   private readPersistedSnapshot(): string | null {

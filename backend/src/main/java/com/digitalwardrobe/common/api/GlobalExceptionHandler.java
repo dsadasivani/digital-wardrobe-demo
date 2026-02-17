@@ -35,13 +35,20 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiError> handleConstraint(ConstraintViolationException ex, HttpServletRequest request) {
+        List<ApiError.FieldErrorItem> fieldErrors = ex.getConstraintViolations()
+            .stream()
+            .map(violation -> new ApiError.FieldErrorItem(
+                extractFieldName(violation.getPropertyPath().toString()),
+                violation.getMessage()
+            ))
+            .toList();
         ApiError error = new ApiError(
             Instant.now(),
             HttpStatus.BAD_REQUEST.value(),
             "VALIDATION_ERROR",
-            ex.getMessage(),
+            "Request validation failed",
             request.getRequestURI(),
-            List.of()
+            fieldErrors
         );
         return ResponseEntity.badRequest().body(error);
     }
@@ -91,5 +98,10 @@ public class GlobalExceptionHandler {
             List.of()
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
+    private String extractFieldName(String propertyPath) {
+        int lastDot = propertyPath.lastIndexOf('.');
+        return lastDot >= 0 ? propertyPath.substring(lastDot + 1) : propertyPath;
     }
 }

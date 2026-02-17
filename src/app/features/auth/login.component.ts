@@ -1,7 +1,7 @@
-import {Component, inject, signal, ChangeDetectionStrategy} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -29,28 +29,81 @@ import { AuthService } from '../../core/services/auth.service';
           <p>Sign in to your Digital Wardrobe</p>
         </div>
 
-        <form class="auth-form" (ngSubmit)="onSubmit()">
+        <form class="auth-form" #loginForm="ngForm" (ngSubmit)="onSubmit(loginForm)" novalidate>
           <mat-form-field appearance="outline">
             <mat-label>Email</mat-label>
-            <input matInput type="email" [(ngModel)]="email" name="email" required>
+            <input
+              matInput
+              type="email"
+              name="email"
+              required
+              email
+              maxlength="320"
+              [ngModel]="email()"
+              (ngModelChange)="onEmailChange($event)"
+              #emailModel="ngModel">
             <mat-icon matPrefix>email</mat-icon>
+            @if ((emailModel.invalid && (emailModel.touched || submitted())) || fieldError('email')) {
+              <mat-error>
+                @if (fieldError('email')) {
+                  {{ fieldError('email') }}
+                } @else if (emailModel.hasError('required')) {
+                  Email is required.
+                } @else if (emailModel.hasError('email')) {
+                  Enter a valid email address.
+                } @else if (emailModel.hasError('maxlength')) {
+                  Email must be 320 characters or fewer.
+                }
+              </mat-error>
+            }
           </mat-form-field>
 
           <mat-form-field appearance="outline">
             <mat-label>Password</mat-label>
-            <input matInput [type]="showPassword() ? 'text' : 'password'" [(ngModel)]="password" name="password" required>
+            <input
+              matInput
+              [type]="showPassword() ? 'text' : 'password'"
+              name="password"
+              required
+              minlength="8"
+              maxlength="200"
+              [ngModel]="password()"
+              (ngModelChange)="onPasswordChange($event)"
+              #passwordModel="ngModel">
             <mat-icon matPrefix>lock</mat-icon>
             <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())">
               <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
+            @if ((passwordModel.invalid && (passwordModel.touched || submitted())) || fieldError('password')) {
+              <mat-error>
+                @if (fieldError('password')) {
+                  {{ fieldError('password') }}
+                } @else if (passwordModel.hasError('required')) {
+                  Password is required.
+                } @else if (passwordModel.hasError('minlength')) {
+                  Password must be at least 8 characters.
+                } @else if (passwordModel.hasError('maxlength')) {
+                  Password must be 200 characters or fewer.
+                }
+              </mat-error>
+            }
           </mat-form-field>
+
+          @if (formError()) {
+            <p class="form-error">{{ formError() }}</p>
+          }
 
           <div class="form-options">
             <mat-checkbox color="primary">Remember me</mat-checkbox>
             <a href="#" class="forgot-link">Forgot password?</a>
           </div>
 
-          <button mat-raised-button color="primary" class="submit-btn" type="submit" [disabled]="loading()">
+          <button
+            mat-raised-button
+            color="primary"
+            class="submit-btn"
+            type="submit"
+            [disabled]="loading() || loginForm.invalid">
             @if (loading()) {
               <mat-spinner diameter="20"></mat-spinner>
             } @else {
@@ -113,6 +166,15 @@ import { AuthService } from '../../core/services/auth.service';
     .auth-header p { color: var(--dw-text-secondary); margin: 0; }
     .auth-form { display: flex; flex-direction: column; gap: 16px; }
     mat-form-field { width: 100%; }
+    .auth-form mat-error,
+    .field-error,
+    .form-error {
+      color: var(--dw-error);
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+    .form-error { margin: 0; }
     .form-options { display: flex; justify-content: space-between; align-items: center; }
     .forgot-link { color: var(--dw-primary); text-decoration: none; font-size: 14px; }
     .submit-btn {
@@ -221,29 +283,86 @@ export class LoginComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
 
-  email = '';
-  password = '';
+  email = signal('');
+  password = signal('');
   showPassword = signal(false);
   loading = signal(false);
+  submitted = signal(false);
+  formError = signal('');
+  serverFieldErrors = signal<Record<string, string>>({});
 
-  async onSubmit() {
+  async onSubmit(form: NgForm): Promise<void> {
+    this.submitted.set(true);
+    this.clearServerErrors();
+    const email = this.email().trim();
+    this.email.set(email);
+
+    if (form.invalid) {
+      return;
+    }
+
     this.loading.set(true);
-    const success = await this.authService.login(this.email, this.password);
+    const result = await this.authService.login(email, this.password());
     this.loading.set(false);
-    if (success) this.router.navigate(['/']);
+
+    if (result.success) {
+      await this.router.navigate(['/']);
+      return;
+    }
+
+    this.serverFieldErrors.set(result.fieldErrors);
+    this.formError.set(
+      result.message === 'Request validation failed'
+        ? 'Please correct the highlighted fields.'
+        : result.message
+    );
   }
 
-  async loginWithGoogle() {
+  async loginWithGoogle(): Promise<void> {
     this.loading.set(true);
     const success = await this.authService.loginWithGoogle();
     this.loading.set(false);
-    if (success) this.router.navigate(['/']);
+    if (success) {
+      await this.router.navigate(['/']);
+    }
   }
 
-  async loginWithApple() {
+  async loginWithApple(): Promise<void> {
     this.loading.set(true);
     const success = await this.authService.loginWithApple();
     this.loading.set(false);
-    if (success) this.router.navigate(['/']);
+    if (success) {
+      await this.router.navigate(['/']);
+    }
+  }
+
+  onEmailChange(value: string): void {
+    this.email.set(value ?? '');
+    this.clearServerFieldError('email');
+  }
+
+  onPasswordChange(value: string): void {
+    this.password.set(value ?? '');
+    this.clearServerFieldError('password');
+  }
+
+  fieldError(field: string): string {
+    return this.serverFieldErrors()[field] ?? '';
+  }
+
+  private clearServerErrors(): void {
+    this.formError.set('');
+    this.serverFieldErrors.set({});
+  }
+
+  private clearServerFieldError(field: string): void {
+    const current = this.serverFieldErrors();
+    if (!current[field] && !this.formError()) {
+      return;
+    }
+
+    const { [field]: _, ...rest } = current;
+    this.serverFieldErrors.set(rest);
+    this.formError.set('');
   }
 }

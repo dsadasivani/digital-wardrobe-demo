@@ -85,7 +85,7 @@ describe('AuthService', () => {
 
     const result = await service.login('user@example.com', 'password123');
 
-    expect(result).toBe(true);
+    expect(result.success).toBe(true);
     expect(service.authenticated()).toBe(true);
     expect(service.user()?.email).toBe('user@example.com');
   });
@@ -95,7 +95,7 @@ describe('AuthService', () => {
 
     const result = await service.login('user@example.com', 'bad-password');
 
-    expect(result).toBe(false);
+    expect(result.success).toBe(false);
     expect(service.authenticated()).toBe(false);
     expect(service.user()).toBeNull();
   });

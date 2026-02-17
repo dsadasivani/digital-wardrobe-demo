@@ -5,6 +5,7 @@ import { catchError, throwError } from 'rxjs';
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
     const snackBar = inject(MatSnackBar);
+    const isAuthFormRequest = req.url.includes('/auth/login') || req.url.includes('/auth/signup');
 
     return next(req).pipe(
         catchError((error: HttpErrorResponse) => {
@@ -32,13 +33,15 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
                 }
             }
 
-            // Don't show snackbar for 401s if we want silent redirect, but here explicit is better
-            snackBar.open(message, 'Close', {
-                duration: 5000,
-                horizontalPosition: 'end',
-                verticalPosition: 'bottom',
-                panelClass: ['error-snackbar'] // Define styles if needed
-            });
+            if (!isAuthFormRequest) {
+                // Auth pages render errors inline for better field-level guidance.
+                snackBar.open(message, 'Close', {
+                    duration: 5000,
+                    horizontalPosition: 'end',
+                    verticalPosition: 'bottom',
+                    panelClass: ['error-snackbar'] // Define styles if needed
+                });
+            }
 
             return throwError(() => error);
         })
