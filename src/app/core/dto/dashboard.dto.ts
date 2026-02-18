@@ -14,6 +14,5 @@ export interface DashboardSummaryDto {
   mostWornItem: WardrobeItemDto | null;
   leastWornItems: WardrobeItemDto[];
   recentlyAdded: WardrobeItemDto[];
-  suggestedItems: WardrobeItemDto[];
   categoryBreakdown: DashboardCategoryBreakdownDto[];
 }

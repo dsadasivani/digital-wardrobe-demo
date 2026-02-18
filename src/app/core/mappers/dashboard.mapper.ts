@@ -12,7 +12,6 @@ export function mapDashboardSummaryDtoToModel(dto: DashboardSummaryDto): Dashboa
     mostWornItem: dto.mostWornItem ? mapWardrobeItemDtoToModel(dto.mostWornItem) : undefined,
     leastWornItems: dto.leastWornItems.map(mapWardrobeItemDtoToModel),
     recentlyAdded: dto.recentlyAdded.map(mapWardrobeItemDtoToModel),
-    suggestedItems: dto.suggestedItems.map(mapWardrobeItemDtoToModel),
     categoryBreakdown: dto.categoryBreakdown.map(item => ({
       category: item.category as WardrobeCategory,
       count: item.count,

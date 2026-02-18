@@ -29,13 +29,6 @@ import {
 } from '../mappers/outfits.mapper';
 import { mapDashboardSummaryDtoToModel } from '../mappers/dashboard.mapper';
 
-const MOCK_WEATHER = {
-  temp: 29,
-  condition: 'sunny' as const,
-  humidity: 25,
-  location: 'Hyderabad, India',
-};
-
 type DataLoadState = 'idle' | 'loading' | 'loaded' | 'error';
 const DEFAULT_COLLECTION_PAGE_SIZE = 10;
 
@@ -157,14 +150,6 @@ export class WardrobeService {
       return summary.unusedCount;
     }
     return this.wardrobeItems().filter((item) => item.worn < 5).length;
-  });
-
-  readonly weatherSuggestion = computed(() => {
-    const summary = this.dashboardSummaryData();
-    if (summary) {
-      return { weather: MOCK_WEATHER, suggestedItems: summary.suggestedItems };
-    }
-    return { weather: MOCK_WEATHER, suggestedItems: this.deriveWeatherSuggestionsFromItems() };
   });
   readonly hasMoreWardrobePages = computed(() => this.wardrobePageHasNext());
   readonly hasMoreAccessoriesPages = computed(() => this.accessoriesPageHasNext());
@@ -537,29 +522,6 @@ export class WardrobeService {
     );
   }
 
-  // ── Weather suggestion (mock — will be replaced by backend) ──
-
-  getWeatherSuggestion(): { weather: typeof MOCK_WEATHER; suggestedItems: WardrobeItem[] } {
-    return this.weatherSuggestion();
-  }
-
-  private deriveWeatherSuggestionsFromItems(): WardrobeItem[] {
-    const weather = MOCK_WEATHER;
-    if (weather.temp < 10) {
-      return this.wardrobeItems()
-        .filter((item) => item.category === 'outerwear' || item.tags.includes('winter'))
-        .slice(0, 3);
-    }
-    if (weather.temp > 25) {
-      return this.wardrobeItems()
-        .filter((item) => item.tags.includes('summer') || item.category === 'dresses')
-        .slice(0, 3);
-    }
-    return this.wardrobeItems()
-      .filter((item) => item.category === 'tops' || item.category === 'bottoms')
-      .slice(0, 3);
-  }
-
   private invalidateDashboardSummary(): void {
     this.dashboardSummaryLoadState.set('idle');
     this.dashboardSummaryLoadPromise = null;
@@ -879,3 +841,4 @@ export class WardrobeService {
     return updated;
   }
 }
+

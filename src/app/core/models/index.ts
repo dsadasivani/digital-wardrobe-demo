@@ -175,13 +175,4 @@ export interface DashboardStats {
 export interface DashboardSummary extends DashboardStats {
   favoriteCount: number;
   unusedCount: number;
-  suggestedItems: WardrobeItem[];
-}
-
-// Weather (for suggestions)
-export interface WeatherInfo {
-  temp: number;
-  condition: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'windy';
-  humidity: number;
-  location: string;
 }

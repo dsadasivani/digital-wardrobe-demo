@@ -522,8 +522,7 @@ export class WardrobeComponent implements OnInit {
   sortOption = signal<'name' | 'recent' | 'worn' | 'price'>('recent');
   viewMode = signal<'grid' | 'list'>('grid');
   selectedTabIndex = signal(0);
-  activeFilter = signal<'all' | 'favorites' | 'unused' | 'weather'>('all');
-  forcedItemIds = signal<string[] | null>(null);
+  activeFilter = signal<'all' | 'favorites' | 'unused'>('all');
 
   colorOptions = [
     { name: 'Black', hex: '#1a1a1a' },
@@ -552,17 +551,8 @@ export class WardrobeComponent implements OnInit {
       case 'unused':
         items = items.filter(item => item.worn < 5);
         break;
-      case 'weather':
-        // weather-specific IDs are handled below
-        break;
       default:
         break;
-    }
-
-    // Filter by explicit IDs (used by weather suggestion deep-link)
-    if (this.forcedItemIds() && this.forcedItemIds()!.length > 0) {
-      const idSet = new Set(this.forcedItemIds()!);
-      items = items.filter(item => idSet.has(item.id));
     }
 
     // Filter by search
@@ -625,18 +615,10 @@ export class WardrobeComponent implements OnInit {
 
     this.route.queryParamMap.subscribe(query => {
       const filter = query.get('filter');
-      if (filter === 'favorites' || filter === 'unused' || filter === 'weather') {
+      if (filter === 'favorites' || filter === 'unused') {
         this.activeFilter.set(filter);
       } else {
         this.activeFilter.set('all');
-      }
-
-      const ids = query.get('ids');
-      if (ids) {
-        const parsed = ids.split(',').map(id => id.trim()).filter(Boolean);
-        this.forcedItemIds.set(parsed.length ? parsed : null);
-      } else {
-        this.forcedItemIds.set(null);
       }
     });
   }

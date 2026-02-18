@@ -133,33 +133,6 @@ import { WardrobeItem, Accessory } from '../../core/models';
           <mat-icon>chevron_right</mat-icon>
         </button>
       </section>
-
-      <!-- Weather Suggestion -->
-      <section class="weather-section glass">
-        <div class="weather-info">
-          <div class="weather-icon">
-            <mat-icon>{{ getWeatherIcon() }}</mat-icon>
-          </div>
-          <div class="weather-details">
-            <span class="weather-temp">{{ weatherSuggestion().weather.temp }}°C</span>
-            <span class="weather-location">{{ weatherSuggestion().weather.location }}</span>
-          </div>
-        </div>
-
-        <div class="weather-suggestion" (click)="openWeatherSuggestions()" style="cursor: pointer;">
-          <h4>Today's Suggestion</h4>
-          <p>Based on the weather, we recommend layering with light outerwear.</p>
-        </div>
-
-        <div class="suggested-items">
-          @for (item of weatherSuggestion().suggestedItems; track item.id) {
-            <div class="mini-item" (click)="openItem(item.id)">
-              <img [src]="item.imageUrl" [alt]="item.name" />
-            </div>
-          }
-        </div>
-      </section>
-
       <!-- Category Breakdown -->
       <section class="category-section">
         <div class="section-header">
@@ -438,92 +411,6 @@ import { WardrobeItem, Accessory } from '../../core/models';
         color: var(--dw-text-secondary);
         margin-top: 4px;
       }
-
-      .weather-section {
-        display: flex;
-        align-items: center;
-        gap: var(--dw-spacing-xl);
-        padding: var(--dw-spacing-xl);
-        border-radius: var(--dw-radius-xl);
-        margin-bottom: var(--dw-spacing-2xl);
-        flex-wrap: wrap;
-      }
-
-      .weather-info {
-        display: flex;
-        align-items: center;
-        gap: var(--dw-spacing-md);
-      }
-
-      .weather-icon {
-        width: 64px;
-        height: 64px;
-        background: var(--dw-gradient-primary);
-        border-radius: var(--dw-radius-lg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        mat-icon {
-          font-size: 32px;
-          width: 32px;
-          height: 32px;
-          color: white;
-        }
-      }
-
-      .weather-temp {
-        font-family: 'Outfit', sans-serif;
-        font-size: 2rem;
-        font-weight: 600;
-        display: block;
-      }
-
-      .weather-location {
-        color: var(--dw-text-secondary);
-        font-size: 14px;
-      }
-
-      .weather-suggestion {
-        flex: 1;
-        min-width: 200px;
-
-        h4 {
-          margin-bottom: var(--dw-spacing-xs);
-        }
-
-        p {
-          color: var(--dw-text-secondary);
-          margin: 0;
-        }
-      }
-
-      .suggested-items {
-        display: flex;
-        gap: var(--dw-spacing-sm);
-      }
-
-      .mini-item {
-        width: 60px;
-        height: 60px;
-        border-radius: var(--dw-radius-md);
-        overflow: hidden;
-        border: 2px solid var(--dw-surface-card);
-        transition: all var(--dw-transition-fast);
-        cursor: pointer;
-
-        &:hover {
-          border-color: var(--dw-primary);
-          transform: scale(1.1);
-        }
-
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-      }
-
       .section-header {
         display: flex;
         justify-content: space-between;
@@ -721,9 +608,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
         }
 
         .welcome-section,
-        .stats-section,
-        .weather-section,
-        .category-section,
+        .stats-section,        .category-section,
         .recent-section,
         .highlight-section {
           margin-bottom: var(--dw-spacing-lg);
@@ -781,78 +666,6 @@ import { WardrobeItem, Accessory } from '../../core/models';
         .stat-label {
           font-size: 12px;
         }
-
-        .weather-section {
-          display: grid;
-          grid-template-columns: auto 1fr;
-          gap: 10px 12px;
-          align-items: start;
-          padding: 12px;
-          border-radius: var(--dw-radius-lg);
-        }
-
-        .weather-info {
-          grid-column: 1 / -1;
-          gap: 10px;
-        }
-
-        .weather-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-        }
-
-        .weather-icon mat-icon {
-          font-size: 22px;
-          width: 22px;
-          height: 22px;
-        }
-
-        .weather-temp {
-          font-size: 1.35rem;
-          line-height: 1.1;
-        }
-
-        .weather-location {
-          font-size: 12px;
-          line-height: 1.2;
-        }
-
-        .weather-suggestion {
-          grid-column: 1 / -1;
-          min-width: 0;
-        }
-
-        .weather-suggestion h4 {
-          margin: 0 0 4px;
-          font-size: 0.95rem;
-        }
-
-        .weather-suggestion p {
-          font-size: 12px;
-          line-height: 1.35;
-        }
-
-        .suggested-items {
-          grid-column: 1 / -1;
-          gap: 8px;
-          overflow-x: auto;
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-          padding-bottom: 2px;
-        }
-
-        .suggested-items::-webkit-scrollbar {
-          display: none;
-        }
-
-        .mini-item {
-          width: 48px;
-          height: 48px;
-          border-width: 1px;
-          flex: 0 0 auto;
-        }
-
         .items-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -904,7 +717,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   user = this.authService.user;
   stats = this.wardrobeService.dashboardStats;
   recentItems = computed(() => this.stats().recentlyAdded);
-  weatherSuggestion = this.wardrobeService.weatherSuggestion;
 
   favoriteCount = this.wardrobeService.favoriteCount;
   unusedCount = this.wardrobeService.unusedCount;
@@ -935,12 +747,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   openRarelyUsed(): void {
     this.router.navigate(['/wardrobe'], { queryParams: { filter: 'unused' } });
   }
-
-  openWeatherSuggestions(): void {
-    const ids = this.weatherSuggestion().suggestedItems.map((item) => item.id).join(',');
-    this.router.navigate(['/wardrobe'], { queryParams: { filter: 'weather', ids } });
-  }
-
   openItem(itemId: string): void {
     this.router.navigate(['/wardrobe', itemId]);
   }
@@ -959,19 +765,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     };
     return icons[category] || 'category';
   }
-
-  getWeatherIcon(): string {
-    const condition = this.weatherSuggestion().weather.condition;
-    const icons: Record<string, string> = {
-      sunny: 'wb_sunny',
-      cloudy: 'cloud',
-      rainy: 'umbrella',
-      snowy: 'ac_unit',
-      windy: 'air',
-    };
-    return icons[condition] || 'thermostat';
-  }
-
   getUserFirstName(): string {
     return this.user()?.name?.split(' ')[0] || 'Guest';
   }
@@ -1021,5 +814,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }
   }
 }
+
+
 
 

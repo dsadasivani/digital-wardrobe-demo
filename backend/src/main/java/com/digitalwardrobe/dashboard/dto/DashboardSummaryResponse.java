@@ -12,7 +12,6 @@ public record DashboardSummaryResponse(
     WardrobeItemResponse mostWornItem,
     List<WardrobeItemResponse> leastWornItems,
     List<WardrobeItemResponse> recentlyAdded,
-    List<WardrobeItemResponse> suggestedItems,
     List<CategoryBreakdownItem> categoryBreakdown
 ) {
     public record CategoryBreakdownItem(String category, long count) {}

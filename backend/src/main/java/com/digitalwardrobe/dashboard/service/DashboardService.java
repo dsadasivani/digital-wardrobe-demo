@@ -58,8 +58,6 @@ public class DashboardService {
             .map(this::toWardrobeItemResponse)
             .toList();
 
-        List<WardrobeItemResponse> suggestedItems = recentlyAdded.stream().limit(3).toList();
-
         List<DashboardSummaryResponse.CategoryBreakdownItem> categoryBreakdown = wardrobeItemRepository
             .countByCategoryForUser(userId)
             .stream()
@@ -76,7 +74,6 @@ public class DashboardService {
             mostWornItem,
             leastWornItems,
             recentlyAdded,
-            suggestedItems,
             categoryBreakdown
         );
     }
