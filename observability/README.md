@@ -6,9 +6,11 @@ This folder is intentionally decoupled from app code and can be moved to its own
 
 - `docker-compose.yml`: Prometheus + Grafana stack
 - `prometheus/prometheus.yml`: scrape config
+- `prometheus/prometheus.render.yml`: Render scrape config
 - `prometheus/rules/api-slo-alerts.yml`: warning/critical SLO alert rules
 - `grafana/provisioning/*`: auto-provisioned datasource and dashboards
 - `grafana/dashboards/digital-wardrobe-api-slo.json`: API SLO dashboard
+- `prometheus/Dockerfile` + `grafana/Dockerfile`: container images for Render deploy
 - `observability-baseline.md`: SLI/SLO baseline contract
 
 ## Backend requirements
@@ -39,6 +41,27 @@ Default Grafana credentials:
 
 - user: `admin`
 - password: `admin`
+
+## Deploy on Render
+
+This repository includes `render.yaml` at project root to deploy:
+
+- `prometheus` (private service)
+- `grafana` (web service)
+
+Steps:
+
+1. Push repository changes.
+2. In Render, create a new **Blueprint** and select this repository.
+3. Set required secret env vars in Render:
+   - `GF_SECURITY_ADMIN_PASSWORD`
+4. Deploy blueprint.
+
+Notes:
+
+- Local config (`prometheus/prometheus.yml`) scrapes `host.docker.internal:8080`.
+- Render config (`prometheus/prometheus.render.yml`) scrapes `https://digital-wardrobe-backend-beta-1-0-0.onrender.com/actuator/prometheus`.
+- Ensure your backend service exposes `/actuator/prometheus` publicly.
 
 ## Alert rules
 

@@ -1,0 +1,27 @@
+services:
+  - type: pserv
+    name: prometheus
+    env: docker
+    dockerfilePath: ./observability/prometheus/Dockerfile
+    dockerContext: ./observability/prometheus
+    dockerCommand: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.enable-lifecycle
+    disk:
+      name: prometheus-data
+      mountPath: /prometheus
+      sizeGB: 10
+
+  - type: web
+    name: grafana
+    env: docker
+    dockerfilePath: ./observability/grafana/Dockerfile
+    dockerContext: ./observability/grafana
+    healthCheckPath: /api/health
+    disk:
+      name: grafana-data
+      mountPath: /var/lib/grafana
+      sizeGB: 5
+    envVars:
+      - key: GF_SECURITY_ADMIN_USER
+        value: admin
+      - key: GF_SECURITY_ADMIN_PASSWORD
+        sync: false
