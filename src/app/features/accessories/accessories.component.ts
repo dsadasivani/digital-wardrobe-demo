@@ -104,9 +104,17 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
           </dw-item-card>
         } @empty {
           <div class="empty-state">
-            <mat-icon>watch</mat-icon>
+            <div class="empty-icon">
+              <mat-icon>watch</mat-icon>
+            </div>
             <h3>No accessories found</h3>
-            <p>Try changing filters or add a new accessory.</p>
+            <p>
+              @if (searchQuery() || selectedCategory() !== 'all' || showFavoritesOnly()) {
+                Try adjusting your search or filters
+              } @else {
+                Add your first accessory to complete your wardrobe
+              }
+            </p>
             <button class="action-btn primary" routerLink="/accessories/add">
               <mat-icon>add</mat-icon>
               Add Accessory
@@ -150,9 +158,11 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
     .chip mat-icon { width: 16px; height: 16px; font-size: 16px; }
     .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--dw-spacing-lg); }
     .load-more-row { display: flex; justify-content: center; margin-top: var(--dw-spacing-lg); }
-    .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; padding: 48px; text-align: center; }
-    .empty-state p { color: var(--dw-text-secondary); margin: 0 0 14px; }
-    .empty-state mat-icon { font-size: 64px; width: 64px; height: 64px; color: var(--dw-text-muted); margin-bottom: 16px; }
+    .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--dw-spacing-2xl); text-align: center; }
+    .empty-icon { width: 100px; height: 100px; background: var(--dw-surface-card); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: var(--dw-spacing-lg); }
+    .empty-icon mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--dw-text-muted); }
+    .empty-state h3 { margin-bottom: var(--dw-spacing-sm); }
+    .empty-state p { color: var(--dw-text-secondary); margin: 0 0 var(--dw-spacing-lg); max-width: 320px; }
     @media (max-width: 768px) {
       .accessories-page { padding: var(--dw-spacing-md); }
       .page-header { margin-bottom: 12px; }

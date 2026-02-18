@@ -177,10 +177,6 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
         </section>
       }
 
-      <!-- Floating Add Button (Mobile) -->
-      <button class="fab-add" routerLink="/wardrobe/add" matTooltip="Add new item">
-        <mat-icon>add</mat-icon>
-      </button>
     </div>
   `,
   styles: [`
@@ -452,35 +448,6 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
       margin-top: var(--dw-spacing-lg);
     }
 
-    .fab-add {
-      position: fixed;
-      bottom: var(--dw-spacing-xl);
-      right: var(--dw-spacing-xl);
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      border: none;
-      background: var(--dw-gradient-primary);
-      color: white;
-      cursor: pointer;
-      box-shadow: var(--dw-shadow-lg);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      transition: all var(--dw-transition-fast);
-
-      &:hover {
-        transform: scale(1.1);
-        box-shadow: var(--dw-shadow-glow);
-      }
-
-      mat-icon {
-        font-size: 28px;
-        width: 28px;
-        height: 28px;
-      }
-    }
-
     @media (max-width: 768px) {
       .wardrobe-page {
         padding: var(--dw-spacing-md);
@@ -493,10 +460,6 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
 
       .header-actions span {
         display: none;
-      }
-
-      .fab-add {
-        display: flex;
       }
 
       .header-actions .primary {

@@ -142,39 +142,51 @@ import { WardrobeItem, Accessory } from '../../core/models';
           >
         </div>
 
-        <div class="category-grid">
-          @for (cat of stats().categoryBreakdown; track cat.category) {
-            <div class="category-card" [routerLink]="'/wardrobe/category/' + cat.category">
-              <div class="category-icon">
-                <mat-icon>{{ getCategoryIcon(cat.category) }}</mat-icon>
+        @if (hasWardrobeItems()) {
+          <div class="category-grid">
+            @for (cat of stats().categoryBreakdown; track cat.category) {
+              <div class="category-card" [routerLink]="'/wardrobe/category/' + cat.category">
+                <div class="category-icon">
+                  <mat-icon>{{ getCategoryIcon(cat.category) }}</mat-icon>
+                </div>
+                <span class="category-name">{{ cat.category | titlecase }}</span>
+                <span class="category-count">{{ cat.count }} items</span>
               </div>
-              <span class="category-name">{{ cat.category | titlecase }}</span>
-              <span class="category-count">{{ cat.count }} items</span>
+            }
+          </div>
+        } @else {
+          <div class="empty-state breakdown-empty-state">
+            <div class="empty-icon">
+              <mat-icon>checkroom</mat-icon>
             </div>
-          }
-        </div>
+            <h3>Your wardrobe is empty</h3>
+            <p>Add your first item to see category insights here.</p>
+          </div>
+        }
       </section>
 
       <!-- Recently Added -->
-      <section class="recent-section">
-        <div class="section-header">
-          <h2>Recently Added</h2>
-          <a routerLink="/wardrobe" class="view-all-link"
-            >View All <mat-icon>arrow_forward</mat-icon></a
-          >
-        </div>
-
-        <div class="items-grid">
-          @for (item of recentItems(); track item.id) {
-            <dw-item-card
-              [item]="item"
-              (viewItem)="onViewItem($event)"
-              (toggleFavorite)="onToggleFavorite($event)"
+      @if (hasWardrobeItems() && recentItems().length > 0) {
+        <section class="recent-section">
+          <div class="section-header">
+            <h2>Recently Added</h2>
+            <a routerLink="/wardrobe" class="view-all-link"
+              >View All <mat-icon>arrow_forward</mat-icon></a
             >
-            </dw-item-card>
-          }
-        </div>
-      </section>
+          </div>
+
+          <div class="items-grid">
+            @for (item of recentItems(); track item.id) {
+              <dw-item-card
+                [item]="item"
+                (viewItem)="onViewItem($event)"
+                (toggleFavorite)="onToggleFavorite($event)"
+              >
+              </dw-item-card>
+            }
+          </div>
+        </section>
+      }
 
       <!-- Most Worn Item -->
       @if (stats().mostWornItem) {
@@ -511,6 +523,48 @@ import { WardrobeItem, Accessory } from '../../core/models';
         color: var(--dw-text-muted);
       }
 
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: var(--dw-spacing-2xl);
+        text-align: center;
+      }
+
+      .breakdown-empty-state {
+        border: 1px dashed var(--dw-border-subtle);
+        border-radius: var(--dw-radius-lg);
+        background: color-mix(in srgb, var(--dw-surface-card) 70%, transparent);
+      }
+
+      .empty-icon {
+        width: 84px;
+        height: 84px;
+        background: var(--dw-surface-card);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: var(--dw-spacing-lg);
+      }
+
+      .empty-icon mat-icon {
+        font-size: 42px;
+        width: 42px;
+        height: 42px;
+        color: var(--dw-text-muted);
+      }
+
+      .empty-state h3 {
+        margin: 0 0 var(--dw-spacing-sm);
+      }
+
+      .empty-state p {
+        margin: 0;
+        color: var(--dw-text-secondary);
+      }
+
       .recent-section {
         margin-bottom: var(--dw-spacing-2xl);
       }
@@ -717,6 +771,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   user = this.authService.user;
   stats = this.wardrobeService.dashboardStats;
   recentItems = computed(() => this.stats().recentlyAdded);
+  hasWardrobeItems = computed(() => this.stats().totalItems > 0);
 
   favoriteCount = this.wardrobeService.favoriteCount;
   unusedCount = this.wardrobeService.unusedCount;

@@ -29,6 +29,13 @@ import { WardrobeItem, Accessory } from '../../../core/models';
       (mouseleave)="onCardHoverEnd()"
     >
       <div class="card-image">
+        <div
+          class="image-swipe-surface"
+          (touchstart)="onImageTouchStart($event)"
+          (touchend)="onImageTouchEnd($event)"
+          (touchcancel)="onImageTouchCancel()"
+        ></div>
+
         @for (frame of imageFrames(); track frame.key) {
           <img [src]="frame.url" [alt]="item().name" loading="lazy" class="animated-image">
         }
@@ -52,24 +59,6 @@ import { WardrobeItem, Accessory } from '../../../core/models';
         </div>
 
         @if (hasMultipleImages()) {
-          <div class="image-mobile-nav" (click)="$event.stopPropagation()">
-            <button
-              type="button"
-              class="image-nav-btn"
-              aria-label="Show previous image"
-              (click)="onMobilePrevious($event)"
-            >
-              <mat-icon>chevron_left</mat-icon>
-            </button>
-            <button
-              type="button"
-              class="image-nav-btn"
-              aria-label="Show next image"
-              (click)="onMobileNext($event)"
-            >
-              <mat-icon>chevron_right</mat-icon>
-            </button>
-          </div>
           <div class="image-dots" (click)="$event.stopPropagation()">
             @for (image of imageGallery(); track i; let i = $index) {
               <button
@@ -168,6 +157,12 @@ import { WardrobeItem, Accessory } from '../../../core/models';
       }
     }
 
+    .image-swipe-surface {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
     .animated-image {
       animation: cardImageSwap 300ms ease;
     }
@@ -194,41 +189,6 @@ import { WardrobeItem, Accessory } from '../../../core/models';
       opacity: 0;
       transition: opacity var(--dw-transition-fast);
       background: var(--dw-image-overlay);
-    }
-
-    .image-mobile-nav {
-      display: none;
-      position: absolute;
-      inset-inline: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-      justify-content: space-between;
-      z-index: 3;
-    }
-
-    .image-nav-btn {
-      width: 28px;
-      height: 28px;
-      border: none;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--dw-overlay-scrim) 76%, transparent);
-      color: var(--dw-on-primary);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: transform var(--dw-transition-fast), background var(--dw-transition-fast);
-
-      mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-      }
-
-      &:hover {
-        transform: scale(1.06);
-        background: color-mix(in srgb, var(--dw-overlay-scrim) 88%, transparent);
-      }
     }
 
     .image-dots {
@@ -379,10 +339,6 @@ import { WardrobeItem, Accessory } from '../../../core/models';
         aspect-ratio: 4 / 5;
       }
 
-      .image-mobile-nav {
-        display: flex;
-      }
-
       .image-dots {
         opacity: 1;
         bottom: 6px;
@@ -444,10 +400,15 @@ import { WardrobeItem, Accessory } from '../../../core/models';
   `]
 })
 export class ItemCardComponent implements OnDestroy {
+  private static readonly SWIPE_THRESHOLD_PX = 36;
+
   item = input.required<WardrobeItem | Accessory>();
   selectedImageIndex = linkedSignal(() => this.item().id ? 0 : 0);
   imageAnimationKey = signal(0);
   hoverCycleTimerId = signal<number | null>(null);
+  touchStartX = signal<number | null>(null);
+  touchStartY = signal<number | null>(null);
+  suppressClickUntil = signal(0);
 
   viewItem = output<WardrobeItem | Accessory>();
   editItem = output<WardrobeItem | Accessory>();
@@ -491,6 +452,9 @@ export class ItemCardComponent implements OnDestroy {
   }
 
   onCardClick(): void {
+    if (Date.now() < this.suppressClickUntil()) {
+      return;
+    }
     this.viewItem.emit(this.item());
   }
 
@@ -512,19 +476,50 @@ export class ItemCardComponent implements OnDestroy {
     this.setImageIndex(0);
   }
 
-  onMobilePrevious(event: Event): void {
-    event.stopPropagation();
-    this.showPreviousImage();
-  }
-
-  onMobileNext(event: Event): void {
-    event.stopPropagation();
-    this.showNextImage();
-  }
-
   onImageDotSelect(index: number, event: Event): void {
     event.stopPropagation();
     this.setImageIndex(index);
+  }
+
+  onImageTouchStart(event: TouchEvent): void {
+    if (!this.hasMultipleImages() || event.touches.length !== 1) {
+      return;
+    }
+    const touch = event.touches[0];
+    this.touchStartX.set(touch.clientX);
+    this.touchStartY.set(touch.clientY);
+  }
+
+  onImageTouchEnd(event: TouchEvent): void {
+    const startX = this.touchStartX();
+    const startY = this.touchStartY();
+    this.onImageTouchCancel();
+
+    if (!this.hasMultipleImages() || startX === null || startY === null || event.changedTouches.length !== 1) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+
+    if (absDeltaX < ItemCardComponent.SWIPE_THRESHOLD_PX || absDeltaX <= absDeltaY) {
+      return;
+    }
+
+    this.suppressClickUntil.set(Date.now() + 250);
+    if (deltaX < 0) {
+      this.showNextImage();
+      return;
+    }
+    this.showPreviousImage();
+  }
+
+  onImageTouchCancel(): void {
+    this.touchStartX.set(null);
+    this.touchStartY.set(null);
   }
 
   onFavoriteClick(event: Event): void {

@@ -56,8 +56,21 @@ import { Outfit } from '../../core/models';
           </div>
         } @empty {
           <div class="empty-state">
-            <mat-icon>style</mat-icon><h3>No outfits yet</h3>
-            <button class="action-btn primary" routerLink="/outfit-canvas"><mat-icon>brush</mat-icon>Create</button>
+            <div class="empty-icon">
+              <mat-icon>style</mat-icon>
+            </div>
+            <h3>No outfits found</h3>
+            <p>
+              @if (selectedOccasion() !== 'All') {
+                Try changing your occasion filter
+              } @else {
+                Create your first outfit combination
+              }
+            </p>
+            <button class="action-btn primary" routerLink="/outfit-canvas">
+              <mat-icon>brush</mat-icon>
+              Create Outfit
+            </button>
           </div>
         }
       </div>
@@ -107,8 +120,11 @@ import { Outfit } from '../../core/models';
     .items-count mat-icon { font-size: 16px; width: 16px; height: 16px; }
     .planned-on { margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dw-text-secondary); }
     .planned-on mat-icon { font-size: 14px; width: 14px; height: 14px; }
-    .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; padding: 48px; text-align: center; }
-    .empty-state mat-icon { font-size: 64px; width: 64px; height: 64px; color: var(--dw-text-muted); margin-bottom: 16px; }
+    .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--dw-spacing-2xl); text-align: center; }
+    .empty-icon { width: 100px; height: 100px; background: var(--dw-surface-card); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: var(--dw-spacing-lg); }
+    .empty-icon mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--dw-text-muted); }
+    .empty-state h3 { margin-bottom: var(--dw-spacing-sm); }
+    .empty-state p { color: var(--dw-text-secondary); margin: 0 0 var(--dw-spacing-lg); max-width: 320px; }
     @media (max-width: 768px) {
       .outfits-page { padding: var(--dw-spacing-md); }
       .page-header { flex-direction: column; gap: 12px; margin-bottom: var(--dw-spacing-md); }
@@ -131,7 +147,7 @@ import { Outfit } from '../../core/models';
       .meta { flex-wrap: wrap; gap: 6px; }
       .items-count, .planned-on { font-size: 12px; }
       .empty-state { padding: 28px 16px; }
-      .empty-state mat-icon { font-size: 44px; width: 44px; height: 44px; margin-bottom: 10px; }
+      .empty-icon mat-icon { font-size: 44px; width: 44px; height: 44px; }
     }
   `]
 })

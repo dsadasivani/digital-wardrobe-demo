@@ -46,7 +46,18 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
         <div class="content-grid">
           <div class="image-column">
             <section class="image-panel glass">
-              <img [src]="currentImageUrl()" [alt]="item()!.name" (click)="openImagePreview()">
+              @for (frame of imageFrames(); track frame.key) {
+                <img
+                  class="animated-gallery-image"
+                  [src]="frame.url"
+                  [alt]="item()!.name"
+                  [style.--swipe-shift.px]="frame.slideOffset"
+                  (click)="openImagePreview()"
+                  (touchstart)="onImageTouchStart($event)"
+                  (touchend)="onImageTouchEnd($event)"
+                  (touchcancel)="onImageTouchCancel()"
+                >
+              }
               @if (isCurrentImagePrimary()) {
                 <span class="primary-image-badge" aria-label="Primary image">
                   <mat-icon>workspace_premium</mat-icon>
@@ -147,7 +158,17 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
                   <mat-icon>chevron_right</mat-icon>
                 </button>
               }
-              <img [src]="currentImageUrl()" [alt]="item()!.name">
+              @for (frame of imageFrames(); track frame.key) {
+                <img
+                  class="animated-gallery-image"
+                  [src]="frame.url"
+                  [alt]="item()!.name"
+                  [style.--swipe-shift.px]="frame.slideOffset"
+                  (touchstart)="onImageTouchStart($event)"
+                  (touchend)="onImageTouchEnd($event)"
+                  (touchcancel)="onImageTouchCancel()"
+                >
+              }
             </div>
           </div>
         }
@@ -221,6 +242,10 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .image-column { display: grid; gap: 10px; align-content: start; }
     .image-panel { position: relative; border-radius: var(--dw-radius-xl); overflow: hidden; aspect-ratio: 3/4; }
     .image-panel img { width: 100%; height: 100%; object-fit: cover; }
+    .animated-gallery-image {
+      animation: imageSwipeIn 220ms ease;
+      will-change: transform, opacity;
+    }
     .primary-image-badge {
       position: absolute;
       left: 12px;
@@ -362,6 +387,16 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       from { transform: scale(0.94); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
+    @keyframes imageSwipeIn {
+      from {
+        opacity: 0.86;
+        transform: translateX(var(--swipe-shift, 8px)) scale(0.995);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
     .info-panel { border-radius: var(--dw-radius-xl); padding: var(--dw-spacing-lg); display: flex; flex-direction: column; gap: var(--dw-spacing-lg); }
     .top-meta { display: flex; flex-wrap: wrap; gap: 8px; }
     .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--dw-surface-card); font-size: 12px; }
@@ -408,6 +443,8 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       .image-nav-btn { width: 32px; height: 32px; }
       .image-nav-prev { left: 8px; }
       .image-nav-next { right: 8px; }
+      .preview-nav-btn { display: none; }
+      .image-nav-btn { display: none; }
       .image-counter { bottom: 8px; }
       .thumb-btn { width: 56px; height: 56px; }
       .info-panel { border-radius: var(--dw-radius-lg); padding: 12px; gap: 12px; }
@@ -422,6 +459,8 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
   `]
 })
 export class ItemDetailComponent implements OnInit, AfterViewInit {
+  private static readonly SWIPE_THRESHOLD_PX = 36;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private location = inject(Location);
@@ -430,6 +469,8 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
 
   itemId = signal<string | null>(null);
   selectedImageIndex = signal(0);
+  imageAnimationKey = signal(0);
+  imageSlideOffsetPx = signal(10);
   item: Signal<WardrobeItem | undefined> = computed(() => {
     const id = this.itemId();
     if (!id) {
@@ -452,6 +493,13 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     const index = this.selectedImageIndex();
     return gallery[index] ?? gallery[0];
   });
+  imageFrames = computed(() => [
+    {
+      key: this.imageAnimationKey(),
+      url: this.currentImageUrl(),
+      slideOffset: this.imageSlideOffsetPx(),
+    },
+  ]);
   primaryImageUrl = computed(() => {
     const current = this.item();
     if (!current) {
@@ -472,6 +520,9 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   isImageExpanded = signal(false);
   canScrollLeft = signal(false);
   canScrollRight = signal(true);
+  touchStartX = signal<number | null>(null);
+  touchStartY = signal<number | null>(null);
+  suppressPreviewOpenUntil = signal(0);
 
   categoryLabel = computed(() => {
     const category = this.item()?.category;
@@ -541,7 +592,12 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   }
 
   openImagePreview(): void {
-    if (window.innerWidth > 768 || !this.item() || !this.currentImageUrl()) {
+    if (
+      window.innerWidth > 768 ||
+      !this.item() ||
+      !this.currentImageUrl() ||
+      Date.now() < this.suppressPreviewOpenUntil()
+    ) {
       return;
     }
     this.isImageExpanded.set(true);
@@ -559,6 +615,48 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   showNextImage(event?: Event): void {
     event?.stopPropagation();
     this.shiftImage(1);
+  }
+
+  onImageTouchStart(event: TouchEvent): void {
+    if (this.imageGallery().length < 2 || event.touches.length !== 1) {
+      return;
+    }
+    const touch = event.touches[0];
+    this.touchStartX.set(touch.clientX);
+    this.touchStartY.set(touch.clientY);
+  }
+
+  onImageTouchEnd(event: TouchEvent): void {
+    const startX = this.touchStartX();
+    const startY = this.touchStartY();
+    this.onImageTouchCancel();
+
+    if (
+      this.imageGallery().length < 2 ||
+      startX === null ||
+      startY === null ||
+      event.changedTouches.length !== 1
+    ) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+
+    if (absDeltaX < ItemDetailComponent.SWIPE_THRESHOLD_PX || absDeltaX <= absDeltaY) {
+      return;
+    }
+
+    this.suppressPreviewOpenUntil.set(Date.now() + 250);
+    this.shiftImage(deltaX < 0 ? 1 : -1);
+  }
+
+  onImageTouchCancel(): void {
+    this.touchStartX.set(null);
+    this.touchStartY.set(null);
   }
 
   @HostListener('document:keydown.escape')
@@ -599,6 +697,8 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     if (total < 2) {
       return;
     }
+    this.imageSlideOffsetPx.set(step >= 0 ? 10 : -10);
+    this.imageAnimationKey.update(value => value + 1);
     this.selectedImageIndex.update(current => ((current + step) % total + total) % total);
   }
 

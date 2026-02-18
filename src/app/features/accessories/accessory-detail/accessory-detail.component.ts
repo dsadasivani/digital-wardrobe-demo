@@ -46,7 +46,17 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
         <div class="content-grid">
           <div class="image-column">
             <section class="image-panel glass">
-              <img [src]="currentImageUrl()" [alt]="accessory()!.name">
+              @for (frame of imageFrames(); track frame.key) {
+                <img
+                  class="animated-gallery-image"
+                  [src]="frame.url"
+                  [alt]="accessory()!.name"
+                  [style.--swipe-shift.px]="frame.slideOffset"
+                  (touchstart)="onImageTouchStart($event)"
+                  (touchend)="onImageTouchEnd($event)"
+                  (touchcancel)="onImageTouchCancel()"
+                >
+              }
               @if (isCurrentImagePrimary()) {
                 <span class="primary-image-badge" aria-label="Primary image">
                   <mat-icon>workspace_premium</mat-icon>
@@ -195,6 +205,20 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     .image-column { display: grid; gap: 10px; align-content: start; }
     .image-panel { position: relative; border-radius: var(--dw-radius-xl); overflow: hidden; aspect-ratio: 3/4; }
     .image-panel img { width: 100%; height: 100%; object-fit: cover; }
+    .animated-gallery-image {
+      animation: imageSwipeIn 220ms ease;
+      will-change: transform, opacity;
+    }
+    @keyframes imageSwipeIn {
+      from {
+        opacity: 0.86;
+        transform: translateX(var(--swipe-shift, 8px)) scale(0.995);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
     .primary-image-badge {
       position: absolute;
       left: 12px;
@@ -311,6 +335,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
       .image-nav-btn { width: 32px; height: 32px; }
       .image-nav-prev { left: 8px; }
       .image-nav-next { right: 8px; }
+      .image-nav-btn { display: none; }
       .image-counter { bottom: 8px; }
       .thumb-btn { width: 56px; height: 56px; }
       .info-panel { border-radius: var(--dw-radius-lg); padding: 12px; gap: 12px; }
@@ -325,6 +350,8 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
   `]
 })
 export class AccessoryDetailComponent implements OnInit, AfterViewInit {
+  private static readonly SWIPE_THRESHOLD_PX = 36;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private location = inject(Location);
@@ -333,6 +360,8 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
 
   accessoryId = signal<string | null>(null);
   selectedImageIndex = signal(0);
+  imageAnimationKey = signal(0);
+  imageSlideOffsetPx = signal(10);
   accessory: Signal<Accessory | undefined> = computed(() => {
     const id = this.accessoryId();
     if (!id) {
@@ -355,6 +384,13 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
     const index = this.selectedImageIndex();
     return gallery[index] ?? gallery[0];
   });
+  imageFrames = computed(() => [
+    {
+      key: this.imageAnimationKey(),
+      url: this.currentImageUrl(),
+      slideOffset: this.imageSlideOffsetPx(),
+    },
+  ]);
   primaryImageUrl = computed(() => {
     const current = this.accessory();
     if (!current) {
@@ -374,6 +410,8 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
   isCurrentImagePrimary = computed(() => this.primaryImageIndex() === this.selectedImageIndex());
   canScrollLeft = signal(false);
   canScrollRight = signal(true);
+  touchStartX = signal<number | null>(null);
+  touchStartY = signal<number | null>(null);
 
   categoryLabel = computed(() => {
     const category = this.accessory()?.category ?? '';
@@ -451,6 +489,47 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
     this.shiftImage(1);
   }
 
+  onImageTouchStart(event: TouchEvent): void {
+    if (this.imageGallery().length < 2 || event.touches.length !== 1) {
+      return;
+    }
+    const touch = event.touches[0];
+    this.touchStartX.set(touch.clientX);
+    this.touchStartY.set(touch.clientY);
+  }
+
+  onImageTouchEnd(event: TouchEvent): void {
+    const startX = this.touchStartX();
+    const startY = this.touchStartY();
+    this.onImageTouchCancel();
+
+    if (
+      this.imageGallery().length < 2 ||
+      startX === null ||
+      startY === null ||
+      event.changedTouches.length !== 1
+    ) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+
+    if (absDeltaX < AccessoryDetailComponent.SWIPE_THRESHOLD_PX || absDeltaX <= absDeltaY) {
+      return;
+    }
+
+    this.shiftImage(deltaX < 0 ? 1 : -1);
+  }
+
+  onImageTouchCancel(): void {
+    this.touchStartX.set(null);
+    this.touchStartY.set(null);
+  }
+
   @HostListener('document:keydown.arrowleft')
   onArrowLeft(): void {
     this.shiftImage(-1);
@@ -482,6 +561,8 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
     if (total < 2) {
       return;
     }
+    this.imageSlideOffsetPx.set(step >= 0 ? 10 : -10);
+    this.imageAnimationKey.update(value => value + 1);
     this.selectedImageIndex.update(current => ((current + step) % total + total) % total);
   }
 
