@@ -10,6 +10,9 @@ import { ACCESSORY_CATEGORIES, Accessory, WardrobeItem } from '../../core/models
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { ItemCardComponent } from '../../shared/components/item-card/item-card.component';
 
+const ACCESSORY_LOADING_ICONS = ['watch', 'style', 'diamond', 'checkroom', 'auto_awesome'] as const;
+const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-accessories',
@@ -92,36 +95,56 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
         </button>
       </section>
 
-      <div class="items-grid">
-        @for (item of filteredAccessories(); track item.id) {
-          <dw-item-card
-            [item]="item"
-            (viewItem)="onViewItem($event)"
-            (editItem)="onEditItem($event)"
-            (deleteItem)="onDeleteItem($event)"
-            (toggleFavorite)="onToggleFavorite($event)"
-            (addToOutfit)="onAddToOutfit($event)">
-          </dw-item-card>
-        } @empty {
-          <div class="empty-state">
-            <div class="empty-icon">
-              <mat-icon>watch</mat-icon>
+      @if (isInitialLoading()) {
+        <div class="items-grid">
+          @for (placeholder of loadingPlaceholders; track placeholder) {
+            <article class="dw-list-skeleton-card" aria-hidden="true">
+              <div class="dw-list-skeleton-media">
+                <mat-icon>{{ loadingIcons[$index % loadingIcons.length] }}</mat-icon>
+              </div>
+              <div class="dw-list-skeleton-content">
+                <span class="dw-list-skeleton-line"></span>
+                <span class="dw-list-skeleton-line medium"></span>
+                <div class="dw-list-skeleton-chip-row">
+                  <span class="dw-list-skeleton-chip"></span>
+                  <span class="dw-list-skeleton-chip"></span>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      } @else {
+        <div class="items-grid">
+          @for (item of filteredAccessories(); track item.id) {
+            <dw-item-card
+              [item]="item"
+              (viewItem)="onViewItem($event)"
+              (editItem)="onEditItem($event)"
+              (deleteItem)="onDeleteItem($event)"
+              (toggleFavorite)="onToggleFavorite($event)"
+              (addToOutfit)="onAddToOutfit($event)">
+            </dw-item-card>
+          } @empty {
+            <div class="empty-state">
+              <div class="empty-icon">
+                <mat-icon>watch</mat-icon>
+              </div>
+              <h3>No accessories found</h3>
+              <p>
+                @if (searchQuery() || selectedCategory() !== 'all' || showFavoritesOnly()) {
+                  Try adjusting your search or filters
+                } @else {
+                  Add your first accessory to complete your wardrobe
+                }
+              </p>
+              <button class="action-btn primary" routerLink="/accessories/add">
+                <mat-icon>add</mat-icon>
+                Add Accessory
+              </button>
             </div>
-            <h3>No accessories found</h3>
-            <p>
-              @if (searchQuery() || selectedCategory() !== 'all' || showFavoritesOnly()) {
-                Try adjusting your search or filters
-              } @else {
-                Add your first accessory to complete your wardrobe
-              }
-            </p>
-            <button class="action-btn primary" routerLink="/accessories/add">
-              <mat-icon>add</mat-icon>
-              Add Accessory
-            </button>
-          </div>
-        }
-      </div>
+          }
+        </div>
+      }
 
       @if (hasMoreAccessories()) {
         <div class="load-more-row">
@@ -181,6 +204,11 @@ export class AccessoriesComponent implements OnInit {
   totalAccessories = this.wardrobeService.accessoriesTotalElements;
   hasMoreAccessories = this.wardrobeService.hasMoreAccessoriesPages;
   isLoadingMoreAccessories = this.wardrobeService.accessoriesPageLoading;
+  isInitialLoading = computed(
+    () => this.isLoadingMoreAccessories() && this.accessories().length === 0,
+  );
+  readonly loadingIcons = ACCESSORY_LOADING_ICONS;
+  readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
   categories = ACCESSORY_CATEGORIES;
 
   searchQuery = signal('');

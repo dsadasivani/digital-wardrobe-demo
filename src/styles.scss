@@ -578,6 +578,575 @@ h4 {
   border-radius: var(--dw-radius-sm);
 }
 
+// -----------------------------------------
+// 10b. Dashboard Loading Experience
+// -----------------------------------------
+.dashboard {
+  .fashion-loader,
+  .runway-loader,
+  .spotlight-loader {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--dw-spacing-md);
+    padding: 12px 14px;
+    margin-bottom: var(--dw-spacing-md);
+    border-radius: var(--dw-radius-lg);
+    border: 1px solid var(--dw-border-subtle);
+    background:
+      radial-gradient(
+        circle at 85% 15%,
+        color-mix(in srgb, var(--dw-primary) 16%, transparent),
+        transparent 44%
+      ),
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--dw-surface-elevated) 86%, var(--dw-primary) 14%),
+        var(--dw-surface-card)
+      );
+    overflow: hidden;
+  }
+
+  .fashion-loader::after,
+  .runway-loader::after,
+  .spotlight-loader::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      transparent 0%,
+      color-mix(in srgb, var(--dw-primary) 8%, transparent) 40%,
+      transparent 65%
+    );
+    transform: translateX(-120%);
+    animation: dw-loader-sweep 2.4s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .loader-icons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1;
+  }
+
+  .loader-icon-chip {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    border: 1px solid color-mix(in srgb, var(--dw-primary) 18%, transparent);
+    color: var(--dw-primary);
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--dw-primary) 16%, transparent),
+        color-mix(in srgb, var(--dw-surface-elevated) 92%, transparent)
+      );
+    box-shadow: var(--dw-shadow-sm);
+    animation: dw-loader-bob 1.3s ease-in-out infinite;
+  }
+
+  .loader-icon-chip:nth-child(2) {
+    animation-delay: 120ms;
+  }
+
+  .loader-icon-chip:nth-child(3) {
+    animation-delay: 240ms;
+  }
+
+  .loader-icon-chip:nth-child(4) {
+    animation-delay: 360ms;
+  }
+
+  .loader-icon-chip mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .loader-caption {
+    position: relative;
+    z-index: 1;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+    color: var(--dw-text-secondary);
+  }
+
+  .loader-caption::after {
+    content: '...';
+    display: inline-block;
+    width: 14px;
+    overflow: hidden;
+    vertical-align: bottom;
+    animation: dw-loader-dots 1s steps(4, end) infinite;
+  }
+
+  .runway-loader,
+  .spotlight-loader {
+    flex-direction: column;
+  }
+
+  .runway-track {
+    width: min(330px, 100%);
+    height: 44px;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  .runway-track::before {
+    content: '';
+    position: absolute;
+    inset: auto 0 50%;
+    height: 3px;
+    transform: translateY(50%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--dw-primary) 32%, transparent);
+  }
+
+  .runway-track::after {
+    content: '';
+    position: absolute;
+    left: -18%;
+    top: 0;
+    width: 28%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--dw-primary) 16%, transparent),
+      transparent
+    );
+    filter: blur(1px);
+    animation: dw-runway-light 2s linear infinite;
+  }
+
+  .runway-item {
+    position: absolute;
+    top: 50%;
+    width: 30px;
+    height: 30px;
+    margin-top: -15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--dw-primary) 20%, transparent);
+    color: var(--dw-primary);
+    background: var(--dw-surface-elevated);
+    animation: dw-runway-glide 1.7s linear infinite;
+    z-index: 1;
+  }
+
+  .runway-item:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .runway-item:nth-child(2) {
+    animation-delay: 560ms;
+  }
+
+  .runway-item:nth-child(3) {
+    animation-delay: 1120ms;
+  }
+
+  .runway-item mat-icon {
+    font-size: 17px;
+    width: 17px;
+    height: 17px;
+  }
+
+  .spotlight-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: white;
+    background: var(--dw-gradient-primary);
+    box-shadow: var(--dw-shadow-glow);
+    animation: dw-spotlight-pulse 1.25s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  .spotlight-icon mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .skeleton-card {
+    position: relative;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .skeleton-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      115deg,
+      transparent 5%,
+      color-mix(in srgb, var(--dw-surface-elevated) 56%, transparent) 42%,
+      transparent 66%
+    );
+    transform: translateX(-140%);
+    animation: dw-loader-sweep 2.2s ease-in-out infinite;
+  }
+
+  .skeleton-block,
+  .skeleton-line,
+  .item-skeleton-card {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--dw-surface-card) 78%, transparent) 0%,
+      color-mix(in srgb, var(--dw-surface-elevated) 62%, transparent) 50%,
+      color-mix(in srgb, var(--dw-surface-card) 78%, transparent) 100%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.25s linear infinite;
+  }
+
+  .skeleton-line {
+    width: 100%;
+    height: 13px;
+    border-radius: var(--dw-radius-sm);
+  }
+
+  .skeleton-line.short {
+    width: 44%;
+  }
+
+  .skeleton-line.medium {
+    width: 68%;
+  }
+
+  .item-skeleton-card {
+    border-radius: var(--dw-radius-xl);
+    border: 1px solid var(--dw-border-subtle);
+    background: var(--dw-surface-card);
+    padding: var(--dw-spacing-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--dw-spacing-sm);
+    min-height: 314px;
+  }
+
+  .item-skeleton-image {
+    height: 220px;
+    border-radius: var(--dw-radius-lg);
+    display: grid;
+    place-items: center;
+  }
+
+  .item-skeleton-image mat-icon,
+  .highlight-skeleton-image mat-icon {
+    color: color-mix(in srgb, var(--dw-primary) 44%, var(--dw-text-secondary) 56%);
+    opacity: 0.68;
+    animation: dw-loader-bob 1.5s ease-in-out infinite;
+  }
+
+  .item-skeleton-image mat-icon {
+    font-size: 38px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .highlight-skeleton-image {
+    display: grid;
+    place-items: center;
+  }
+
+  .highlight-skeleton-image mat-icon {
+    font-size: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .item-skeleton-content {
+    display: grid;
+    gap: 8px;
+  }
+
+  .item-skeleton-tags {
+    display: flex;
+    gap: 8px;
+  }
+
+  .highlight-title {
+    display: block;
+    height: 18px;
+  }
+
+  .highlight-meta-line {
+    display: block;
+    height: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .fashion-loader,
+    .runway-loader,
+    .spotlight-loader {
+      padding: 10px;
+      gap: 10px;
+    }
+
+    .loader-caption {
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .item-skeleton-card {
+      min-height: 232px;
+    }
+
+    .item-skeleton-image {
+      height: 140px;
+    }
+  }
+}
+
+// -----------------------------------------
+// 10c. Collection List Skeletons
+// -----------------------------------------
+.dw-list-skeleton-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--dw-radius-lg);
+  border: 1px solid var(--dw-border-subtle);
+  background:
+    radial-gradient(
+      circle at 82% 14%,
+      color-mix(in srgb, var(--dw-primary) 10%, transparent),
+      transparent 48%
+    ),
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--dw-surface-elevated) 86%, var(--dw-primary) 14%),
+      var(--dw-surface-card)
+    );
+  box-shadow: var(--dw-shadow-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 314px;
+  pointer-events: none;
+}
+
+.dw-list-skeleton-card.outfit {
+  min-height: 352px;
+}
+
+.dw-list-skeleton-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    114deg,
+    transparent 6%,
+    color-mix(in srgb, var(--dw-surface-elevated) 58%, transparent) 43%,
+    transparent 70%
+  );
+  transform: translateX(-140%);
+  animation: dw-loader-sweep 2.1s ease-in-out infinite;
+}
+
+.dw-list-skeleton-media {
+  height: 210px;
+  border-radius: var(--dw-radius-md);
+  border: 1px solid color-mix(in srgb, var(--dw-primary) 10%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--dw-surface-card) 80%, transparent) 0%,
+    color-mix(in srgb, var(--dw-surface-elevated) 60%, transparent) 50%,
+    color-mix(in srgb, var(--dw-surface-card) 80%, transparent) 100%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.25s linear infinite;
+  display: grid;
+  place-items: center;
+}
+
+.dw-list-skeleton-media.outfit {
+  height: 248px;
+}
+
+.dw-list-skeleton-media mat-icon {
+  font-size: 40px;
+  width: 40px;
+  height: 40px;
+  color: color-mix(in srgb, var(--dw-primary) 44%, var(--dw-text-secondary) 56%);
+  opacity: 0.7;
+  animation: dw-loader-bob 1.5s ease-in-out infinite;
+}
+
+.dw-list-skeleton-content {
+  display: grid;
+  gap: 8px;
+}
+
+.dw-list-skeleton-line {
+  display: block;
+  width: 100%;
+  height: 12px;
+  border-radius: var(--dw-radius-full);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--dw-surface-card) 78%, transparent) 0%,
+    color-mix(in srgb, var(--dw-surface-elevated) 62%, transparent) 50%,
+    color-mix(in srgb, var(--dw-surface-card) 78%, transparent) 100%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.dw-list-skeleton-line.medium {
+  width: 72%;
+}
+
+.dw-list-skeleton-line.short {
+  width: 48%;
+}
+
+.dw-list-skeleton-chip-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.dw-list-skeleton-chip {
+  display: block;
+  width: 72px;
+  height: 20px;
+  border-radius: var(--dw-radius-full);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--dw-primary) 18%, transparent),
+    color-mix(in srgb, var(--dw-surface-elevated) 70%, transparent)
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.15s linear infinite;
+}
+
+.dw-list-skeleton-chip.short {
+  width: 56px;
+}
+
+@media (max-width: 768px) {
+  .dw-list-skeleton-card {
+    min-height: 232px;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .dw-list-skeleton-card.outfit {
+    min-height: 258px;
+  }
+
+  .dw-list-skeleton-media {
+    height: 136px;
+  }
+
+  .dw-list-skeleton-media.outfit {
+    height: 158px;
+  }
+
+  .dw-list-skeleton-media mat-icon {
+    font-size: 34px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .dw-list-skeleton-line {
+    height: 10px;
+  }
+
+  .dw-list-skeleton-chip {
+    height: 18px;
+    width: 58px;
+  }
+}
+
+@keyframes dw-loader-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes dw-loader-sweep {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes dw-loader-dots {
+  0%,
+  20% {
+    width: 0;
+  }
+  40% {
+    width: 4px;
+  }
+  70% {
+    width: 9px;
+  }
+  100% {
+    width: 14px;
+  }
+}
+
+@keyframes dw-runway-glide {
+  0% {
+    left: -10%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes dw-runway-light {
+  0% {
+    left: -24%;
+  }
+  100% {
+    left: 110%;
+  }
+}
+
+@keyframes dw-spotlight-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--dw-primary) 28%, transparent);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--dw-primary) 0%, transparent);
+  }
+}
+
 /* Lightweight global motion system for shared UI patterns */
 .glass,
 .card,

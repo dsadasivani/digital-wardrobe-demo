@@ -15,11 +15,12 @@ import { Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ItemCardComponent } from '../../shared/components/item-card/item-card.component';
 import { WardrobeItem, Accessory } from '../../core/models';
+
+const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 'style', 'ac_unit'];
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,7 +31,6 @@ import { WardrobeItem, Accessory } from '../../core/models';
     MatCardModule,
     MatIconModule,
     MatButtonModule,
-    MatProgressBarModule,
     ItemCardComponent,
   ],
   template: `
@@ -62,7 +62,15 @@ import { WardrobeItem, Accessory } from '../../core/models';
       <!-- Stats Cards -->
       <section class="stats-section">
         @if (isCountersLoading()) {
-          <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+          <div class="fashion-loader stats-fashion-loader" role="status" aria-live="polite">
+            <div class="loader-icons">
+              <span class="loader-icon-chip"><mat-icon>checkroom</mat-icon></span>
+              <span class="loader-icon-chip"><mat-icon>dry_cleaning</mat-icon></span>
+              <span class="loader-icon-chip"><mat-icon>watch</mat-icon></span>
+              <span class="loader-icon-chip"><mat-icon>style</mat-icon></span>
+            </div>
+            <span class="loader-caption">Styling your dashboard counters...</span>
+          </div>
         }
 
         <button
@@ -147,11 +155,20 @@ import { WardrobeItem, Accessory } from '../../core/models';
         </div>
 
         @if (isCategoryBreakdownLoading()) {
-          <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+          <div class="fashion-loader category-fashion-loader" role="status" aria-live="polite">
+            <div class="loader-icons">
+              <span class="loader-icon-chip"><mat-icon>checkroom</mat-icon></span>
+              <span class="loader-icon-chip"><mat-icon>hiking</mat-icon></span>
+              <span class="loader-icon-chip"><mat-icon>watch</mat-icon></span>
+            </div>
+            <span class="loader-caption">Sorting pieces by category...</span>
+          </div>
           <div class="category-grid">
-            @for (placeholder of loadingPlaceholders; track placeholder) {
+            @for (placeholder of loadingPlaceholders; track placeholder; let i = $index) {
               <div class="category-card skeleton-card">
-                <div class="category-icon skeleton-block"></div>
+                <div class="category-icon skeleton-block">
+                  <mat-icon>{{ getLoadingIcon(i) }}</mat-icon>
+                </div>
                 <span class="category-name skeleton-line"></span>
                 <span class="category-count skeleton-line short"></span>
               </div>
@@ -191,10 +208,29 @@ import { WardrobeItem, Accessory } from '../../core/models';
           </div>
 
           @if (isRecentlyAddedLoading()) {
-            <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+            <div class="runway-loader" role="status" aria-live="polite">
+              <div class="runway-track">
+                <span class="runway-item"><mat-icon>checkroom</mat-icon></span>
+                <span class="runway-item"><mat-icon>style</mat-icon></span>
+                <span class="runway-item"><mat-icon>dry_cleaning</mat-icon></span>
+              </div>
+              <span class="loader-caption">Fetching the latest additions...</span>
+            </div>
             <div class="items-grid">
-              @for (placeholder of loadingPlaceholders; track placeholder) {
-                <div class="item-skeleton-card skeleton-card"></div>
+              @for (placeholder of loadingPlaceholders; track placeholder; let i = $index) {
+                <div class="item-skeleton-card skeleton-card">
+                  <div class="item-skeleton-image skeleton-block">
+                    <mat-icon>{{ getLoadingIcon(i) }}</mat-icon>
+                  </div>
+                  <div class="item-skeleton-content">
+                    <span class="skeleton-line"></span>
+                    <span class="skeleton-line medium"></span>
+                    <div class="item-skeleton-tags">
+                      <span class="skeleton-line short"></span>
+                      <span class="skeleton-line short"></span>
+                    </div>
+                  </div>
+                </div>
               }
             </div>
           } @else {
@@ -219,13 +255,24 @@ import { WardrobeItem, Accessory } from '../../core/models';
             <h2>Your Most Worn Item</h2>
           </div>
 
-          <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+          <div class="spotlight-loader" role="status" aria-live="polite">
+            <div class="spotlight-icon">
+              <mat-icon>emoji_events</mat-icon>
+            </div>
+            <span class="loader-caption">Finding your star outfit...</span>
+          </div>
           <div class="highlight-card glass skeleton-card">
-            <div class="highlight-image skeleton-block"></div>
+            <div class="highlight-image skeleton-block highlight-skeleton-image">
+              <mat-icon>checkroom</mat-icon>
+            </div>
             <div class="highlight-content">
               <span class="highlight-badge skeleton-line short"></span>
               <span class="highlight-title skeleton-line"></span>
               <span class="highlight-meta-line skeleton-line medium"></span>
+              <div class="item-skeleton-tags">
+                <span class="skeleton-line short"></span>
+                <span class="skeleton-line short"></span>
+              </div>
             </div>
           </div>
         </section>
@@ -324,11 +371,6 @@ import { WardrobeItem, Accessory } from '../../core/models';
       .stats-section {
         position: relative;
         margin-bottom: var(--dw-spacing-2xl);
-      }
-
-      .section-loader {
-        margin-bottom: var(--dw-spacing-md);
-        border-radius: var(--dw-radius-full);
       }
 
       .stats-row {
@@ -701,61 +743,6 @@ import { WardrobeItem, Accessory } from '../../core/models';
         border-radius: var(--dw-radius-full);
       }
 
-      .skeleton-card {
-        pointer-events: none;
-      }
-
-      .skeleton-block,
-      .skeleton-line,
-      .item-skeleton-card {
-        background: linear-gradient(
-          90deg,
-          color-mix(in srgb, var(--dw-surface-card) 75%, transparent) 0%,
-          color-mix(in srgb, var(--dw-surface-elevated) 60%, transparent) 50%,
-          color-mix(in srgb, var(--dw-surface-card) 75%, transparent) 100%
-        );
-        background-size: 200% 100%;
-        animation: dashboard-skeleton-shimmer 1.2s linear infinite;
-      }
-
-      .skeleton-line {
-        width: 100%;
-        height: 14px;
-        border-radius: var(--dw-radius-sm);
-      }
-
-      .skeleton-line.short {
-        width: 45%;
-      }
-
-      .skeleton-line.medium {
-        width: 70%;
-      }
-
-      .item-skeleton-card {
-        height: 320px;
-        border-radius: var(--dw-radius-xl);
-      }
-
-      .highlight-title {
-        display: block;
-        height: 18px;
-      }
-
-      .highlight-meta-line {
-        display: block;
-        height: 16px;
-      }
-
-      @keyframes dashboard-skeleton-shimmer {
-        0% {
-          background-position: 200% 0;
-        }
-        100% {
-          background-position: -200% 0;
-        }
-      }
-
       @media (max-width: 768px) {
         .dashboard {
           padding: var(--dw-spacing-md);
@@ -820,6 +807,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
         .stat-label {
           font-size: 12px;
         }
+
         .items-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -929,6 +917,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     };
     return icons[category] || 'category';
   }
+
+  getLoadingIcon(index: number): string {
+    return LOADING_CLOSET_ICONS[index % LOADING_CLOSET_ICONS.length] ?? 'checkroom';
+  }
+
   getUserFirstName(): string {
     return this.user()?.name?.split(' ')[0] || 'Guest';
   }

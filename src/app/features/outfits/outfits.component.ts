@@ -7,6 +7,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { Outfit } from '../../core/models';
 
+const OUTFIT_LOADING_ICONS = ['style', 'checkroom', 'auto_awesome', 'self_improvement'] as const;
+const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-outfits',
@@ -31,49 +34,69 @@ import { Outfit } from '../../core/models';
         }
       </section>
 
-      <div class="outfits-grid">
-        @for (outfit of filteredOutfits(); track outfit.id) {
-          <div
-            class="outfit-card"
-            [class.favorite]="outfit.favorite"
-            [routerLink]="['/outfits', outfit.id]">
-            <div class="outfit-image">
-              <img [src]="outfit.imageUrl" [alt]="outfit.name">
-              @if (outfit.rating) {<div class="rating"><mat-icon>star</mat-icon>{{ outfit.rating }}</div>}
-            </div>
-            <div class="outfit-content">
-              <h3>{{ outfit.name }}</h3>
-              <div class="meta">
-                @if (outfit.occasion) {<span class="badge">{{ outfit.occasion }}</span>}
-                @if (outfit.season) {<span class="badge">{{ outfit.season }}</span>}
+      @if (isInitialLoading()) {
+        <div class="outfits-grid">
+          @for (placeholder of loadingPlaceholders; track placeholder) {
+            <article class="dw-list-skeleton-card outfit" aria-hidden="true">
+              <div class="dw-list-skeleton-media outfit">
+                <mat-icon>{{ loadingIcons[$index % loadingIcons.length] }}</mat-icon>
               </div>
-              <span class="items-count"><mat-icon>layers</mat-icon>{{ outfit.items.length }} items</span>
-              <span class="items-count"><mat-icon>check_circle</mat-icon>{{ outfit.worn }} worn</span>
-              @if (outfit.plannedDates?.length) {
-                <span class="planned-on"><mat-icon>event</mat-icon>{{ outfit.plannedDates![0] }}</span>
-              }
+              <div class="dw-list-skeleton-content">
+                <span class="dw-list-skeleton-line"></span>
+                <span class="dw-list-skeleton-line medium"></span>
+                <div class="dw-list-skeleton-chip-row">
+                  <span class="dw-list-skeleton-chip"></span>
+                  <span class="dw-list-skeleton-chip short"></span>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      } @else {
+        <div class="outfits-grid">
+          @for (outfit of filteredOutfits(); track outfit.id) {
+            <div
+              class="outfit-card"
+              [class.favorite]="outfit.favorite"
+              [routerLink]="['/outfits', outfit.id]">
+              <div class="outfit-image">
+                <img [src]="outfit.imageUrl" [alt]="outfit.name">
+                @if (outfit.rating) {<div class="rating"><mat-icon>star</mat-icon>{{ outfit.rating }}</div>}
+              </div>
+              <div class="outfit-content">
+                <h3>{{ outfit.name }}</h3>
+                <div class="meta">
+                  @if (outfit.occasion) {<span class="badge">{{ outfit.occasion }}</span>}
+                  @if (outfit.season) {<span class="badge">{{ outfit.season }}</span>}
+                </div>
+                <span class="items-count"><mat-icon>layers</mat-icon>{{ outfit.items.length }} items</span>
+                <span class="items-count"><mat-icon>check_circle</mat-icon>{{ outfit.worn }} worn</span>
+                @if (outfit.plannedDates?.length) {
+                  <span class="planned-on"><mat-icon>event</mat-icon>{{ outfit.plannedDates![0] }}</span>
+                }
+              </div>
             </div>
-          </div>
-        } @empty {
-          <div class="empty-state">
-            <div class="empty-icon">
-              <mat-icon>style</mat-icon>
+          } @empty {
+            <div class="empty-state">
+              <div class="empty-icon">
+                <mat-icon>style</mat-icon>
+              </div>
+              <h3>No outfits found</h3>
+              <p>
+                @if (selectedOccasion() !== 'All') {
+                  Try changing your occasion filter
+                } @else {
+                  Create your first outfit combination
+                }
+              </p>
+              <button class="action-btn primary" routerLink="/outfit-canvas">
+                <mat-icon>brush</mat-icon>
+                Create Outfit
+              </button>
             </div>
-            <h3>No outfits found</h3>
-            <p>
-              @if (selectedOccasion() !== 'All') {
-                Try changing your occasion filter
-              } @else {
-                Create your first outfit combination
-              }
-            </p>
-            <button class="action-btn primary" routerLink="/outfit-canvas">
-              <mat-icon>brush</mat-icon>
-              Create Outfit
-            </button>
-          </div>
-        }
-      </div>
+          }
+        </div>
+      }
 
       @if (hasMoreOutfits()) {
         <div class="load-more-row">
@@ -157,6 +180,9 @@ export class OutfitsComponent implements OnInit {
   totalOutfits = this.wardrobeService.outfitsTotalElements;
   hasMoreOutfits = this.wardrobeService.hasMoreOutfitsPages;
   isLoadingMoreOutfits = this.wardrobeService.outfitsPageLoading;
+  isInitialLoading = computed(() => this.isLoadingMoreOutfits() && this.outfits().length === 0);
+  readonly loadingIcons = OUTFIT_LOADING_ICONS;
+  readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
   selectedOccasion = signal<string>('All');
   occasionFilters = ['All', 'Work', 'Casual', 'Formal', 'Party', 'Vacation'];
 

@@ -15,6 +15,16 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { ItemCardComponent } from '../../../shared/components/item-card/item-card.component';
 import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '../../../core/models';
 
+const WARDROBE_LOADING_ICONS = [
+  'checkroom',
+  'dry_cleaning',
+  'style',
+  'hiking',
+  'diamond',
+  'local_mall',
+] as const;
+const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-wardrobe',
@@ -125,7 +135,25 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
 
       <!-- Items Grid -->
       <section class="items-section">
-        @if (filteredItems().length > 0) {
+        @if (isInitialLoading()) {
+          <div class="items-grid">
+            @for (placeholder of loadingPlaceholders; track placeholder) {
+              <article class="dw-list-skeleton-card" aria-hidden="true">
+                <div class="dw-list-skeleton-media">
+                  <mat-icon>{{ loadingIcons[$index % loadingIcons.length] }}</mat-icon>
+                </div>
+                <div class="dw-list-skeleton-content">
+                  <span class="dw-list-skeleton-line"></span>
+                  <span class="dw-list-skeleton-line medium"></span>
+                  <div class="dw-list-skeleton-chip-row">
+                    <span class="dw-list-skeleton-chip"></span>
+                    <span class="dw-list-skeleton-chip"></span>
+                  </div>
+                </div>
+              </article>
+            }
+          </div>
+        } @else if (filteredItems().length > 0) {
           <div class="items-grid" [class.list-view]="viewMode() === 'list'">
             @for (item of filteredItems(); track item.id) {
               <dw-item-card 
@@ -478,6 +506,9 @@ export class WardrobeComponent implements OnInit {
   totalItems = this.wardrobeService.wardrobeTotalElements;
   hasMoreItems = this.wardrobeService.hasMoreWardrobePages;
   isLoadingMoreItems = this.wardrobeService.wardrobePageLoading;
+  isInitialLoading = computed(() => this.isLoadingMoreItems() && this.allItems().length === 0);
+  readonly loadingIcons = WARDROBE_LOADING_ICONS;
+  readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
 
   searchQuery = signal('');
   selectedCategory = signal<WardrobeCategory | null>(null);
