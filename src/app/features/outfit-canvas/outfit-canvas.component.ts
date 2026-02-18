@@ -19,7 +19,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Accessory, OutfitItem, WardrobeItem } from '../../core/models';
+import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../core/models';
 import { WardrobeService } from '../../core/services';
 
 interface CanvasSourceItem {
@@ -103,7 +103,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
               </button>
             }
             <button mat-stroked-button (click)="clearCanvas()"><mat-icon>delete_sweep</mat-icon>Clear</button>
-            <button mat-raised-button color="primary" class="save-btn" (click)="saveOutfit()" [disabled]="isSaving()">
+            <button mat-raised-button color="primary" class="save-btn" (click)="saveOutfit()" [disabled]="isSaving() || !!loadError()">
               <mat-icon>save</mat-icon>{{ editingOutfitId() ? 'Update Outfit' : 'Save Outfit' }}
             </button>
           </div>
@@ -111,6 +111,9 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
 
         @if (saveError()) {
           <p class="form-error">{{ saveError() }}</p>
+        }
+        @if (loadError()) {
+          <p class="form-error">{{ loadError() }}</p>
         }
 
         <section class="schedule-panel glass">
@@ -398,6 +401,7 @@ export class OutfitCanvasComponent implements OnInit {
   sourceFilter = signal<CanvasSourceFilter>('wardrobe');
   selectedMobileItemKey = signal<string | null>(null);
   saveError = signal<string | null>(null);
+  loadError = signal<string | null>(null);
   isSaving = signal(false);
   private maxZ = signal(1);
 
@@ -410,13 +414,40 @@ export class OutfitCanvasComponent implements OnInit {
     if (preselectedDate) {
       this.addPlannedDate(preselectedDate);
     }
+    void this.initializeCanvas();
+  }
 
+  private async initializeCanvas(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
+    this.loadError.set(null);
+
+    try {
+      await Promise.all([
+        this.wardrobeService.ensureWardrobeLoaded(),
+        this.wardrobeService.ensureAccessoriesLoaded(),
+      ]);
+    } catch {
+      this.loadError.set('Unable to load wardrobe data. Please refresh and try again.');
+      return;
+    }
+
     if (!id) {
       return;
     }
-    const outfit = this.wardrobeService.getOutfitById(id);
+
+    let outfit: Outfit | undefined;
+    try {
+      outfit = await this.wardrobeService.fetchOutfitById(id);
+      if (outfit) {
+        await this.wardrobeService.ensureOutfitDependenciesLoaded(outfit);
+      }
+    } catch {
+      this.loadError.set('Unable to load outfit details. Please refresh and try again.');
+      return;
+    }
+
     if (!outfit) {
+      this.loadError.set('Unable to find the requested outfit.');
       return;
     }
 

@@ -242,10 +242,7 @@ export class EditItemComponent implements OnInit {
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       this.itemId.set(id);
-      const item = id ? this.wardrobeService.getItemById(id) : undefined;
-      if (item) {
-        this.patchForm(item);
-      }
+      void this.loadItemForEdit(id);
     });
   }
 
@@ -384,5 +381,19 @@ export class EditItemComponent implements OnInit {
     const normalizedPrimaryIndex = ((primaryIndex % images.length) + images.length) % images.length;
     const primaryImage = images[normalizedPrimaryIndex];
     return [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)];
+  }
+
+  private async loadItemForEdit(id: string | null): Promise<void> {
+    if (!id) {
+      return;
+    }
+    try {
+      const item = await this.wardrobeService.fetchWardrobeItemById(id);
+      if (item) {
+        this.patchForm(item);
+      }
+    } catch {
+      this.errorMessage.set('Unable to load item details right now.');
+    }
   }
 }

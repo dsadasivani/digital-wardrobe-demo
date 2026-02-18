@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import type { WardrobeItemDto, CreateWardrobeItemRequestDto, UpdateWardrobeItemRequestDto } from '../dto/wardrobe.dto';
+import type { PageDto } from '../dto/page.dto';
 
 @Injectable({ providedIn: 'root' })
 export class WardrobeApi {
@@ -15,6 +16,10 @@ export class WardrobeApi {
 
     list(): Observable<WardrobeItemDto[]> {
         return this.http.get<WardrobeItemDto[]>(this.url);
+    }
+
+    listPage(page = 0, size = 50): Observable<PageDto<WardrobeItemDto>> {
+        return this.http.get<PageDto<WardrobeItemDto>>(`${this.url}/page`, { params: { page, size } });
     }
 
     getById(id: string): Observable<WardrobeItemDto> {

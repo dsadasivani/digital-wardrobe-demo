@@ -5,11 +5,14 @@ import com.digitalwardrobe.accessories.dto.AccessoryResponse;
 import com.digitalwardrobe.accessories.dto.CreateAccessoryRequest;
 import com.digitalwardrobe.accessories.dto.UpdateAccessoryRequest;
 import com.digitalwardrobe.accessories.repository.AccessoryRepository;
+import com.digitalwardrobe.common.api.PageResponse;
 import com.digitalwardrobe.users.service.UserService;
 import java.util.ArrayList;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AccessoryService {
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 30;
 
     private final AccessoryRepository accessoryRepository;
     private final UserService userService;
@@ -29,6 +34,15 @@ public class AccessoryService {
     public List<AccessoryResponse> list(Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
         return accessoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse).toList();
+    }
+
+    public PageResponse<AccessoryResponse> listPage(Authentication authentication, int page, int size) {
+        String userId = userService.requireCurrentUserId(authentication);
+        int resolvedPage = Math.max(page, 0);
+        int resolvedSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        var pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var responsePage = accessoryRepository.findAllByUserId(userId, pageable).map(this::toResponse);
+        return PageResponse.from(responsePage);
     }
 
     public AccessoryResponse getById(String id, Authentication authentication) {
@@ -118,7 +132,8 @@ public class AccessoryService {
         return toResponse(saved);
     }
 
-    public void incrementWornForUserAccessories(String userId, Set<String> accessoryIds, int incrementBy, Instant wornAt) {
+    public void incrementWornForUserAccessories(String userId, Set<String> accessoryIds, int incrementBy,
+            Instant wornAt) {
         if (accessoryIds.isEmpty() || incrementBy <= 0) {
             return;
         }
@@ -167,9 +182,9 @@ public class AccessoryService {
         List<String> normalized = new ArrayList<>();
         if (imageUrls != null) {
             normalized = imageUrls.stream()
-                .filter(url -> url != null && !url.isBlank())
-                .map(String::trim)
-                .toList();
+                    .filter(url -> url != null && !url.isBlank())
+                    .map(String::trim)
+                    .toList();
         }
         if (normalized.isEmpty() && fallbackImageUrl != null && !fallbackImageUrl.isBlank()) {
             normalized = List.of(fallbackImageUrl.trim());
@@ -181,15 +196,15 @@ public class AccessoryService {
     }
 
     private void applyImageUpdates(
-        AccessoryDocument item,
-        String requestedImageUrl,
-        List<String> requestedImageUrls,
-        String requestedPrimaryImageUrl
-    ) {
+            AccessoryDocument item,
+            String requestedImageUrl,
+            List<String> requestedImageUrls,
+            String requestedPrimaryImageUrl) {
         List<String> currentImageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
         List<String> nextImageUrls = requestedImageUrls != null
-            ? new ArrayList<>(normalizeImageUrls(requestedImageUrls, requestedImageUrl != null ? requestedImageUrl : item.getImageUrl()))
-            : new ArrayList<>(currentImageUrls);
+                ? new ArrayList<>(normalizeImageUrls(requestedImageUrls,
+                        requestedImageUrl != null ? requestedImageUrl : item.getImageUrl()))
+                : new ArrayList<>(currentImageUrls);
 
         if (requestedImageUrl != null && !requestedImageUrl.isBlank()) {
             String normalizedRequestedImageUrl = requestedImageUrl.trim();
@@ -199,10 +214,9 @@ public class AccessoryService {
         }
 
         String primaryImageUrl = resolvePrimaryImageUrl(
-            requestedPrimaryImageUrl != null ? requestedPrimaryImageUrl : requestedImageUrl,
-            nextImageUrls,
-            item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl()
-        );
+                requestedPrimaryImageUrl != null ? requestedPrimaryImageUrl : requestedImageUrl,
+                nextImageUrls,
+                item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl());
 
         if (!nextImageUrls.contains(primaryImageUrl)) {
             nextImageUrls.add(0, primaryImageUrl);
@@ -213,7 +227,8 @@ public class AccessoryService {
         item.setImageUrl(primaryImageUrl);
     }
 
-    private String resolvePrimaryImageUrl(String requestedPrimaryImageUrl, List<String> imageUrls, String fallbackImageUrl) {
+    private String resolvePrimaryImageUrl(String requestedPrimaryImageUrl, List<String> imageUrls,
+            String fallbackImageUrl) {
         if (requestedPrimaryImageUrl != null && !requestedPrimaryImageUrl.isBlank()) {
             String normalizedPrimaryImageUrl = requestedPrimaryImageUrl.trim();
             if (imageUrls.contains(normalizedPrimaryImageUrl) || imageUrls.isEmpty()) {

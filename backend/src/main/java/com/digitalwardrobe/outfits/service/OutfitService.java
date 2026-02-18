@@ -1,6 +1,7 @@
 package com.digitalwardrobe.outfits.service;
 
 import com.digitalwardrobe.accessories.service.AccessoryService;
+import com.digitalwardrobe.common.api.PageResponse;
 import com.digitalwardrobe.outfits.domain.OutfitDocument;
 import com.digitalwardrobe.outfits.domain.OutfitItemEmbed;
 import com.digitalwardrobe.outfits.dto.CreateOutfitRequest;
@@ -16,6 +17,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class OutfitService {
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 30;
 
     private final OutfitRepository outfitRepository;
     private final UserService userService;
@@ -43,6 +48,15 @@ public class OutfitService {
     public List<OutfitResponse> list(Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
         return outfitRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse).toList();
+    }
+
+    public PageResponse<OutfitResponse> listPage(Authentication authentication, int page, int size) {
+        String userId = userService.requireCurrentUserId(authentication);
+        int resolvedPage = Math.max(page, 0);
+        int resolvedSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        var pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var responsePage = outfitRepository.findAllByUserId(userId, pageable).map(this::toResponse);
+        return PageResponse.from(responsePage);
     }
 
     public OutfitResponse getById(String id, Authentication authentication) {

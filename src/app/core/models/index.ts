@@ -172,6 +172,12 @@ export interface DashboardStats {
   categoryBreakdown: { category: WardrobeCategory; count: number }[];
 }
 
+export interface DashboardSummary extends DashboardStats {
+  favoriteCount: number;
+  unusedCount: number;
+  suggestedItems: WardrobeItem[];
+}
+
 // Weather (for suggestions)
 export interface WeatherInfo {
   temp: number;

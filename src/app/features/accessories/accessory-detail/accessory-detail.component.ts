@@ -399,6 +399,7 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
       const id = params.get('id');
       this.accessoryId.set(id);
       this.selectedImageIndex.set(0);
+      void this.loadAccessoryForRoute(id);
       queueMicrotask(() => this.refreshRelatedScrollState());
     });
   }
@@ -482,5 +483,16 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
       return;
     }
     this.selectedImageIndex.update(current => ((current + step) % total + total) % total);
+  }
+
+  private async loadAccessoryForRoute(id: string | null): Promise<void> {
+    if (!id) {
+      return;
+    }
+    try {
+      await this.wardrobeService.fetchAccessoryById(id);
+    } catch {
+      // Keep page shell visible and let navigation recover naturally.
+    }
   }
 }

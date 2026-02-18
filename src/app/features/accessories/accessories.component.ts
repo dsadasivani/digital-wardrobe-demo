@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -28,7 +28,7 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
       <header class="page-header">
         <div>
           <h1>Accessories</h1>
-          <p class="subtitle">{{ filteredAccessories().length }} of {{ accessories().length }} items</p>
+          <p class="subtitle">{{ filteredAccessories().length }} of {{ totalAccessoriesCount() }} items</p>
         </div>
         <button class="action-btn primary" routerLink="/accessories/add">
           <mat-icon>add</mat-icon><span>Add Accessory</span>
@@ -114,6 +114,20 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
           </div>
         }
       </div>
+
+      @if (hasMoreAccessories()) {
+        <div class="load-more-row">
+          <button class="action-btn" type="button" (click)="onLoadMore()" [disabled]="isLoadingMoreAccessories()">
+            @if (isLoadingMoreAccessories()) {
+              <mat-icon>hourglass_top</mat-icon>
+              Loading...
+            } @else {
+              <mat-icon>expand_more</mat-icon>
+              Load More
+            }
+          </button>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -135,6 +149,7 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
     .chip.active span { color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent); }
     .chip mat-icon { width: 16px; height: 16px; font-size: 16px; }
     .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--dw-spacing-lg); }
+    .load-more-row { display: flex; justify-content: center; margin-top: var(--dw-spacing-lg); }
     .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; padding: 48px; text-align: center; }
     .empty-state p { color: var(--dw-text-secondary); margin: 0 0 14px; }
     .empty-state mat-icon { font-size: 64px; width: 64px; height: 64px; color: var(--dw-text-muted); margin-bottom: 16px; }
@@ -148,17 +163,24 @@ import { ItemCardComponent } from '../../shared/components/item-card/item-card.c
     }
   `],
 })
-export class AccessoriesComponent {
+export class AccessoriesComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
   private router = inject(Router);
 
   accessories = this.wardrobeService.accessoryList;
+  totalAccessories = this.wardrobeService.accessoriesTotalElements;
+  hasMoreAccessories = this.wardrobeService.hasMoreAccessoriesPages;
+  isLoadingMoreAccessories = this.wardrobeService.accessoriesPageLoading;
   categories = ACCESSORY_CATEGORIES;
 
   searchQuery = signal('');
   selectedCategory = signal<'all' | Accessory['category']>('all');
   showFavoritesOnly = signal(false);
   sortBy = signal<'recent' | 'name' | 'brand'>('recent');
+
+  ngOnInit(): void {
+    void this.loadAccessories();
+  }
 
   filteredAccessories = computed(() => {
     let items = [...this.accessories()];
@@ -198,6 +220,11 @@ export class AccessoriesComponent {
     return items;
   });
 
+  totalAccessoriesCount = computed(() => {
+    const total = this.totalAccessories();
+    return total > 0 ? total : this.accessories().length;
+  });
+
   getCategoryCount(category: Accessory['category']): number {
     return this.accessories().filter(item => item.category === category).length;
   }
@@ -222,5 +249,25 @@ export class AccessoriesComponent {
 
   onAddToOutfit(_item: WardrobeItem | Accessory): void {
     this.router.navigate(['/outfit-canvas']);
+  }
+
+  private async loadAccessories(): Promise<void> {
+    try {
+      await this.wardrobeService.ensureAccessoriesPageLoaded();
+    } catch {
+      // Allow local filters and shell to remain interactive.
+    }
+  }
+
+  onLoadMore(): void {
+    void this.loadNextPage();
+  }
+
+  private async loadNextPage(): Promise<void> {
+    try {
+      await this.wardrobeService.loadNextAccessoriesPage();
+    } catch {
+      // Keep local interactions responsive on intermittent paging failures.
+    }
   }
 }

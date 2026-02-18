@@ -49,7 +49,6 @@ export class AuthService {
       this.isAuthenticated.set(true);
       this.currentUser.set(mapUserDtoToModel(response.user));
       this.persistSnapshot();
-      await this.loadWardrobeData();
       return { success: true };
     } catch (error) {
       this.clearLocalSession();
@@ -72,7 +71,6 @@ export class AuthService {
       this.isAuthenticated.set(true);
       this.currentUser.set(mapUserDtoToModel(response.user));
       this.persistSnapshot();
-      await this.loadWardrobeData();
       return { success: true };
     } catch (error) {
       this.clearLocalSession();
@@ -119,7 +117,6 @@ export class AuthService {
       this.isAuthenticated.set(true);
       this.currentUser.set(mapUserDtoToModel(userDto));
       this.persistSnapshot();
-      await this.loadWardrobeData();
     } catch (error) {
       if (this.isUnauthorizedError(error)) {
         this.clearLocalSession();
@@ -202,14 +199,6 @@ export class AuthService {
     this.isAuthenticated.set(false);
     this.currentUser.set(null);
     this.persistSnapshot();
-  }
-
-  private async loadWardrobeData(): Promise<void> {
-    try {
-      await this.wardrobeService.loadAll();
-    } catch {
-      // Keep auth state; data can be retried by views.
-    }
   }
 
   private hydrateUser(user: User): User {

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import type { AccessoryDto, CreateAccessoryRequestDto, UpdateAccessoryRequestDto } from '../dto/accessories.dto';
+import type { PageDto } from '../dto/page.dto';
 
 @Injectable({ providedIn: 'root' })
 export class AccessoriesApi {
@@ -15,6 +16,10 @@ export class AccessoriesApi {
 
     list(): Observable<AccessoryDto[]> {
         return this.http.get<AccessoryDto[]>(this.url);
+    }
+
+    listPage(page = 0, size = 50): Observable<PageDto<AccessoryDto>> {
+        return this.http.get<PageDto<AccessoryDto>>(`${this.url}/page`, { params: { page, size } });
     }
 
     getById(id: string): Observable<AccessoryDto> {

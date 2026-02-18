@@ -1,10 +1,12 @@
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
+  computed,
   Component,
   ElementRef,
   HostListener,
   inject,
+  OnInit,
   signal,
   viewChild,
 } from '@angular/core';
@@ -139,8 +141,8 @@ import { WardrobeItem, Accessory } from '../../core/models';
             <mat-icon>{{ getWeatherIcon() }}</mat-icon>
           </div>
           <div class="weather-details">
-            <span class="weather-temp">{{ weatherSuggestion.weather.temp }}Â°C</span>
-            <span class="weather-location">{{ weatherSuggestion.weather.location }}</span>
+            <span class="weather-temp">{{ weatherSuggestion().weather.temp }}°C</span>
+            <span class="weather-location">{{ weatherSuggestion().weather.location }}</span>
           </div>
         </div>
 
@@ -150,7 +152,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
         </div>
 
         <div class="suggested-items">
-          @for (item of weatherSuggestion.suggestedItems; track item.id) {
+          @for (item of weatherSuggestion().suggestedItems; track item.id) {
             <div class="mini-item" (click)="openItem(item.id)">
               <img [src]="item.imageUrl" [alt]="item.name" />
             </div>
@@ -893,7 +895,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
     `,
   ],
 })
-export class DashboardComponent implements AfterViewInit {
+export class DashboardComponent implements OnInit, AfterViewInit {
   private wardrobeService = inject(WardrobeService);
   private authService = inject(AuthService);
   private router = inject(Router);
@@ -901,13 +903,17 @@ export class DashboardComponent implements AfterViewInit {
 
   user = this.authService.user;
   stats = this.wardrobeService.dashboardStats;
-  recentItems = this.wardrobeService.recentItems;
-  weatherSuggestion = this.wardrobeService.getWeatherSuggestion();
+  recentItems = computed(() => this.stats().recentlyAdded);
+  weatherSuggestion = this.wardrobeService.weatherSuggestion;
 
-  favoriteCount = () => this.wardrobeService.favoriteItems().length;
-  unusedCount = () => this.stats().leastWornItems.filter((item) => item.worn < 5).length;
+  favoriteCount = this.wardrobeService.favoriteCount;
+  unusedCount = this.wardrobeService.unusedCount;
   canScrollStatsLeft = signal(false);
   canScrollStatsRight = signal(false);
+
+  ngOnInit(): void {
+    void this.loadDashboardData();
+  }
 
   ngAfterViewInit(): void {
     setTimeout(() => this.refreshStatsScrollState());
@@ -931,7 +937,7 @@ export class DashboardComponent implements AfterViewInit {
   }
 
   openWeatherSuggestions(): void {
-    const ids = this.weatherSuggestion.suggestedItems.map((item) => item.id).join(',');
+    const ids = this.weatherSuggestion().suggestedItems.map((item) => item.id).join(',');
     this.router.navigate(['/wardrobe'], { queryParams: { filter: 'weather', ids } });
   }
 
@@ -955,7 +961,7 @@ export class DashboardComponent implements AfterViewInit {
   }
 
   getWeatherIcon(): string {
-    const condition = this.weatherSuggestion.weather.condition;
+    const condition = this.weatherSuggestion().weather.condition;
     const icons: Record<string, string> = {
       sunny: 'wb_sunny',
       cloudy: 'cloud',
@@ -1006,4 +1012,14 @@ export class DashboardComponent implements AfterViewInit {
       container.scrollLeft + container.clientWidth < container.scrollWidth - 2,
     );
   }
+
+  private async loadDashboardData(): Promise<void> {
+    try {
+      await this.wardrobeService.ensureDashboardSummaryLoaded();
+    } catch {
+      // Keep dashboard shell interactive; data loading can be retried.
+    }
+  }
 }
+
+

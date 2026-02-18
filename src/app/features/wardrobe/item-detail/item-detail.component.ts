@@ -498,6 +498,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
       const id = params.get('id');
       this.itemId.set(id);
       this.selectedImageIndex.set(0);
+      void this.loadItemForRoute(id);
       queueMicrotask(() => this.refreshRelatedScrollState());
     });
   }
@@ -599,5 +600,16 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
       return;
     }
     this.selectedImageIndex.update(current => ((current + step) % total + total) % total);
+  }
+
+  private async loadItemForRoute(id: string | null): Promise<void> {
+    if (!id) {
+      return;
+    }
+    try {
+      await this.wardrobeService.fetchWardrobeItemById(id);
+    } catch {
+      // Keep page shell visible and let navigation recover naturally.
+    }
   }
 }

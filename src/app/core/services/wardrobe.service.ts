@@ -1,258 +1,881 @@
 import { inject, Injectable, computed, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { WardrobeItem, WardrobeCategory, Accessory, Outfit, DashboardStats } from '../models';
+import {
+  WardrobeItem,
+  WardrobeCategory,
+  Accessory,
+  Outfit,
+  DashboardStats,
+  DashboardSummary,
+} from '../models';
 import { WardrobeApi } from '../api/wardrobe.api';
 import { AccessoriesApi } from '../api/accessories.api';
 import { OutfitsApi } from '../api/outfits.api';
-import { mapWardrobeItemDtoToModel, mapWardrobeItemToCreateDto, mapWardrobeItemToUpdateDto } from '../mappers/wardrobe.mapper';
-import { mapAccessoryDtoToModel, mapAccessoryToCreateDto, mapAccessoryToUpdateDto } from '../mappers/accessories.mapper';
-import { mapOutfitDtoToModel, mapOutfitToCreateDto, mapOutfitToUpdateDto } from '../mappers/outfits.mapper';
+import { DashboardApi } from '../api/dashboard.api';
+import {
+  mapWardrobeItemDtoToModel,
+  mapWardrobeItemToCreateDto,
+  mapWardrobeItemToUpdateDto,
+} from '../mappers/wardrobe.mapper';
+import {
+  mapAccessoryDtoToModel,
+  mapAccessoryToCreateDto,
+  mapAccessoryToUpdateDto,
+} from '../mappers/accessories.mapper';
+import {
+  mapOutfitDtoToModel,
+  mapOutfitToCreateDto,
+  mapOutfitToUpdateDto,
+} from '../mappers/outfits.mapper';
+import { mapDashboardSummaryDtoToModel } from '../mappers/dashboard.mapper';
 
 const MOCK_WEATHER = {
-    temp: 29,
-    condition: 'Sunny' as const,
-    humidity: 25,
-    location: 'Hyderabad, India',
+  temp: 29,
+  condition: 'sunny' as const,
+  humidity: 25,
+  location: 'Hyderabad, India',
 };
 
+type DataLoadState = 'idle' | 'loading' | 'loaded' | 'error';
+const DEFAULT_COLLECTION_PAGE_SIZE = 10;
+
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root',
 })
 export class WardrobeService {
-    private readonly wardrobeApi = inject(WardrobeApi);
-    private readonly accessoriesApi = inject(AccessoriesApi);
-    private readonly outfitsApi = inject(OutfitsApi);
+  private readonly wardrobeApi = inject(WardrobeApi);
+  private readonly accessoriesApi = inject(AccessoriesApi);
+  private readonly outfitsApi = inject(OutfitsApi);
+  private readonly dashboardApi = inject(DashboardApi);
 
-    private wardrobeItems = signal<WardrobeItem[]>([]);
-    private accessories = signal<Accessory[]>([]);
-    private outfits = signal<Outfit[]>([]);
+  private wardrobeItems = signal<WardrobeItem[]>([]);
+  private accessories = signal<Accessory[]>([]);
+  private outfits = signal<Outfit[]>([]);
+  private dashboardSummaryData = signal<DashboardSummary | null>(null);
+  private wardrobeLoadState = signal<DataLoadState>('idle');
+  private accessoriesLoadState = signal<DataLoadState>('idle');
+  private outfitsLoadState = signal<DataLoadState>('idle');
+  private dashboardSummaryLoadState = signal<DataLoadState>('idle');
+  private wardrobeLoadPromise: Promise<void> | null = null;
+  private accessoriesLoadPromise: Promise<void> | null = null;
+  private outfitsLoadPromise: Promise<void> | null = null;
+  private dashboardSummaryLoadPromise: Promise<void> | null = null;
+  private wardrobePageIndex = signal(-1);
+  private accessoriesPageIndex = signal(-1);
+  private outfitsPageIndex = signal(-1);
+  private wardrobePageHasNext = signal(true);
+  private accessoriesPageHasNext = signal(true);
+  private outfitsPageHasNext = signal(true);
+  private wardrobePageTotalElements = signal(0);
+  private accessoriesPageTotalElements = signal(0);
+  private outfitsPageTotalElements = signal(0);
+  private wardrobePageLoadState = signal<DataLoadState>('idle');
+  private accessoriesPageLoadState = signal<DataLoadState>('idle');
+  private outfitsPageLoadState = signal<DataLoadState>('idle');
+  private wardrobePageLoadPromise: Promise<void> | null = null;
+  private accessoriesPageLoadPromise: Promise<void> | null = null;
+  private outfitsPageLoadPromise: Promise<void> | null = null;
 
-    // ── Public readonly signals (consumed by components) ─────────
-    readonly items = this.wardrobeItems.asReadonly();
-    readonly accessoryList = this.accessories.asReadonly();
-    readonly outfitList = this.outfits.asReadonly();
+  // ── Public readonly signals (consumed by components) ─────────
+  readonly items = this.wardrobeItems.asReadonly();
+  readonly accessoryList = this.accessories.asReadonly();
+  readonly outfitList = this.outfits.asReadonly();
+  readonly dashboardSummary = this.dashboardSummaryData.asReadonly();
+  readonly wardrobeTotalElements = this.wardrobePageTotalElements.asReadonly();
+  readonly accessoriesTotalElements = this.accessoriesPageTotalElements.asReadonly();
+  readonly outfitsTotalElements = this.outfitsPageTotalElements.asReadonly();
 
-    readonly totalItems = computed(() => this.wardrobeItems().length + this.accessories().length);
-    readonly favoriteItems = computed(() => this.wardrobeItems().filter(item => item.favorite));
-    readonly recentItems = computed(() =>
-        [...this.wardrobeItems()]
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-            .slice(0, 6)
+  readonly totalItems = computed(() => this.wardrobeItems().length + this.accessories().length);
+  readonly favoriteItems = computed(() => this.wardrobeItems().filter((item) => item.favorite));
+  readonly recentItems = computed(() =>
+    [...this.wardrobeItems()]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 6),
+  );
+
+  readonly categoryBreakdown = computed(() => {
+    const items = this.wardrobeItems();
+    const breakdown: Record<WardrobeCategory, number> = {
+      tops: 0,
+      bottoms: 0,
+      dresses: 0,
+      outerwear: 0,
+      shoes: 0,
+      accessories: 0,
+      activewear: 0,
+      formal: 0,
+      swimwear: 0,
+    };
+    items.forEach((item) => {
+      breakdown[item.category]++;
+    });
+    return Object.entries(breakdown)
+      .map(([category, count]) => ({ category: category as WardrobeCategory, count }))
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.count - a.count);
+  });
+
+  readonly dashboardStats = computed<DashboardStats>(() => {
+    const summary = this.dashboardSummaryData();
+    if (summary) {
+      return {
+        totalItems: summary.totalItems,
+        totalAccessories: summary.totalAccessories,
+        totalOutfits: summary.totalOutfits,
+        mostWornItem: summary.mostWornItem,
+        leastWornItems: summary.leastWornItems,
+        recentlyAdded: summary.recentlyAdded,
+        categoryBreakdown: summary.categoryBreakdown,
+      };
+    }
+
+    const items = this.wardrobeItems();
+    const sortedByWorn = [...items].sort((a, b) => b.worn - a.worn);
+    const leastWorn = [...items].sort((a, b) => a.worn - b.worn).slice(0, 3);
+    return {
+      totalItems: this.totalItems(),
+      totalAccessories: this.accessories().length,
+      totalOutfits: this.outfits().length,
+      mostWornItem: sortedByWorn[0],
+      leastWornItems: leastWorn,
+      recentlyAdded: this.recentItems(),
+      categoryBreakdown: this.categoryBreakdown(),
+    };
+  });
+
+  readonly favoriteCount = computed(() => {
+    const summary = this.dashboardSummaryData();
+    if (summary) {
+      return summary.favoriteCount;
+    }
+    return this.favoriteItems().length;
+  });
+
+  readonly unusedCount = computed(() => {
+    const summary = this.dashboardSummaryData();
+    if (summary) {
+      return summary.unusedCount;
+    }
+    return this.wardrobeItems().filter((item) => item.worn < 5).length;
+  });
+
+  readonly weatherSuggestion = computed(() => {
+    const summary = this.dashboardSummaryData();
+    if (summary) {
+      return { weather: MOCK_WEATHER, suggestedItems: summary.suggestedItems };
+    }
+    return { weather: MOCK_WEATHER, suggestedItems: this.deriveWeatherSuggestionsFromItems() };
+  });
+  readonly hasMoreWardrobePages = computed(() => this.wardrobePageHasNext());
+  readonly hasMoreAccessoriesPages = computed(() => this.accessoriesPageHasNext());
+  readonly hasMoreOutfitsPages = computed(() => this.outfitsPageHasNext());
+  readonly wardrobePageLoading = computed(() => this.wardrobePageLoadState() === 'loading');
+  readonly accessoriesPageLoading = computed(() => this.accessoriesPageLoadState() === 'loading');
+  readonly outfitsPageLoading = computed(() => this.outfitsPageLoadState() === 'loading');
+
+  // ── Data loading from backend ────────────────────────────────
+
+  async ensureDashboardDataLoaded(): Promise<void> {
+    await Promise.all([
+      this.ensureWardrobeLoaded(),
+      this.ensureAccessoriesLoaded(),
+      this.ensureOutfitsLoaded(),
+    ]);
+  }
+
+  async ensureDashboardSummaryLoaded(): Promise<void> {
+    await this.loadDashboardSummaryData(false);
+  }
+
+  async ensureWardrobePageLoaded(): Promise<void> {
+    if (this.wardrobeLoadState() === 'loaded' || this.wardrobePageIndex() >= 0) {
+      return;
+    }
+    await this.loadWardrobePage(0);
+  }
+
+  async ensureAccessoriesPageLoaded(): Promise<void> {
+    if (this.accessoriesLoadState() === 'loaded' || this.accessoriesPageIndex() >= 0) {
+      return;
+    }
+    await this.loadAccessoriesPage(0);
+  }
+
+  async ensureOutfitsPageLoaded(): Promise<void> {
+    if (this.outfitsLoadState() === 'loaded' || this.outfitsPageIndex() >= 0) {
+      return;
+    }
+    await this.loadOutfitsPage(0);
+  }
+
+  async loadNextWardrobePage(): Promise<void> {
+    if (this.wardrobeLoadState() === 'loaded') {
+      return;
+    }
+    await this.loadWardrobePage(this.wardrobePageIndex() + 1);
+  }
+
+  async loadNextAccessoriesPage(): Promise<void> {
+    if (this.accessoriesLoadState() === 'loaded') {
+      return;
+    }
+    await this.loadAccessoriesPage(this.accessoriesPageIndex() + 1);
+  }
+
+  async loadNextOutfitsPage(): Promise<void> {
+    if (this.outfitsLoadState() === 'loaded') {
+      return;
+    }
+    await this.loadOutfitsPage(this.outfitsPageIndex() + 1);
+  }
+
+  async ensureWardrobeLoaded(): Promise<void> {
+    await this.loadWardrobeData(false);
+  }
+
+  async ensureAccessoriesLoaded(): Promise<void> {
+    await this.loadAccessoriesData(false);
+  }
+
+  async ensureOutfitsLoaded(): Promise<void> {
+    await this.loadOutfitsData(false);
+  }
+
+  async refreshWardrobe(): Promise<void> {
+    await this.loadWardrobeData(true);
+  }
+
+  async refreshAccessories(): Promise<void> {
+    await this.loadAccessoriesData(true);
+  }
+
+  async refreshOutfits(): Promise<void> {
+    await this.loadOutfitsData(true);
+  }
+
+  async refreshDashboardSummary(): Promise<void> {
+    await this.loadDashboardSummaryData(true);
+  }
+
+  async refreshAll(): Promise<void> {
+    await Promise.all([this.refreshWardrobe(), this.refreshAccessories(), this.refreshOutfits()]);
+    this.invalidateDashboardSummary();
+  }
+
+  async loadAll(): Promise<void> {
+    await this.ensureDashboardDataLoaded();
+  }
+
+  clearAll(): void {
+    this.wardrobeItems.set([]);
+    this.accessories.set([]);
+    this.outfits.set([]);
+    this.dashboardSummaryData.set(null);
+    this.wardrobeLoadState.set('idle');
+    this.accessoriesLoadState.set('idle');
+    this.outfitsLoadState.set('idle');
+    this.dashboardSummaryLoadState.set('idle');
+    this.wardrobePageIndex.set(-1);
+    this.accessoriesPageIndex.set(-1);
+    this.outfitsPageIndex.set(-1);
+    this.wardrobePageHasNext.set(true);
+    this.accessoriesPageHasNext.set(true);
+    this.outfitsPageHasNext.set(true);
+    this.wardrobePageTotalElements.set(0);
+    this.accessoriesPageTotalElements.set(0);
+    this.outfitsPageTotalElements.set(0);
+    this.wardrobePageLoadState.set('idle');
+    this.accessoriesPageLoadState.set('idle');
+    this.outfitsPageLoadState.set('idle');
+    this.wardrobeLoadPromise = null;
+    this.accessoriesLoadPromise = null;
+    this.outfitsLoadPromise = null;
+    this.dashboardSummaryLoadPromise = null;
+    this.wardrobePageLoadPromise = null;
+    this.accessoriesPageLoadPromise = null;
+    this.outfitsPageLoadPromise = null;
+  }
+
+  // ── Wardrobe Item CRUD ───────────────────────────────────────
+
+  getItemById(id: string): WardrobeItem | undefined {
+    return this.wardrobeItems().find((item) => item.id === id);
+  }
+
+  async fetchWardrobeItemById(id: string, force = false): Promise<WardrobeItem | undefined> {
+    const existing = this.getItemById(id);
+    if (existing && !force) {
+      return existing;
+    }
+
+    const response = await firstValueFrom(this.wardrobeApi.getById(id));
+    const mapped = mapWardrobeItemDtoToModel(response);
+    this.wardrobeItems.update((items) => this.upsertById(items, mapped));
+    return mapped;
+  }
+
+  getItemsByCategory(category: WardrobeCategory): WardrobeItem[] {
+    return this.wardrobeItems().filter((item) => item.category === category);
+  }
+
+  async addItem(item: Omit<WardrobeItem, 'id' | 'createdAt' | 'worn'>): Promise<void> {
+    const dto = mapWardrobeItemToCreateDto(item as WardrobeItem);
+    const response = await firstValueFrom(this.wardrobeApi.create(dto));
+    const newItem = mapWardrobeItemDtoToModel(response);
+    this.wardrobeItems.update((items) => [...items, newItem]);
+    this.invalidateDashboardSummary();
+  }
+
+  async updateItem(id: string, updates: Partial<WardrobeItem>): Promise<void> {
+    const dto = mapWardrobeItemToUpdateDto(updates);
+    const response = await firstValueFrom(this.wardrobeApi.update(id, dto));
+    const updated = mapWardrobeItemDtoToModel(response);
+    this.wardrobeItems.update((items) => items.map((item) => (item.id === id ? updated : item)));
+    this.invalidateDashboardSummary();
+  }
+
+  async deleteItem(id: string): Promise<void> {
+    await firstValueFrom(this.wardrobeApi.delete(id));
+    this.wardrobeItems.update((items) => items.filter((item) => item.id !== id));
+    this.invalidateDashboardSummary();
+  }
+
+  async toggleFavorite(id: string): Promise<void> {
+    const item = this.wardrobeItems().find((i) => i.id === id);
+    if (item) {
+      await this.updateItem(id, { favorite: !item.favorite });
+      return;
+    }
+    const accessory = this.accessories().find((a) => a.id === id);
+    if (accessory) {
+      await this.toggleAccessoryFavorite(id);
+      return;
+    }
+
+    try {
+      const wardrobeItem = await firstValueFrom(this.wardrobeApi.getById(id));
+      await this.updateItem(id, { favorite: !wardrobeItem.favorite });
+      return;
+    } catch {
+      // Continue to accessory lookup fallback.
+    }
+
+    try {
+      const accessoryItem = await firstValueFrom(this.accessoriesApi.getById(id));
+      await this.updateAccessory(id, { favorite: !accessoryItem.favorite });
+    } catch {
+      // No matching item found in known collections.
+    }
+  }
+
+  // ── Accessory CRUD ───────────────────────────────────────────
+
+  getAccessoryById(id: string): Accessory | undefined {
+    return this.accessories().find((item) => item.id === id);
+  }
+
+  async fetchAccessoryById(id: string, force = false): Promise<Accessory | undefined> {
+    const existing = this.getAccessoryById(id);
+    if (existing && !force) {
+      return existing;
+    }
+
+    const response = await firstValueFrom(this.accessoriesApi.getById(id));
+    const mapped = mapAccessoryDtoToModel(response);
+    this.accessories.update((items) => this.upsertById(items, mapped));
+    return mapped;
+  }
+
+  async addAccessory(
+    accessory: Omit<Accessory, 'id' | 'createdAt' | 'worn' | 'lastWorn'>,
+  ): Promise<void> {
+    const dto = mapAccessoryToCreateDto(accessory as Accessory);
+    const response = await firstValueFrom(this.accessoriesApi.create(dto));
+    const newAccessory = mapAccessoryDtoToModel(response);
+    this.accessories.update((items) => [...items, newAccessory]);
+    this.invalidateDashboardSummary();
+  }
+
+  async updateAccessory(id: string, updates: Partial<Accessory>): Promise<void> {
+    const dto = mapAccessoryToUpdateDto(updates);
+    const response = await firstValueFrom(this.accessoriesApi.update(id, dto));
+    const updated = mapAccessoryDtoToModel(response);
+    this.accessories.update((items) => items.map((item) => (item.id === id ? updated : item)));
+    this.invalidateDashboardSummary();
+  }
+
+  async deleteAccessory(id: string): Promise<void> {
+    await firstValueFrom(this.accessoriesApi.delete(id));
+    this.accessories.update((items) => items.filter((item) => item.id !== id));
+    this.invalidateDashboardSummary();
+  }
+
+  async toggleAccessoryFavorite(id: string): Promise<void> {
+    const accessory = this.accessories().find((a) => a.id === id);
+    if (accessory) {
+      await this.updateAccessory(id, { favorite: !accessory.favorite });
+    }
+  }
+
+  async markAccessoryAsWorn(id: string): Promise<void> {
+    const response = await firstValueFrom(this.accessoriesApi.markAsWorn(id));
+    const updated = mapAccessoryDtoToModel(response);
+    this.accessories.update((items) => items.map((item) => (item.id === id ? updated : item)));
+    this.invalidateDashboardSummary();
+  }
+
+  // ── Outfit CRUD ──────────────────────────────────────────────
+
+  getOutfitById(id: string): Outfit | undefined {
+    return this.outfits().find((outfit) => outfit.id === id);
+  }
+
+  async fetchOutfitById(id: string, force = false): Promise<Outfit | undefined> {
+    const existing = this.getOutfitById(id);
+    if (existing && !force) {
+      return existing;
+    }
+
+    const response = await firstValueFrom(this.outfitsApi.getById(id));
+    const mapped = mapOutfitDtoToModel(response);
+    this.outfits.update((items) => this.upsertById(items, mapped));
+    return mapped;
+  }
+
+  async ensureOutfitDependenciesLoaded(outfit: Outfit): Promise<void> {
+    const missingWardrobeIds = new Set<string>();
+    const missingAccessoryIds = new Set<string>();
+
+    for (const item of outfit.items) {
+      if (item.type === 'wardrobe' && !this.getItemById(item.itemId)) {
+        missingWardrobeIds.add(item.itemId);
+        continue;
+      }
+      if (item.type === 'accessory' && !this.getAccessoryById(item.itemId)) {
+        missingAccessoryIds.add(item.itemId);
+      }
+    }
+
+    const requests: Promise<unknown>[] = [
+      ...Array.from(missingWardrobeIds, (itemId) => this.fetchWardrobeItemById(itemId)),
+      ...Array.from(missingAccessoryIds, (itemId) => this.fetchAccessoryById(itemId)),
+    ];
+
+    if (requests.length === 0) {
+      return;
+    }
+    await Promise.allSettled(requests);
+  }
+
+  async addOutfit(outfit: Omit<Outfit, 'id' | 'createdAt' | 'worn'>): Promise<void> {
+    const dto = mapOutfitToCreateDto(outfit as Outfit);
+    const response = await firstValueFrom(this.outfitsApi.create(dto));
+    const newOutfit = mapOutfitDtoToModel(response);
+    this.outfits.update((outfits) => [...outfits, newOutfit]);
+    this.invalidateDashboardSummary();
+  }
+
+  async updateOutfit(id: string, updates: Partial<Outfit>): Promise<void> {
+    const dto = mapOutfitToUpdateDto(updates);
+    const response = await firstValueFrom(this.outfitsApi.update(id, dto));
+    const updated = mapOutfitDtoToModel(response);
+    this.outfits.update((outfits) =>
+      outfits.map((outfit) => (outfit.id === id ? updated : outfit)),
     );
+    this.invalidateDashboardSummary();
+  }
 
-    readonly categoryBreakdown = computed(() => {
-        const items = this.wardrobeItems();
-        const breakdown: Record<WardrobeCategory, number> = {
-            tops: 0, bottoms: 0, dresses: 0, outerwear: 0, shoes: 0,
-            accessories: 0, activewear: 0, formal: 0, swimwear: 0,
-        };
-        items.forEach(item => { breakdown[item.category]++; });
-        return Object.entries(breakdown)
-            .map(([category, count]) => ({ category: category as WardrobeCategory, count }))
-            .filter(item => item.count > 0)
-            .sort((a, b) => b.count - a.count);
-    });
+  async deleteOutfit(id: string): Promise<void> {
+    await firstValueFrom(this.outfitsApi.delete(id));
+    this.outfits.update((outfits) => outfits.filter((outfit) => outfit.id !== id));
+    this.invalidateDashboardSummary();
+  }
 
-    readonly dashboardStats = computed<DashboardStats>(() => {
-        const items = this.wardrobeItems();
-        const sortedByWorn = [...items].sort((a, b) => b.worn - a.worn);
-        const leastWorn = [...items].sort((a, b) => a.worn - b.worn).slice(0, 3);
-        return {
-            totalItems: this.totalItems(),
-            totalAccessories: this.accessories().length,
-            totalOutfits: this.outfits().length,
-            mostWornItem: sortedByWorn[0],
-            leastWornItems: leastWorn,
-            recentlyAdded: this.recentItems(),
-            categoryBreakdown: this.categoryBreakdown(),
-        };
-    });
+  async markItemAsWorn(id: string): Promise<void> {
+    const response = await firstValueFrom(this.wardrobeApi.markAsWorn(id));
+    const updated = mapWardrobeItemDtoToModel(response);
+    this.wardrobeItems.update((items) => items.map((item) => (item.id === id ? updated : item)));
+    this.invalidateDashboardSummary();
+  }
 
-    // ── Data loading from backend ────────────────────────────────
+  async markOutfitAsWorn(id: string): Promise<void> {
+    const response = await firstValueFrom(this.outfitsApi.markAsWorn(id));
+    const updated = mapOutfitDtoToModel(response);
+    this.outfits.update((outfits) =>
+      outfits.map((outfit) => (outfit.id === id ? updated : outfit)),
+    );
+    const dependencyRefreshes = updated.items.map((item) =>
+      item.type === 'wardrobe'
+        ? this.fetchWardrobeItemById(item.itemId, true)
+        : this.fetchAccessoryById(item.itemId, true),
+    );
+    await Promise.allSettled(dependencyRefreshes);
+    this.invalidateDashboardSummary();
+  }
 
-    async loadAll(): Promise<void> {
-        const [wardrobeItems, accessoryItems, outfitItems] = await Promise.all([
-            firstValueFrom(this.wardrobeApi.list()),
-            firstValueFrom(this.accessoriesApi.list()),
-            firstValueFrom(this.outfitsApi.list()),
-        ]);
-        this.wardrobeItems.set(wardrobeItems.map(mapWardrobeItemDtoToModel));
-        this.accessories.set(accessoryItems.map(mapAccessoryDtoToModel));
-        this.outfits.set(outfitItems.map(mapOutfitDtoToModel));
+  getOutfitsByDate(date: string): Outfit[] {
+    return this.outfits().filter((outfit) => (outfit.plannedDates ?? []).includes(date));
+  }
+
+  // ── Search & Filter ──────────────────────────────────────────
+
+  searchItems(query: string): WardrobeItem[] {
+    const lowerQuery = query.toLowerCase();
+    return this.wardrobeItems().filter(
+      (item) =>
+        item.name.toLowerCase().includes(lowerQuery) ||
+        item.category.toLowerCase().includes(lowerQuery) ||
+        item.color.toLowerCase().includes(lowerQuery) ||
+        item.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)),
+    );
+  }
+
+  filterByColor(colors: string[]): WardrobeItem[] {
+    if (colors.length === 0) return this.wardrobeItems();
+    return this.wardrobeItems().filter((item) =>
+      colors.some((color) => item.color.toLowerCase().includes(color.toLowerCase())),
+    );
+  }
+
+  // ── Weather suggestion (mock — will be replaced by backend) ──
+
+  getWeatherSuggestion(): { weather: typeof MOCK_WEATHER; suggestedItems: WardrobeItem[] } {
+    return this.weatherSuggestion();
+  }
+
+  private deriveWeatherSuggestionsFromItems(): WardrobeItem[] {
+    const weather = MOCK_WEATHER;
+    if (weather.temp < 10) {
+      return this.wardrobeItems()
+        .filter((item) => item.category === 'outerwear' || item.tags.includes('winter'))
+        .slice(0, 3);
+    }
+    if (weather.temp > 25) {
+      return this.wardrobeItems()
+        .filter((item) => item.tags.includes('summer') || item.category === 'dresses')
+        .slice(0, 3);
+    }
+    return this.wardrobeItems()
+      .filter((item) => item.category === 'tops' || item.category === 'bottoms')
+      .slice(0, 3);
+  }
+
+  private invalidateDashboardSummary(): void {
+    this.dashboardSummaryLoadState.set('idle');
+    this.dashboardSummaryLoadPromise = null;
+  }
+
+  private async loadWardrobeData(force: boolean): Promise<void> {
+    if (this.wardrobeLoadPromise) {
+      return this.wardrobeLoadPromise;
+    }
+    if (!force && this.wardrobeLoadState() === 'loaded') {
+      return;
     }
 
-    clearAll(): void {
+    this.wardrobeLoadState.set('loading');
+    const loadPromise = (async () => {
+      if (this.wardrobePageLoadPromise) {
+        await this.wardrobePageLoadPromise;
+      }
+
+      if (force) {
         this.wardrobeItems.set([]);
+        this.wardrobePageIndex.set(-1);
+        this.wardrobePageHasNext.set(true);
+        this.wardrobePageTotalElements.set(0);
+        this.wardrobePageLoadState.set('idle');
+      }
+
+      if (this.wardrobePageIndex() < 0) {
+        await this.loadWardrobePage(0);
+      }
+
+      while (this.wardrobePageHasNext()) {
+        await this.loadWardrobePage(this.wardrobePageIndex() + 1);
+      }
+
+      this.wardrobeLoadState.set('loaded');
+      this.wardrobePageLoadState.set('loaded');
+    })()
+      .catch((error) => {
+        this.wardrobeLoadState.set('error');
+        this.wardrobePageLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.wardrobeLoadPromise === loadPromise) {
+          this.wardrobeLoadPromise = null;
+        }
+      });
+    this.wardrobeLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadAccessoriesData(force: boolean): Promise<void> {
+    if (this.accessoriesLoadPromise) {
+      return this.accessoriesLoadPromise;
+    }
+    if (!force && this.accessoriesLoadState() === 'loaded') {
+      return;
+    }
+
+    this.accessoriesLoadState.set('loading');
+    const loadPromise = (async () => {
+      if (this.accessoriesPageLoadPromise) {
+        await this.accessoriesPageLoadPromise;
+      }
+
+      if (force) {
         this.accessories.set([]);
+        this.accessoriesPageIndex.set(-1);
+        this.accessoriesPageHasNext.set(true);
+        this.accessoriesPageTotalElements.set(0);
+        this.accessoriesPageLoadState.set('idle');
+      }
+
+      if (this.accessoriesPageIndex() < 0) {
+        await this.loadAccessoriesPage(0);
+      }
+
+      while (this.accessoriesPageHasNext()) {
+        await this.loadAccessoriesPage(this.accessoriesPageIndex() + 1);
+      }
+
+      this.accessoriesLoadState.set('loaded');
+      this.accessoriesPageLoadState.set('loaded');
+    })()
+      .catch((error) => {
+        this.accessoriesLoadState.set('error');
+        this.accessoriesPageLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.accessoriesLoadPromise === loadPromise) {
+          this.accessoriesLoadPromise = null;
+        }
+      });
+    this.accessoriesLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadOutfitsData(force: boolean): Promise<void> {
+    if (this.outfitsLoadPromise) {
+      return this.outfitsLoadPromise;
+    }
+    if (!force && this.outfitsLoadState() === 'loaded') {
+      return;
+    }
+
+    this.outfitsLoadState.set('loading');
+    const loadPromise = (async () => {
+      if (this.outfitsPageLoadPromise) {
+        await this.outfitsPageLoadPromise;
+      }
+
+      if (force) {
         this.outfits.set([]);
-    }
+        this.outfitsPageIndex.set(-1);
+        this.outfitsPageHasNext.set(true);
+        this.outfitsPageTotalElements.set(0);
+        this.outfitsPageLoadState.set('idle');
+      }
 
-    // ── Wardrobe Item CRUD ───────────────────────────────────────
+      if (this.outfitsPageIndex() < 0) {
+        await this.loadOutfitsPage(0);
+      }
 
-    getItemById(id: string): WardrobeItem | undefined {
-        return this.wardrobeItems().find(item => item.id === id);
-    }
+      while (this.outfitsPageHasNext()) {
+        await this.loadOutfitsPage(this.outfitsPageIndex() + 1);
+      }
 
-    getItemsByCategory(category: WardrobeCategory): WardrobeItem[] {
-        return this.wardrobeItems().filter(item => item.category === category);
-    }
-
-    async addItem(item: Omit<WardrobeItem, 'id' | 'createdAt' | 'worn'>): Promise<void> {
-        const dto = mapWardrobeItemToCreateDto(item as WardrobeItem);
-        const response = await firstValueFrom(this.wardrobeApi.create(dto));
-        const newItem = mapWardrobeItemDtoToModel(response);
-        this.wardrobeItems.update(items => [...items, newItem]);
-    }
-
-    async updateItem(id: string, updates: Partial<WardrobeItem>): Promise<void> {
-        const dto = mapWardrobeItemToUpdateDto(updates);
-        const response = await firstValueFrom(this.wardrobeApi.update(id, dto));
-        const updated = mapWardrobeItemDtoToModel(response);
-        this.wardrobeItems.update(items =>
-            items.map(item => item.id === id ? updated : item)
-        );
-    }
-
-    async deleteItem(id: string): Promise<void> {
-        await firstValueFrom(this.wardrobeApi.delete(id));
-        this.wardrobeItems.update(items => items.filter(item => item.id !== id));
-    }
-
-    async toggleFavorite(id: string): Promise<void> {
-        const item = this.wardrobeItems().find(i => i.id === id);
-        if (item) {
-            await this.updateItem(id, { favorite: !item.favorite });
-            return;
+      this.outfitsLoadState.set('loaded');
+      this.outfitsPageLoadState.set('loaded');
+    })()
+      .catch((error) => {
+        this.outfitsLoadState.set('error');
+        this.outfitsPageLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.outfitsLoadPromise === loadPromise) {
+          this.outfitsLoadPromise = null;
         }
-        const accessory = this.accessories().find(a => a.id === id);
-        if (accessory) {
-            await this.toggleAccessoryFavorite(id);
+      });
+    this.outfitsLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadWardrobePage(page: number): Promise<void> {
+    if (page < 0 || page <= this.wardrobePageIndex()) {
+      return;
+    }
+    if (!this.wardrobePageHasNext() && page > this.wardrobePageIndex()) {
+      return;
+    }
+    if (this.wardrobePageLoadPromise) {
+      return this.wardrobePageLoadPromise;
+    }
+
+    this.wardrobePageLoadState.set('loading');
+    const loadPromise = firstValueFrom(
+      this.wardrobeApi.listPage(page, DEFAULT_COLLECTION_PAGE_SIZE),
+    )
+      .then((response) => {
+        const mapped = response.items.map(mapWardrobeItemDtoToModel);
+        this.wardrobeItems.update((items) =>
+          page === 0 ? mapped : this.mergeDistinctById(items, mapped),
+        );
+        this.wardrobePageIndex.set(response.page);
+        this.wardrobePageHasNext.set(response.hasNext);
+        this.wardrobePageTotalElements.set(response.totalElements);
+        this.wardrobePageLoadState.set('loaded');
+        if (!response.hasNext) {
+          this.wardrobeLoadState.set('loaded');
         }
-    }
-
-    // ── Accessory CRUD ───────────────────────────────────────────
-
-    getAccessoryById(id: string): Accessory | undefined {
-        return this.accessories().find(item => item.id === id);
-    }
-
-    async addAccessory(accessory: Omit<Accessory, 'id' | 'createdAt' | 'worn' | 'lastWorn'>): Promise<void> {
-        const dto = mapAccessoryToCreateDto(accessory as Accessory);
-        const response = await firstValueFrom(this.accessoriesApi.create(dto));
-        const newAccessory = mapAccessoryDtoToModel(response);
-        this.accessories.update(items => [...items, newAccessory]);
-    }
-
-    async updateAccessory(id: string, updates: Partial<Accessory>): Promise<void> {
-        const dto = mapAccessoryToUpdateDto(updates);
-        const response = await firstValueFrom(this.accessoriesApi.update(id, dto));
-        const updated = mapAccessoryDtoToModel(response);
-        this.accessories.update(items =>
-            items.map(item => item.id === id ? updated : item)
-        );
-    }
-
-    async deleteAccessory(id: string): Promise<void> {
-        await firstValueFrom(this.accessoriesApi.delete(id));
-        this.accessories.update(items => items.filter(item => item.id !== id));
-    }
-
-    async toggleAccessoryFavorite(id: string): Promise<void> {
-        const accessory = this.accessories().find(a => a.id === id);
-        if (accessory) {
-            await this.updateAccessory(id, { favorite: !accessory.favorite });
+      })
+      .catch((error) => {
+        this.wardrobePageLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.wardrobePageLoadPromise === loadPromise) {
+          this.wardrobePageLoadPromise = null;
         }
+      });
+    this.wardrobePageLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadAccessoriesPage(page: number): Promise<void> {
+    if (page < 0 || page <= this.accessoriesPageIndex()) {
+      return;
+    }
+    if (!this.accessoriesPageHasNext() && page > this.accessoriesPageIndex()) {
+      return;
+    }
+    if (this.accessoriesPageLoadPromise) {
+      return this.accessoriesPageLoadPromise;
     }
 
-    async markAccessoryAsWorn(id: string): Promise<void> {
-        const response = await firstValueFrom(this.accessoriesApi.markAsWorn(id));
-        const updated = mapAccessoryDtoToModel(response);
-        this.accessories.update(items => items.map(item => item.id === id ? updated : item));
-    }
-
-    // ── Outfit CRUD ──────────────────────────────────────────────
-
-    getOutfitById(id: string): Outfit | undefined {
-        return this.outfits().find(outfit => outfit.id === id);
-    }
-
-    async addOutfit(outfit: Omit<Outfit, 'id' | 'createdAt' | 'worn'>): Promise<void> {
-        const dto = mapOutfitToCreateDto(outfit as Outfit);
-        const response = await firstValueFrom(this.outfitsApi.create(dto));
-        const newOutfit = mapOutfitDtoToModel(response);
-        this.outfits.update(outfits => [...outfits, newOutfit]);
-    }
-
-    async updateOutfit(id: string, updates: Partial<Outfit>): Promise<void> {
-        const dto = mapOutfitToUpdateDto(updates);
-        const response = await firstValueFrom(this.outfitsApi.update(id, dto));
-        const updated = mapOutfitDtoToModel(response);
-        this.outfits.update(outfits =>
-            outfits.map(outfit => outfit.id === id ? updated : outfit)
+    this.accessoriesPageLoadState.set('loading');
+    const loadPromise = firstValueFrom(
+      this.accessoriesApi.listPage(page, DEFAULT_COLLECTION_PAGE_SIZE),
+    )
+      .then((response) => {
+        const mapped = response.items.map(mapAccessoryDtoToModel);
+        this.accessories.update((items) =>
+          page === 0 ? mapped : this.mergeDistinctById(items, mapped),
         );
-    }
-
-    async deleteOutfit(id: string): Promise<void> {
-        await firstValueFrom(this.outfitsApi.delete(id));
-        this.outfits.update(outfits => outfits.filter(outfit => outfit.id !== id));
-    }
-
-    async markItemAsWorn(id: string): Promise<void> {
-        const response = await firstValueFrom(this.wardrobeApi.markAsWorn(id));
-        const updated = mapWardrobeItemDtoToModel(response);
-        this.wardrobeItems.update(items => items.map(item => item.id === id ? updated : item));
-    }
-
-    async markOutfitAsWorn(id: string): Promise<void> {
-        const response = await firstValueFrom(this.outfitsApi.markAsWorn(id));
-        const updated = mapOutfitDtoToModel(response);
-        this.outfits.update(outfits => outfits.map(outfit => outfit.id === id ? updated : outfit));
-        await this.loadAll();
-    }
-
-    getOutfitsByDate(date: string): Outfit[] {
-        return this.outfits().filter(outfit => (outfit.plannedDates ?? []).includes(date));
-    }
-
-    // ── Search & Filter ──────────────────────────────────────────
-
-    searchItems(query: string): WardrobeItem[] {
-        const lowerQuery = query.toLowerCase();
-        return this.wardrobeItems().filter(item =>
-            item.name.toLowerCase().includes(lowerQuery) ||
-            item.category.toLowerCase().includes(lowerQuery) ||
-            item.color.toLowerCase().includes(lowerQuery) ||
-            item.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
-        );
-    }
-
-    filterByColor(colors: string[]): WardrobeItem[] {
-        if (colors.length === 0) return this.wardrobeItems();
-        return this.wardrobeItems().filter(item =>
-            colors.some(color => item.color.toLowerCase().includes(color.toLowerCase()))
-        );
-    }
-
-    // ── Weather suggestion (mock — will be replaced by backend) ──
-
-    getWeatherSuggestion(): { weather: typeof MOCK_WEATHER; suggestedItems: WardrobeItem[] } {
-        const weather = MOCK_WEATHER;
-        let suggestedItems: WardrobeItem[] = [];
-
-        if (weather.temp < 10) {
-            suggestedItems = this.wardrobeItems().filter(item =>
-                item.category === 'outerwear' || item.tags.includes('winter')
-            ).slice(0, 3);
-        } else if (weather.temp > 25) {
-            suggestedItems = this.wardrobeItems().filter(item =>
-                item.tags.includes('summer') || item.category === 'dresses'
-            ).slice(0, 3);
-        } else {
-            suggestedItems = this.wardrobeItems().filter(item =>
-                item.category === 'tops' || item.category === 'bottoms'
-            ).slice(0, 3);
+        this.accessoriesPageIndex.set(response.page);
+        this.accessoriesPageHasNext.set(response.hasNext);
+        this.accessoriesPageTotalElements.set(response.totalElements);
+        this.accessoriesPageLoadState.set('loaded');
+        if (!response.hasNext) {
+          this.accessoriesLoadState.set('loaded');
         }
+      })
+      .catch((error) => {
+        this.accessoriesPageLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.accessoriesPageLoadPromise === loadPromise) {
+          this.accessoriesPageLoadPromise = null;
+        }
+      });
+    this.accessoriesPageLoadPromise = loadPromise;
+    return loadPromise;
+  }
 
-        return { weather, suggestedItems };
+  private async loadOutfitsPage(page: number): Promise<void> {
+    if (page < 0 || page <= this.outfitsPageIndex()) {
+      return;
     }
+    if (!this.outfitsPageHasNext() && page > this.outfitsPageIndex()) {
+      return;
+    }
+    if (this.outfitsPageLoadPromise) {
+      return this.outfitsPageLoadPromise;
+    }
+
+    this.outfitsPageLoadState.set('loading');
+    const loadPromise = firstValueFrom(this.outfitsApi.listPage(page, DEFAULT_COLLECTION_PAGE_SIZE))
+      .then((response) => {
+        const mapped = response.items.map(mapOutfitDtoToModel);
+        this.outfits.update((items) =>
+          page === 0 ? mapped : this.mergeDistinctById(items, mapped),
+        );
+        this.outfitsPageIndex.set(response.page);
+        this.outfitsPageHasNext.set(response.hasNext);
+        this.outfitsPageTotalElements.set(response.totalElements);
+        this.outfitsPageLoadState.set('loaded');
+        if (!response.hasNext) {
+          this.outfitsLoadState.set('loaded');
+        }
+      })
+      .catch((error) => {
+        this.outfitsPageLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.outfitsPageLoadPromise === loadPromise) {
+          this.outfitsPageLoadPromise = null;
+        }
+      });
+    this.outfitsPageLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadDashboardSummaryData(force: boolean): Promise<void> {
+    if (this.dashboardSummaryLoadPromise) {
+      return this.dashboardSummaryLoadPromise;
+    }
+    if (!force && this.dashboardSummaryLoadState() === 'loaded') {
+      return;
+    }
+
+    this.dashboardSummaryLoadState.set('loading');
+    const loadPromise = firstValueFrom(this.dashboardApi.summary())
+      .then((summary) => {
+        this.dashboardSummaryData.set(mapDashboardSummaryDtoToModel(summary));
+        this.dashboardSummaryLoadState.set('loaded');
+      })
+      .catch((error) => {
+        this.dashboardSummaryLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.dashboardSummaryLoadPromise === loadPromise) {
+          this.dashboardSummaryLoadPromise = null;
+        }
+      });
+    this.dashboardSummaryLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private mergeDistinctById<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+    if (incoming.length === 0) {
+      return existing;
+    }
+    const seen = new Set(existing.map((item) => item.id));
+    const merged = [...existing];
+    for (const item of incoming) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        merged.push(item);
+      }
+    }
+    return merged;
+  }
+
+  private upsertById<T extends { id: string }>(existing: T[], incoming: T): T[] {
+    const index = existing.findIndex((item) => item.id === incoming.id);
+    if (index === -1) {
+      return [...existing, incoming];
+    }
+    const updated = [...existing];
+    updated[index] = incoming;
+    return updated;
+  }
 }

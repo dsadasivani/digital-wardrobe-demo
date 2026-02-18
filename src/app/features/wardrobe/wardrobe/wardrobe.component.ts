@@ -39,7 +39,7 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
       <header class="page-header">
         <div class="header-content">
           <h1>My Wardrobe</h1>
-          <p class="subtitle">{{ filteredItems().length }} items in your collection</p>
+          <p class="subtitle">{{ filteredItems().length }} of {{ totalItemsCount() }} items</p>
         </div>
         
         <div class="header-actions">
@@ -158,6 +158,24 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
           </div>
         }
       </section>
+
+      @if (hasMoreItems()) {
+        <section class="load-more-row">
+          <button
+            type="button"
+            class="action-btn"
+            (click)="onLoadMore()"
+            [disabled]="isLoadingMoreItems()">
+            @if (isLoadingMoreItems()) {
+              <mat-icon>hourglass_top</mat-icon>
+              <span>Loading...</span>
+            } @else {
+              <mat-icon>expand_more</mat-icon>
+              <span>Load More</span>
+            }
+          </button>
+        </section>
+      }
 
       <!-- Floating Add Button (Mobile) -->
       <button class="fab-add" routerLink="/wardrobe/add" matTooltip="Add new item">
@@ -428,6 +446,12 @@ import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '
       max-width: 300px;
     }
 
+    .load-more-row {
+      display: flex;
+      justify-content: center;
+      margin-top: var(--dw-spacing-lg);
+    }
+
     .fab-add {
       position: fixed;
       bottom: var(--dw-spacing-xl);
@@ -488,6 +512,9 @@ export class WardrobeComponent implements OnInit {
 
   categories = WARDROBE_CATEGORIES;
   allItems = this.wardrobeService.items;
+  totalItems = this.wardrobeService.wardrobeTotalElements;
+  hasMoreItems = this.wardrobeService.hasMoreWardrobePages;
+  isLoadingMoreItems = this.wardrobeService.wardrobePageLoading;
 
   searchQuery = signal('');
   selectedCategory = signal<WardrobeCategory | null>(null);
@@ -575,7 +602,14 @@ export class WardrobeComponent implements OnInit {
     return items;
   });
 
+  totalItemsCount = computed(() => {
+    const total = this.totalItems();
+    return total > 0 ? total : this.allItems().length;
+  });
+
   ngOnInit(): void {
+    void this.loadWardrobeItems();
+
     this.route.paramMap.subscribe(params => {
       const categoryParam = params.get('category');
       const matchIndex = this.categories.findIndex(cat => cat.id === categoryParam);
@@ -667,5 +701,25 @@ export class WardrobeComponent implements OnInit {
 
   private isWardrobeItem(item: WardrobeItem | Accessory): item is WardrobeItem {
     return 'purchaseDate' in item;
+  }
+
+  private async loadWardrobeItems(): Promise<void> {
+    try {
+      await this.wardrobeService.ensureWardrobePageLoaded();
+    } catch {
+      // Allow the page to render even if loading fails temporarily.
+    }
+  }
+
+  onLoadMore(): void {
+    void this.loadNextPage();
+  }
+
+  private async loadNextPage(): Promise<void> {
+    try {
+      await this.wardrobeService.loadNextWardrobePage();
+    } catch {
+      // Keep filtering controls usable if incremental loading fails.
+    }
   }
 }

@@ -1,4 +1,4 @@
-import {Component, inject, signal, computed, ChangeDetectionStrategy} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,7 +14,7 @@ import { Outfit } from '../../core/models';
   template: `
     <div class="outfits-page animate-fade-in">
       <header class="page-header">
-        <div><h1>My Outfits</h1><p class="subtitle">{{ outfits().length }} combinations</p></div>
+        <div><h1>My Outfits</h1><p class="subtitle">{{ outfits().length }} of {{ totalOutfitsCount() }} combinations</p></div>
         <div class="header-actions">
           <button class="action-btn secondary" routerLink="/calendar">
             <mat-icon>calendar_month</mat-icon><span>Calendar</span>
@@ -61,6 +61,24 @@ import { Outfit } from '../../core/models';
           </div>
         }
       </div>
+
+      @if (hasMoreOutfits()) {
+        <div class="load-more-row">
+          <button
+            type="button"
+            class="action-btn secondary"
+            (click)="onLoadMore()"
+            [disabled]="isLoadingMoreOutfits()">
+            @if (isLoadingMoreOutfits()) {
+              <mat-icon>hourglass_top</mat-icon>
+              <span>Loading...</span>
+            } @else {
+              <mat-icon>expand_more</mat-icon>
+              <span>Load More</span>
+            }
+          </button>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -74,6 +92,7 @@ import { Outfit } from '../../core/models';
     .chip { padding: 8px 16px; border-radius: var(--dw-radius-full); border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; }
     .chip.active { background: var(--dw-primary); border-color: var(--dw-primary); color: white; }
     .outfits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--dw-spacing-lg); }
+    .load-more-row { margin-top: var(--dw-spacing-lg); display: flex; justify-content: center; }
     .outfit-card { background: var(--dw-gradient-card); border-radius: var(--dw-radius-lg); border: 1px solid var(--dw-border-subtle); overflow: hidden; transition: all 0.25s; }
     .outfit-card:hover { transform: translateY(-4px); box-shadow: var(--dw-shadow-glow); }
     .outfit-image { position: relative; aspect-ratio: 4/5; overflow: hidden; }
@@ -116,13 +135,46 @@ import { Outfit } from '../../core/models';
     }
   `]
 })
-export class OutfitsComponent {
+export class OutfitsComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
   outfits = this.wardrobeService.outfitList;
+  totalOutfits = this.wardrobeService.outfitsTotalElements;
+  hasMoreOutfits = this.wardrobeService.hasMoreOutfitsPages;
+  isLoadingMoreOutfits = this.wardrobeService.outfitsPageLoading;
   selectedOccasion = signal<string>('All');
   occasionFilters = ['All', 'Work', 'Casual', 'Formal', 'Party', 'Vacation'];
+
+  ngOnInit(): void {
+    void this.loadOutfits();
+  }
+
   filteredOutfits = computed(() => {
     if (this.selectedOccasion() === 'All') return this.outfits();
     return this.outfits().filter(o => o.occasion?.toLowerCase() === this.selectedOccasion().toLowerCase());
   });
+
+  totalOutfitsCount = computed(() => {
+    const total = this.totalOutfits();
+    return total > 0 ? total : this.outfits().length;
+  });
+
+  private async loadOutfits(): Promise<void> {
+    try {
+      await this.wardrobeService.ensureOutfitsPageLoaded();
+    } catch {
+      // Keep page responsive while data retries on next navigation.
+    }
+  }
+
+  onLoadMore(): void {
+    void this.loadNextPage();
+  }
+
+  private async loadNextPage(): Promise<void> {
+    try {
+      await this.wardrobeService.loadNextOutfitsPage();
+    } catch {
+      // Keep filters and navigation responsive if page fetch fails.
+    }
+  }
 }

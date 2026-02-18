@@ -79,15 +79,15 @@ describe('AuthService', () => {
     wardrobeService = TestBed.inject(WardrobeService) as unknown as MockWardrobeService;
   });
 
-  it('keeps authenticated session when profile data load fails after login', async () => {
+  it('does not preload wardrobe data during login', async () => {
     authApi.login.mockReturnValue(of(buildAuthResponseDto()));
-    wardrobeService.loadAll.mockReturnValue(Promise.reject(new Error('load failed')));
 
     const result = await service.login('user@example.com', 'password123');
 
     expect(result.success).toBe(true);
     expect(service.authenticated()).toBe(true);
     expect(service.user()?.email).toBe('user@example.com');
+    expect(wardrobeService.loadAll).not.toHaveBeenCalled();
   });
 
   it('clears session when login API fails', async () => {

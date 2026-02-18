@@ -377,10 +377,7 @@ export class OutfitDetailComponent implements OnInit {
     ngOnInit() {
         this.route.paramMap.subscribe(params => {
             const id = params.get('id');
-            if (id) {
-                const found = this.wardrobeService.outfitList().find(o => o.id === id);
-                this.outfit.set(found);
-            }
+            void this.loadOutfitDetails(id);
         });
     }
 
@@ -405,5 +402,21 @@ export class OutfitDetailComponent implements OnInit {
         }
         await this.wardrobeService.markOutfitAsWorn(id);
         this.outfit.set(this.wardrobeService.getOutfitById(id));
+    }
+
+    private async loadOutfitDetails(id: string | null): Promise<void> {
+        if (!id) {
+            this.outfit.set(undefined);
+            return;
+        }
+        try {
+            const outfit = await this.wardrobeService.fetchOutfitById(id);
+            this.outfit.set(outfit);
+            if (outfit) {
+              await this.wardrobeService.ensureOutfitDependenciesLoaded(outfit);
+            }
+        } catch {
+            this.outfit.set(undefined);
+        }
     }
 }

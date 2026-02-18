@@ -13,7 +13,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @CompoundIndexes({
     @CompoundIndex(name = "user_category_idx", def = "{'userId': 1, 'category': 1}"),
     @CompoundIndex(name = "user_favorite_idx", def = "{'userId': 1, 'favorite': 1}"),
-    @CompoundIndex(name = "user_created_at_idx", def = "{'userId': 1, 'createdAt': -1}")
+    @CompoundIndex(name = "user_created_at_idx", def = "{'userId': 1, 'createdAt': -1}"),
+    @CompoundIndex(name = "user_worn_created_at_idx", def = "{'userId': 1, 'worn': -1, 'createdAt': -1}")
 })
 public class WardrobeItemDocument {
     @Id

@@ -232,10 +232,7 @@ export class EditAccessoryComponent implements OnInit {
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       this.accessoryId.set(id);
-      const item = id ? this.wardrobeService.getAccessoryById(id) : undefined;
-      if (item) {
-        this.patchForm(item);
-      }
+      void this.loadAccessoryForEdit(id);
     });
   }
 
@@ -375,5 +372,19 @@ export class EditAccessoryComponent implements OnInit {
     const normalizedPrimaryIndex = ((primaryIndex % images.length) + images.length) % images.length;
     const primaryImage = images[normalizedPrimaryIndex];
     return [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)];
+  }
+
+  private async loadAccessoryForEdit(id: string | null): Promise<void> {
+    if (!id) {
+      return;
+    }
+    try {
+      const item = await this.wardrobeService.fetchAccessoryById(id);
+      if (item) {
+        this.patchForm(item);
+      }
+    } catch {
+      this.errorMessage.set('Unable to load accessory details right now.');
+    }
   }
 }

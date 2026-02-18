@@ -12,7 +12,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document("accessories")
 @CompoundIndexes({
         @CompoundIndex(name = "user_category_idx", def = "{'userId': 1, 'category': 1}"),
-        @CompoundIndex(name = "user_favorite_idx", def = "{'userId': 1, 'favorite': 1}")
+        @CompoundIndex(name = "user_favorite_idx", def = "{'userId': 1, 'favorite': 1}"),
+        @CompoundIndex(name = "user_created_at_idx", def = "{'userId': 1, 'createdAt': -1}")
 })
 public class AccessoryDocument {
     @Id

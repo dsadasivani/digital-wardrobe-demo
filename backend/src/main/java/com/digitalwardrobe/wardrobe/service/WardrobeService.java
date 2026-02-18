@@ -1,5 +1,6 @@
 package com.digitalwardrobe.wardrobe.service;
 
+import com.digitalwardrobe.common.api.PageResponse;
 import com.digitalwardrobe.users.service.UserService;
 import com.digitalwardrobe.wardrobe.domain.WardrobeItemDocument;
 import com.digitalwardrobe.wardrobe.dto.CreateWardrobeItemRequest;
@@ -10,6 +11,8 @@ import java.util.ArrayList;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class WardrobeService {
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 30;
 
     private final WardrobeItemRepository wardrobeItemRepository;
     private final UserService userService;
@@ -28,7 +33,17 @@ public class WardrobeService {
 
     public List<WardrobeItemResponse> list(Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
-        return wardrobeItemRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse).toList();
+        return wardrobeItemRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse)
+                .toList();
+    }
+
+    public PageResponse<WardrobeItemResponse> listPage(Authentication authentication, int page, int size) {
+        String userId = userService.requireCurrentUserId(authentication);
+        int resolvedPage = Math.max(page, 0);
+        int resolvedSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        var pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var responsePage = wardrobeItemRepository.findAllByUserId(userId, pageable).map(this::toResponse);
+        return PageResponse.from(responsePage);
     }
 
     public WardrobeItemResponse getById(String id, Authentication authentication) {
@@ -146,8 +161,8 @@ public class WardrobeService {
 
     private WardrobeItemDocument findByIdForUserOrThrow(String id, String userId) {
         return wardrobeItemRepository
-            .findByIdAndUserId(id, userId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wardrobe item not found"));
+                .findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wardrobe item not found"));
     }
 
     private void markAsWorn(WardrobeItemDocument item, int incrementBy, Instant wornAt) {
@@ -158,35 +173,34 @@ public class WardrobeService {
 
     private WardrobeItemResponse toResponse(WardrobeItemDocument item) {
         return new WardrobeItemResponse(
-            item.getId(),
-            item.getName(),
-            item.getCategory(),
-            item.getColor(),
-            item.getColorHex(),
-            item.getSize(),
-            item.getBrand(),
-            item.getOccasion(),
-            item.getPrice(),
-            item.getPurchaseDate(),
-            item.getImageUrl(),
-            item.getImageUrls(),
-            item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl(),
-            item.getWorn(),
-            item.getLastWorn(),
-            item.isFavorite(),
-            item.getTags(),
-            item.getNotes(),
-            item.getCreatedAt()
-        );
+                item.getId(),
+                item.getName(),
+                item.getCategory(),
+                item.getColor(),
+                item.getColorHex(),
+                item.getSize(),
+                item.getBrand(),
+                item.getOccasion(),
+                item.getPrice(),
+                item.getPurchaseDate(),
+                item.getImageUrl(),
+                item.getImageUrls(),
+                item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl(),
+                item.getWorn(),
+                item.getLastWorn(),
+                item.isFavorite(),
+                item.getTags(),
+                item.getNotes(),
+                item.getCreatedAt());
     }
 
     private List<String> normalizeImageUrls(List<String> imageUrls, String fallbackImageUrl) {
         List<String> normalized = new ArrayList<>();
         if (imageUrls != null) {
             normalized = imageUrls.stream()
-                .filter(url -> url != null && !url.isBlank())
-                .map(String::trim)
-                .toList();
+                    .filter(url -> url != null && !url.isBlank())
+                    .map(String::trim)
+                    .toList();
         }
         if (normalized.isEmpty() && fallbackImageUrl != null && !fallbackImageUrl.isBlank()) {
             normalized = List.of(fallbackImageUrl.trim());
@@ -198,15 +212,15 @@ public class WardrobeService {
     }
 
     private void applyImageUpdates(
-        WardrobeItemDocument item,
-        String requestedImageUrl,
-        List<String> requestedImageUrls,
-        String requestedPrimaryImageUrl
-    ) {
+            WardrobeItemDocument item,
+            String requestedImageUrl,
+            List<String> requestedImageUrls,
+            String requestedPrimaryImageUrl) {
         List<String> currentImageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
         List<String> nextImageUrls = requestedImageUrls != null
-            ? new ArrayList<>(normalizeImageUrls(requestedImageUrls, requestedImageUrl != null ? requestedImageUrl : item.getImageUrl()))
-            : new ArrayList<>(currentImageUrls);
+                ? new ArrayList<>(normalizeImageUrls(requestedImageUrls,
+                        requestedImageUrl != null ? requestedImageUrl : item.getImageUrl()))
+                : new ArrayList<>(currentImageUrls);
 
         if (requestedImageUrl != null && !requestedImageUrl.isBlank()) {
             String normalizedRequestedImageUrl = requestedImageUrl.trim();
@@ -216,10 +230,9 @@ public class WardrobeService {
         }
 
         String primaryImageUrl = resolvePrimaryImageUrl(
-            requestedPrimaryImageUrl != null ? requestedPrimaryImageUrl : requestedImageUrl,
-            nextImageUrls,
-            item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl()
-        );
+                requestedPrimaryImageUrl != null ? requestedPrimaryImageUrl : requestedImageUrl,
+                nextImageUrls,
+                item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl());
 
         if (!nextImageUrls.contains(primaryImageUrl)) {
             nextImageUrls.add(0, primaryImageUrl);
@@ -230,7 +243,8 @@ public class WardrobeService {
         item.setImageUrl(primaryImageUrl);
     }
 
-    private String resolvePrimaryImageUrl(String requestedPrimaryImageUrl, List<String> imageUrls, String fallbackImageUrl) {
+    private String resolvePrimaryImageUrl(String requestedPrimaryImageUrl, List<String> imageUrls,
+            String fallbackImageUrl) {
         if (requestedPrimaryImageUrl != null && !requestedPrimaryImageUrl.isBlank()) {
             String normalizedPrimaryImageUrl = requestedPrimaryImageUrl.trim();
             if (imageUrls.contains(normalizedPrimaryImageUrl) || imageUrls.isEmpty()) {

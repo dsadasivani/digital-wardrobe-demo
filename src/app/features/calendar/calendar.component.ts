@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheet, MatBottomSheetModule, MatBottomSheetRef } from '@angular/material/bottom-sheet';
 import { FormsModule } from '@angular/forms';
@@ -278,6 +278,9 @@ export class DayOutfitsSheetComponent {
           Schedule Outfit
         </button>
       </header>
+      @if (calendarLoadError()) {
+        <p class="calendar-error">{{ calendarLoadError() }}</p>
+      }
 
       <section class="calendar-shell glass">
         <div class="calendar-click-layer" [class.active]="!isMobile() && !!dayPopover()" (click)="closePopover()"></div>
@@ -426,6 +429,7 @@ export class DayOutfitsSheetComponent {
     .calendar-page { padding: var(--dw-spacing-xl); max-width: 1200px; margin: 0 auto; }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: var(--dw-spacing-lg); }
     .subtitle { margin: 0; color: var(--dw-text-secondary); }
+    .calendar-error { margin: 0 0 var(--dw-spacing-md); color: var(--dw-error); font-size: 13px; }
     .action-btn { display: inline-flex; align-items: center; gap: 8px; border: none; border-radius: var(--dw-radius-md); padding: 10px 16px; color: #fff; background: var(--dw-gradient-primary); }
     .calendar-shell { padding: var(--dw-spacing-md); border-radius: var(--dw-radius-xl); margin-bottom: var(--dw-spacing-lg); }
     .calendar-shell { position: relative; }
@@ -581,7 +585,7 @@ export class DayOutfitsSheetComponent {
     }
   `],
 })
-export class CalendarComponent {
+export class CalendarComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
   private bottomSheet = inject(MatBottomSheet);
 
@@ -595,6 +599,7 @@ export class CalendarComponent {
   dayPopover = signal<DayPopoverState | null>(null);
   showExistingPicker = signal(false);
   existingSearchQuery = signal('');
+  calendarLoadError = signal<string | null>(null);
 
   monthLabel = computed(() => this.monthCursor().toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
 
@@ -647,6 +652,10 @@ export class CalendarComponent {
     }
     return this.outfitList().filter(outfit => !this.isScheduledOnDate(outfit, popover.isoDate)).length;
   });
+
+  ngOnInit(): void {
+    void this.loadCalendarData();
+  }
 
   changeMonth(step: number): void {
     const next = new Date(this.monthCursor());
@@ -763,6 +772,15 @@ export class CalendarComponent {
     const plannedDates = new Set(outfit.plannedDates ?? []);
     plannedDates.add(isoDate);
     await this.wardrobeService.updateOutfit(outfit.id, { plannedDates: [...plannedDates].sort() });
+  }
+
+  private async loadCalendarData(): Promise<void> {
+    this.calendarLoadError.set(null);
+    try {
+      await this.wardrobeService.ensureOutfitsLoaded();
+    } catch {
+      this.calendarLoadError.set('Unable to load calendar outfits. Please refresh and try again.');
+    }
   }
 
   private startOfMonth(date: Date): Date {
