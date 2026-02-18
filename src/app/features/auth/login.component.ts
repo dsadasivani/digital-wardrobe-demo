@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/services/auth.service';
+import { AppUiStateService } from '../../core/services/app-ui-state.service';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -282,6 +283,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class LoginComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
+  private appUiState = inject(AppUiStateService);
 
   email = signal('');
   password = signal('');
@@ -306,6 +308,7 @@ export class LoginComponent {
     this.loading.set(false);
 
     if (result.success) {
+      this.appUiState.suppressNextRouteLoader();
       await this.router.navigate(['/']);
       return;
     }
@@ -323,6 +326,7 @@ export class LoginComponent {
     const success = await this.authService.loginWithGoogle();
     this.loading.set(false);
     if (success) {
+      this.appUiState.suppressNextRouteLoader();
       await this.router.navigate(['/']);
     }
   }
@@ -332,6 +336,7 @@ export class LoginComponent {
     const success = await this.authService.loginWithApple();
     this.loading.set(false);
     if (success) {
+      this.appUiState.suppressNextRouteLoader();
       await this.router.navigate(['/']);
     }
   }

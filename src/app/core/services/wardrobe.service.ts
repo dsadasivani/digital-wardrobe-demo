@@ -6,7 +6,6 @@ import {
   Accessory,
   Outfit,
   DashboardStats,
-  DashboardSummary,
 } from '../models';
 import { WardrobeApi } from '../api/wardrobe.api';
 import { AccessoriesApi } from '../api/accessories.api';
@@ -27,7 +26,14 @@ import {
   mapOutfitToCreateDto,
   mapOutfitToUpdateDto,
 } from '../mappers/outfits.mapper';
-import { mapDashboardSummaryDtoToModel } from '../mappers/dashboard.mapper';
+import {
+  DashboardCountersModel,
+  DashboardWearInsightsModel,
+  mapDashboardCategoryBreakdownDtoToModel,
+  mapDashboardCountersDtoToModel,
+  mapDashboardRecentlyAddedDtoToModel,
+  mapDashboardWearInsightsDtoToModel,
+} from '../mappers/dashboard.mapper';
 
 type DataLoadState = 'idle' | 'loading' | 'loaded' | 'error';
 const DEFAULT_COLLECTION_PAGE_SIZE = 10;
@@ -44,15 +50,26 @@ export class WardrobeService {
   private wardrobeItems = signal<WardrobeItem[]>([]);
   private accessories = signal<Accessory[]>([]);
   private outfits = signal<Outfit[]>([]);
-  private dashboardSummaryData = signal<DashboardSummary | null>(null);
+  private dashboardCountersData = signal<DashboardCountersModel | null>(null);
+  private dashboardWearInsightsData = signal<DashboardWearInsightsModel | null>(null);
+  private dashboardRecentlyAddedData = signal<WardrobeItem[] | null>(null);
+  private dashboardCategoryBreakdownData = signal<
+    { category: WardrobeCategory; count: number }[] | null
+  >(null);
   private wardrobeLoadState = signal<DataLoadState>('idle');
   private accessoriesLoadState = signal<DataLoadState>('idle');
   private outfitsLoadState = signal<DataLoadState>('idle');
-  private dashboardSummaryLoadState = signal<DataLoadState>('idle');
+  private dashboardCountersLoadState = signal<DataLoadState>('idle');
+  private dashboardWearInsightsLoadState = signal<DataLoadState>('idle');
+  private dashboardRecentlyAddedLoadState = signal<DataLoadState>('idle');
+  private dashboardCategoryBreakdownLoadState = signal<DataLoadState>('idle');
   private wardrobeLoadPromise: Promise<void> | null = null;
   private accessoriesLoadPromise: Promise<void> | null = null;
   private outfitsLoadPromise: Promise<void> | null = null;
-  private dashboardSummaryLoadPromise: Promise<void> | null = null;
+  private dashboardCountersLoadPromise: Promise<void> | null = null;
+  private dashboardWearInsightsLoadPromise: Promise<void> | null = null;
+  private dashboardRecentlyAddedLoadPromise: Promise<void> | null = null;
+  private dashboardCategoryBreakdownLoadPromise: Promise<void> | null = null;
   private wardrobePageIndex = signal(-1);
   private accessoriesPageIndex = signal(-1);
   private outfitsPageIndex = signal(-1);
@@ -73,7 +90,10 @@ export class WardrobeService {
   readonly items = this.wardrobeItems.asReadonly();
   readonly accessoryList = this.accessories.asReadonly();
   readonly outfitList = this.outfits.asReadonly();
-  readonly dashboardSummary = this.dashboardSummaryData.asReadonly();
+  readonly dashboardCounters = this.dashboardCountersData.asReadonly();
+  readonly dashboardWearInsights = this.dashboardWearInsightsData.asReadonly();
+  readonly dashboardRecentlyAdded = this.dashboardRecentlyAddedData.asReadonly();
+  readonly dashboardCategoryBreakdown = this.dashboardCategoryBreakdownData.asReadonly();
   readonly wardrobeTotalElements = this.wardrobePageTotalElements.asReadonly();
   readonly accessoriesTotalElements = this.accessoriesPageTotalElements.asReadonly();
   readonly outfitsTotalElements = this.outfitsPageTotalElements.asReadonly();
@@ -83,7 +103,7 @@ export class WardrobeService {
   readonly recentItems = computed(() =>
     [...this.wardrobeItems()]
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 6),
+      .slice(0, 10),
   );
 
   readonly categoryBreakdown = computed(() => {
@@ -109,45 +129,37 @@ export class WardrobeService {
   });
 
   readonly dashboardStats = computed<DashboardStats>(() => {
-    const summary = this.dashboardSummaryData();
-    if (summary) {
-      return {
-        totalItems: summary.totalItems,
-        totalAccessories: summary.totalAccessories,
-        totalOutfits: summary.totalOutfits,
-        mostWornItem: summary.mostWornItem,
-        leastWornItems: summary.leastWornItems,
-        recentlyAdded: summary.recentlyAdded,
-        categoryBreakdown: summary.categoryBreakdown,
-      };
-    }
-
+    const counters = this.dashboardCountersData();
+    const wearInsights = this.dashboardWearInsightsData();
+    const recentlyAdded = this.dashboardRecentlyAddedData();
+    const categoryBreakdown = this.dashboardCategoryBreakdownData();
     const items = this.wardrobeItems();
     const sortedByWorn = [...items].sort((a, b) => b.worn - a.worn);
     const leastWorn = [...items].sort((a, b) => a.worn - b.worn).slice(0, 3);
+
     return {
-      totalItems: this.totalItems(),
-      totalAccessories: this.accessories().length,
-      totalOutfits: this.outfits().length,
-      mostWornItem: sortedByWorn[0],
-      leastWornItems: leastWorn,
-      recentlyAdded: this.recentItems(),
-      categoryBreakdown: this.categoryBreakdown(),
+      totalItems: counters?.totalItems ?? this.totalItems(),
+      totalAccessories: counters?.totalAccessories ?? this.accessories().length,
+      totalOutfits: counters?.totalOutfits ?? this.outfits().length,
+      mostWornItem: wearInsights?.mostWornItem ?? sortedByWorn[0],
+      leastWornItems: wearInsights?.leastWornItems ?? leastWorn,
+      recentlyAdded: recentlyAdded ?? this.recentItems(),
+      categoryBreakdown: categoryBreakdown ?? this.categoryBreakdown(),
     };
   });
 
   readonly favoriteCount = computed(() => {
-    const summary = this.dashboardSummaryData();
-    if (summary) {
-      return summary.favoriteCount;
+    const counters = this.dashboardCountersData();
+    if (counters) {
+      return counters.favoriteCount;
     }
     return this.favoriteItems().length;
   });
 
   readonly unusedCount = computed(() => {
-    const summary = this.dashboardSummaryData();
-    if (summary) {
-      return summary.unusedCount;
+    const counters = this.dashboardCountersData();
+    if (counters) {
+      return counters.unusedCount;
     }
     return this.wardrobeItems().filter((item) => item.worn < 5).length;
   });
@@ -157,6 +169,16 @@ export class WardrobeService {
   readonly wardrobePageLoading = computed(() => this.wardrobePageLoadState() === 'loading');
   readonly accessoriesPageLoading = computed(() => this.accessoriesPageLoadState() === 'loading');
   readonly outfitsPageLoading = computed(() => this.outfitsPageLoadState() === 'loading');
+  readonly dashboardCountersLoading = computed(() => this.dashboardCountersLoadState() === 'loading');
+  readonly dashboardWearInsightsLoading = computed(
+    () => this.dashboardWearInsightsLoadState() === 'loading',
+  );
+  readonly dashboardRecentlyAddedLoading = computed(
+    () => this.dashboardRecentlyAddedLoadState() === 'loading',
+  );
+  readonly dashboardCategoryBreakdownLoading = computed(
+    () => this.dashboardCategoryBreakdownLoadState() === 'loading',
+  );
 
   // ── Data loading from backend ────────────────────────────────
 
@@ -168,8 +190,29 @@ export class WardrobeService {
     ]);
   }
 
+  async ensureDashboardCountersLoaded(): Promise<void> {
+    await this.loadDashboardCountersData(false);
+  }
+
+  async ensureDashboardWearInsightsLoaded(): Promise<void> {
+    await this.loadDashboardWearInsightsData(false);
+  }
+
+  async ensureDashboardRecentlyAddedLoaded(): Promise<void> {
+    await this.loadDashboardRecentlyAddedData(false);
+  }
+
+  async ensureDashboardCategoryBreakdownLoaded(): Promise<void> {
+    await this.loadDashboardCategoryBreakdownData(false);
+  }
+
   async ensureDashboardSummaryLoaded(): Promise<void> {
-    await this.loadDashboardSummaryData(false);
+    await Promise.all([
+      this.ensureDashboardCountersLoaded(),
+      this.ensureDashboardWearInsightsLoaded(),
+      this.ensureDashboardRecentlyAddedLoaded(),
+      this.ensureDashboardCategoryBreakdownLoaded(),
+    ]);
   }
 
   async ensureWardrobePageLoaded(): Promise<void> {
@@ -238,13 +281,34 @@ export class WardrobeService {
     await this.loadOutfitsData(true);
   }
 
+  async refreshDashboardCounters(): Promise<void> {
+    await this.loadDashboardCountersData(true);
+  }
+
+  async refreshDashboardWearInsights(): Promise<void> {
+    await this.loadDashboardWearInsightsData(true);
+  }
+
+  async refreshDashboardRecentlyAdded(): Promise<void> {
+    await this.loadDashboardRecentlyAddedData(true);
+  }
+
+  async refreshDashboardCategoryBreakdown(): Promise<void> {
+    await this.loadDashboardCategoryBreakdownData(true);
+  }
+
   async refreshDashboardSummary(): Promise<void> {
-    await this.loadDashboardSummaryData(true);
+    await Promise.all([
+      this.refreshDashboardCounters(),
+      this.refreshDashboardWearInsights(),
+      this.refreshDashboardRecentlyAdded(),
+      this.refreshDashboardCategoryBreakdown(),
+    ]);
   }
 
   async refreshAll(): Promise<void> {
     await Promise.all([this.refreshWardrobe(), this.refreshAccessories(), this.refreshOutfits()]);
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async loadAll(): Promise<void> {
@@ -255,11 +319,17 @@ export class WardrobeService {
     this.wardrobeItems.set([]);
     this.accessories.set([]);
     this.outfits.set([]);
-    this.dashboardSummaryData.set(null);
+    this.dashboardCountersData.set(null);
+    this.dashboardWearInsightsData.set(null);
+    this.dashboardRecentlyAddedData.set(null);
+    this.dashboardCategoryBreakdownData.set(null);
     this.wardrobeLoadState.set('idle');
     this.accessoriesLoadState.set('idle');
     this.outfitsLoadState.set('idle');
-    this.dashboardSummaryLoadState.set('idle');
+    this.dashboardCountersLoadState.set('idle');
+    this.dashboardWearInsightsLoadState.set('idle');
+    this.dashboardRecentlyAddedLoadState.set('idle');
+    this.dashboardCategoryBreakdownLoadState.set('idle');
     this.wardrobePageIndex.set(-1);
     this.accessoriesPageIndex.set(-1);
     this.outfitsPageIndex.set(-1);
@@ -275,7 +345,10 @@ export class WardrobeService {
     this.wardrobeLoadPromise = null;
     this.accessoriesLoadPromise = null;
     this.outfitsLoadPromise = null;
-    this.dashboardSummaryLoadPromise = null;
+    this.dashboardCountersLoadPromise = null;
+    this.dashboardWearInsightsLoadPromise = null;
+    this.dashboardRecentlyAddedLoadPromise = null;
+    this.dashboardCategoryBreakdownLoadPromise = null;
     this.wardrobePageLoadPromise = null;
     this.accessoriesPageLoadPromise = null;
     this.outfitsPageLoadPromise = null;
@@ -308,7 +381,7 @@ export class WardrobeService {
     const response = await firstValueFrom(this.wardrobeApi.create(dto));
     const newItem = mapWardrobeItemDtoToModel(response);
     this.wardrobeItems.update((items) => [...items, newItem]);
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async updateItem(id: string, updates: Partial<WardrobeItem>): Promise<void> {
@@ -316,13 +389,13 @@ export class WardrobeService {
     const response = await firstValueFrom(this.wardrobeApi.update(id, dto));
     const updated = mapWardrobeItemDtoToModel(response);
     this.wardrobeItems.update((items) => items.map((item) => (item.id === id ? updated : item)));
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async deleteItem(id: string): Promise<void> {
     await firstValueFrom(this.wardrobeApi.delete(id));
     this.wardrobeItems.update((items) => items.filter((item) => item.id !== id));
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async toggleFavorite(id: string): Promise<void> {
@@ -378,7 +451,7 @@ export class WardrobeService {
     const response = await firstValueFrom(this.accessoriesApi.create(dto));
     const newAccessory = mapAccessoryDtoToModel(response);
     this.accessories.update((items) => [...items, newAccessory]);
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async updateAccessory(id: string, updates: Partial<Accessory>): Promise<void> {
@@ -386,13 +459,13 @@ export class WardrobeService {
     const response = await firstValueFrom(this.accessoriesApi.update(id, dto));
     const updated = mapAccessoryDtoToModel(response);
     this.accessories.update((items) => items.map((item) => (item.id === id ? updated : item)));
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async deleteAccessory(id: string): Promise<void> {
     await firstValueFrom(this.accessoriesApi.delete(id));
     this.accessories.update((items) => items.filter((item) => item.id !== id));
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async toggleAccessoryFavorite(id: string): Promise<void> {
@@ -406,7 +479,7 @@ export class WardrobeService {
     const response = await firstValueFrom(this.accessoriesApi.markAsWorn(id));
     const updated = mapAccessoryDtoToModel(response);
     this.accessories.update((items) => items.map((item) => (item.id === id ? updated : item)));
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   // ── Outfit CRUD ──────────────────────────────────────────────
@@ -457,7 +530,7 @@ export class WardrobeService {
     const response = await firstValueFrom(this.outfitsApi.create(dto));
     const newOutfit = mapOutfitDtoToModel(response);
     this.outfits.update((outfits) => [...outfits, newOutfit]);
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async updateOutfit(id: string, updates: Partial<Outfit>): Promise<void> {
@@ -467,20 +540,20 @@ export class WardrobeService {
     this.outfits.update((outfits) =>
       outfits.map((outfit) => (outfit.id === id ? updated : outfit)),
     );
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async deleteOutfit(id: string): Promise<void> {
     await firstValueFrom(this.outfitsApi.delete(id));
     this.outfits.update((outfits) => outfits.filter((outfit) => outfit.id !== id));
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async markItemAsWorn(id: string): Promise<void> {
     const response = await firstValueFrom(this.wardrobeApi.markAsWorn(id));
     const updated = mapWardrobeItemDtoToModel(response);
     this.wardrobeItems.update((items) => items.map((item) => (item.id === id ? updated : item)));
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   async markOutfitAsWorn(id: string): Promise<void> {
@@ -495,7 +568,7 @@ export class WardrobeService {
         : this.fetchAccessoryById(item.itemId, true),
     );
     await Promise.allSettled(dependencyRefreshes);
-    this.invalidateDashboardSummary();
+    this.invalidateDashboardSections();
   }
 
   getOutfitsByDate(date: string): Outfit[] {
@@ -522,9 +595,15 @@ export class WardrobeService {
     );
   }
 
-  private invalidateDashboardSummary(): void {
-    this.dashboardSummaryLoadState.set('idle');
-    this.dashboardSummaryLoadPromise = null;
+  private invalidateDashboardSections(): void {
+    this.dashboardCountersLoadState.set('idle');
+    this.dashboardWearInsightsLoadState.set('idle');
+    this.dashboardRecentlyAddedLoadState.set('idle');
+    this.dashboardCategoryBreakdownLoadState.set('idle');
+    this.dashboardCountersLoadPromise = null;
+    this.dashboardWearInsightsLoadPromise = null;
+    this.dashboardRecentlyAddedLoadPromise = null;
+    this.dashboardCategoryBreakdownLoadPromise = null;
   }
 
   private async loadWardrobeData(force: boolean): Promise<void> {
@@ -789,30 +868,113 @@ export class WardrobeService {
     return loadPromise;
   }
 
-  private async loadDashboardSummaryData(force: boolean): Promise<void> {
-    if (this.dashboardSummaryLoadPromise) {
-      return this.dashboardSummaryLoadPromise;
+  private async loadDashboardCountersData(force: boolean): Promise<void> {
+    if (this.dashboardCountersLoadPromise) {
+      return this.dashboardCountersLoadPromise;
     }
-    if (!force && this.dashboardSummaryLoadState() === 'loaded') {
+    if (!force && this.dashboardCountersLoadState() === 'loaded') {
       return;
     }
 
-    this.dashboardSummaryLoadState.set('loading');
-    const loadPromise = firstValueFrom(this.dashboardApi.summary())
-      .then((summary) => {
-        this.dashboardSummaryData.set(mapDashboardSummaryDtoToModel(summary));
-        this.dashboardSummaryLoadState.set('loaded');
+    this.dashboardCountersLoadState.set('loading');
+    const loadPromise = firstValueFrom(this.dashboardApi.counters())
+      .then((counters) => {
+        this.dashboardCountersData.set(mapDashboardCountersDtoToModel(counters));
+        this.dashboardCountersLoadState.set('loaded');
       })
       .catch((error) => {
-        this.dashboardSummaryLoadState.set('error');
+        this.dashboardCountersLoadState.set('error');
         throw error;
       })
       .finally(() => {
-        if (this.dashboardSummaryLoadPromise === loadPromise) {
-          this.dashboardSummaryLoadPromise = null;
+        if (this.dashboardCountersLoadPromise === loadPromise) {
+          this.dashboardCountersLoadPromise = null;
         }
       });
-    this.dashboardSummaryLoadPromise = loadPromise;
+    this.dashboardCountersLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadDashboardWearInsightsData(force: boolean): Promise<void> {
+    if (this.dashboardWearInsightsLoadPromise) {
+      return this.dashboardWearInsightsLoadPromise;
+    }
+    if (!force && this.dashboardWearInsightsLoadState() === 'loaded') {
+      return;
+    }
+
+    this.dashboardWearInsightsLoadState.set('loading');
+    const loadPromise = firstValueFrom(this.dashboardApi.wearInsights())
+      .then((wearInsights) => {
+        this.dashboardWearInsightsData.set(mapDashboardWearInsightsDtoToModel(wearInsights));
+        this.dashboardWearInsightsLoadState.set('loaded');
+      })
+      .catch((error) => {
+        this.dashboardWearInsightsLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.dashboardWearInsightsLoadPromise === loadPromise) {
+          this.dashboardWearInsightsLoadPromise = null;
+        }
+      });
+    this.dashboardWearInsightsLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadDashboardRecentlyAddedData(force: boolean): Promise<void> {
+    if (this.dashboardRecentlyAddedLoadPromise) {
+      return this.dashboardRecentlyAddedLoadPromise;
+    }
+    if (!force && this.dashboardRecentlyAddedLoadState() === 'loaded') {
+      return;
+    }
+
+    this.dashboardRecentlyAddedLoadState.set('loading');
+    const loadPromise = firstValueFrom(this.dashboardApi.recentlyAdded())
+      .then((recentlyAdded) => {
+        this.dashboardRecentlyAddedData.set(mapDashboardRecentlyAddedDtoToModel(recentlyAdded));
+        this.dashboardRecentlyAddedLoadState.set('loaded');
+      })
+      .catch((error) => {
+        this.dashboardRecentlyAddedLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.dashboardRecentlyAddedLoadPromise === loadPromise) {
+          this.dashboardRecentlyAddedLoadPromise = null;
+        }
+      });
+    this.dashboardRecentlyAddedLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadDashboardCategoryBreakdownData(force: boolean): Promise<void> {
+    if (this.dashboardCategoryBreakdownLoadPromise) {
+      return this.dashboardCategoryBreakdownLoadPromise;
+    }
+    if (!force && this.dashboardCategoryBreakdownLoadState() === 'loaded') {
+      return;
+    }
+
+    this.dashboardCategoryBreakdownLoadState.set('loading');
+    const loadPromise = firstValueFrom(this.dashboardApi.categoryBreakdown())
+      .then((categoryBreakdown) => {
+        this.dashboardCategoryBreakdownData.set(
+          mapDashboardCategoryBreakdownDtoToModel(categoryBreakdown),
+        );
+        this.dashboardCategoryBreakdownLoadState.set('loaded');
+      })
+      .catch((error) => {
+        this.dashboardCategoryBreakdownLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.dashboardCategoryBreakdownLoadPromise === loadPromise) {
+          this.dashboardCategoryBreakdownLoadPromise = null;
+        }
+      });
+    this.dashboardCategoryBreakdownLoadPromise = loadPromise;
     return loadPromise;
   }
 

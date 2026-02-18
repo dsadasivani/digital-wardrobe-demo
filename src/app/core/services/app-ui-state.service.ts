@@ -43,6 +43,7 @@ export class AppUiStateService {
   private loaderTimer: ReturnType<typeof setTimeout> | null = null;
   private loadingStartedAt = 0;
   private readonly minLoaderMs = 240;
+  private skipNextRouteLoading = false;
   private nextScrollBehavior: ScrollBehavior = 'auto';
   private readonly resizeHandler = () => this.syncViewportState();
   private routerEventsSubscription: Subscription | null = null;
@@ -59,6 +60,11 @@ export class AppUiStateService {
 
     this.routerEventsSubscription = this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
+        if (this.skipNextRouteLoading) {
+          this.skipNextRouteLoading = false;
+          this.setRouteLoading(false);
+          return;
+        }
         this.loadingStartedAt = Date.now();
         this.setRouteLoading(true);
         return;
@@ -123,6 +129,10 @@ export class AppUiStateService {
   async navigateFromCreateMenu(route: '/wardrobe/add' | '/accessories/add'): Promise<void> {
     this.createMenuOpen.set(false);
     await this.router.navigate([route]);
+  }
+
+  suppressNextRouteLoader(): void {
+    this.skipNextRouteLoading = true;
   }
 
   onMobileNavTap(route: string, exact: boolean): void {

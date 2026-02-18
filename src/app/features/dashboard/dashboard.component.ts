@@ -61,6 +61,10 @@ import { WardrobeItem, Accessory } from '../../core/models';
 
       <!-- Stats Cards -->
       <section class="stats-section">
+        @if (isCountersLoading()) {
+          <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+        }
+
         <button
           class="stats-nav stats-prev"
           type="button"
@@ -142,7 +146,18 @@ import { WardrobeItem, Accessory } from '../../core/models';
           >
         </div>
 
-        @if (hasWardrobeItems()) {
+        @if (isCategoryBreakdownLoading()) {
+          <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+          <div class="category-grid">
+            @for (placeholder of loadingPlaceholders; track placeholder) {
+              <div class="category-card skeleton-card">
+                <div class="category-icon skeleton-block"></div>
+                <span class="category-name skeleton-line"></span>
+                <span class="category-count skeleton-line short"></span>
+              </div>
+            }
+          </div>
+        } @else if (hasWardrobeItems()) {
           <div class="category-grid">
             @for (cat of stats().categoryBreakdown; track cat.category) {
               <div class="category-card" [routerLink]="'/wardrobe/category/' + cat.category">
@@ -166,7 +181,7 @@ import { WardrobeItem, Accessory } from '../../core/models';
       </section>
 
       <!-- Recently Added -->
-      @if (hasWardrobeItems() && recentItems().length > 0) {
+      @if (isRecentlyAddedLoading() || (hasWardrobeItems() && recentItems().length > 0)) {
         <section class="recent-section">
           <div class="section-header">
             <h2>Recently Added</h2>
@@ -175,21 +190,46 @@ import { WardrobeItem, Accessory } from '../../core/models';
             >
           </div>
 
-          <div class="items-grid">
-            @for (item of recentItems(); track item.id) {
-              <dw-item-card
-                [item]="item"
-                (viewItem)="onViewItem($event)"
-                (toggleFavorite)="onToggleFavorite($event)"
-              >
-              </dw-item-card>
-            }
-          </div>
+          @if (isRecentlyAddedLoading()) {
+            <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+            <div class="items-grid">
+              @for (placeholder of loadingPlaceholders; track placeholder) {
+                <div class="item-skeleton-card skeleton-card"></div>
+              }
+            </div>
+          } @else {
+            <div class="items-grid">
+              @for (item of recentItems(); track item.id) {
+                <dw-item-card
+                  [item]="item"
+                  (viewItem)="onViewItem($event)"
+                  (toggleFavorite)="onToggleFavorite($event)"
+                >
+                </dw-item-card>
+              }
+            </div>
+          }
         </section>
       }
 
       <!-- Most Worn Item -->
-      @if (stats().mostWornItem) {
+      @if (isWearInsightsLoading()) {
+        <section class="highlight-section">
+          <div class="section-header">
+            <h2>Your Most Worn Item</h2>
+          </div>
+
+          <mat-progress-bar mode="indeterminate" class="section-loader"></mat-progress-bar>
+          <div class="highlight-card glass skeleton-card">
+            <div class="highlight-image skeleton-block"></div>
+            <div class="highlight-content">
+              <span class="highlight-badge skeleton-line short"></span>
+              <span class="highlight-title skeleton-line"></span>
+              <span class="highlight-meta-line skeleton-line medium"></span>
+            </div>
+          </div>
+        </section>
+      } @else if (stats().mostWornItem) {
         <section class="highlight-section">
           <div class="section-header">
             <h2>Your Most Worn Item</h2>
@@ -284,6 +324,11 @@ import { WardrobeItem, Accessory } from '../../core/models';
       .stats-section {
         position: relative;
         margin-bottom: var(--dw-spacing-2xl);
+      }
+
+      .section-loader {
+        margin-bottom: var(--dw-spacing-md);
+        border-radius: var(--dw-radius-full);
       }
 
       .stats-row {
@@ -656,6 +701,61 @@ import { WardrobeItem, Accessory } from '../../core/models';
         border-radius: var(--dw-radius-full);
       }
 
+      .skeleton-card {
+        pointer-events: none;
+      }
+
+      .skeleton-block,
+      .skeleton-line,
+      .item-skeleton-card {
+        background: linear-gradient(
+          90deg,
+          color-mix(in srgb, var(--dw-surface-card) 75%, transparent) 0%,
+          color-mix(in srgb, var(--dw-surface-elevated) 60%, transparent) 50%,
+          color-mix(in srgb, var(--dw-surface-card) 75%, transparent) 100%
+        );
+        background-size: 200% 100%;
+        animation: dashboard-skeleton-shimmer 1.2s linear infinite;
+      }
+
+      .skeleton-line {
+        width: 100%;
+        height: 14px;
+        border-radius: var(--dw-radius-sm);
+      }
+
+      .skeleton-line.short {
+        width: 45%;
+      }
+
+      .skeleton-line.medium {
+        width: 70%;
+      }
+
+      .item-skeleton-card {
+        height: 320px;
+        border-radius: var(--dw-radius-xl);
+      }
+
+      .highlight-title {
+        display: block;
+        height: 18px;
+      }
+
+      .highlight-meta-line {
+        display: block;
+        height: 16px;
+      }
+
+      @keyframes dashboard-skeleton-shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
       @media (max-width: 768px) {
         .dashboard {
           padding: var(--dw-spacing-md);
@@ -771,12 +871,21 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   user = this.authService.user;
   stats = this.wardrobeService.dashboardStats;
   recentItems = computed(() => this.stats().recentlyAdded);
-  hasWardrobeItems = computed(() => this.stats().totalItems > 0);
-
+  hasWardrobeItems = computed(
+    () =>
+      this.stats().categoryBreakdown.length > 0 ||
+      this.recentItems().length > 0 ||
+      !!this.stats().mostWornItem,
+  );
+  isCountersLoading = this.wardrobeService.dashboardCountersLoading;
+  isWearInsightsLoading = this.wardrobeService.dashboardWearInsightsLoading;
+  isRecentlyAddedLoading = this.wardrobeService.dashboardRecentlyAddedLoading;
+  isCategoryBreakdownLoading = this.wardrobeService.dashboardCategoryBreakdownLoading;
   favoriteCount = this.wardrobeService.favoriteCount;
   unusedCount = this.wardrobeService.unusedCount;
   canScrollStatsLeft = signal(false);
   canScrollStatsRight = signal(false);
+  loadingPlaceholders = [1, 2, 3, 4, 5, 6];
 
   ngOnInit(): void {
     void this.loadDashboardData();
@@ -861,12 +970,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     );
   }
 
-  private async loadDashboardData(): Promise<void> {
-    try {
-      await this.wardrobeService.ensureDashboardSummaryLoaded();
-    } catch {
+  private loadDashboardData(): void {
+    void this.wardrobeService.ensureDashboardCountersLoaded().catch(() => {
       // Keep dashboard shell interactive; data loading can be retried.
-    }
+    });
+    void this.wardrobeService.ensureDashboardWearInsightsLoaded().catch(() => {
+      // Keep dashboard shell interactive; data loading can be retried.
+    });
+    void this.wardrobeService.ensureDashboardRecentlyAddedLoaded().catch(() => {
+      // Keep dashboard shell interactive; data loading can be retried.
+    });
+    void this.wardrobeService.ensureDashboardCategoryBreakdownLoaded().catch(() => {
+      // Keep dashboard shell interactive; data loading can be retried.
+    });
   }
 }
 

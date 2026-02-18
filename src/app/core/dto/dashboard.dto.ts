@@ -5,14 +5,29 @@ export interface DashboardCategoryBreakdownDto {
   count: number;
 }
 
-export interface DashboardSummaryDto {
+export interface DashboardCountersDto {
   totalItems: number;
   totalAccessories: number;
   totalOutfits: number;
   favoriteCount: number;
   unusedCount: number;
+}
+
+export interface DashboardWearInsightsDto {
   mostWornItem: WardrobeItemDto | null;
   leastWornItems: WardrobeItemDto[];
+}
+
+export interface DashboardRecentlyAddedDto {
   recentlyAdded: WardrobeItemDto[];
+}
+
+export interface DashboardCategoryBreakdownResponseDto {
   categoryBreakdown: DashboardCategoryBreakdownDto[];
 }
+
+export interface DashboardSummaryDto
+  extends DashboardCountersDto,
+    DashboardWearInsightsDto,
+    DashboardRecentlyAddedDto,
+    DashboardCategoryBreakdownResponseDto {}

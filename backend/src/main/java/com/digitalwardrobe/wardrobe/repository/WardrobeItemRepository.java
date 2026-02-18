@@ -16,7 +16,7 @@ public interface WardrobeItemRepository extends MongoRepository<WardrobeItemDocu
     long countByUserIdAndWornLessThan(String userId, int wornThreshold);
     Optional<WardrobeItemDocument> findFirstByUserIdOrderByWornDescCreatedAtDesc(String userId);
     List<WardrobeItemDocument> findTop3ByUserIdOrderByWornAscCreatedAtDesc(String userId);
-    List<WardrobeItemDocument> findTop6ByUserIdOrderByCreatedAtDesc(String userId);
+    List<WardrobeItemDocument> findTop10ByUserIdOrderByCreatedAtDesc(String userId);
     Optional<WardrobeItemDocument> findByIdAndUserId(String id, String userId);
 
     @Aggregation(pipeline = {
