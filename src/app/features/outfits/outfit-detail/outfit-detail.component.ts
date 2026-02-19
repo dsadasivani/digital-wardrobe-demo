@@ -41,7 +41,29 @@ interface OutfitResolvedItem {
 
       <div class="detail-content">
         <div class="image-section glass">
-          <img [src]="selectedOutfit.imageUrl" [dwImageReady]="selectedOutfit.imageUrl" [alt]="selectedOutfit.name">
+          @if (detailPreviewImages(); as previewImages) {
+            @if (previewImages.length > 0) {
+              <div
+                class="hero-image-grid"
+                [class.layout-1]="previewImages.length === 1"
+                [class.layout-2]="previewImages.length === 2"
+                [class.layout-3]="previewImages.length === 3"
+              >
+                @for (imageUrl of previewImages; track imageUrl + '-' + $index) {
+                  <div class="hero-grid-cell">
+                    <img [src]="imageUrl" [dwImageReady]="imageUrl" [alt]="selectedOutfit.name + ' item ' + ($index + 1)" />
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="hero-image-fallback">
+                <mat-icon>style</mat-icon>
+              </div>
+            }
+          }
+          @if (hiddenDetailItemsCount() > 0) {
+            <div class="hero-more-badge">+{{ hiddenDetailItemsCount() }}</div>
+          }
           <div class="meta-overlay">
             @if (selectedOutfit.season) {
               <span class="badge">{{ selectedOutfit.season }}</span>
@@ -182,12 +204,9 @@ interface OutfitResolvedItem {
       overflow: hidden;
       position: relative;
       aspect-ratio: 3/4;
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
+      background:
+        radial-gradient(circle at 12% 14%, color-mix(in srgb, var(--dw-primary) 16%, transparent), transparent 58%),
+        var(--dw-surface-elevated);
 
       .meta-overlay {
         position: absolute;
@@ -205,6 +224,58 @@ interface OutfitResolvedItem {
           backdrop-filter: blur(4px);
         }
       }
+    }
+    .hero-image-grid {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
+      padding: 10px;
+    }
+    .hero-grid-cell {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--dw-border-subtle) 76%, transparent);
+      background: color-mix(in srgb, var(--dw-surface-card) 80%, black);
+    }
+    .hero-grid-cell img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .hero-image-grid.layout-1 .hero-grid-cell:nth-child(1) { grid-column: 1 / span 2; grid-row: 1 / span 2; }
+    .hero-image-grid.layout-2 .hero-grid-cell:nth-child(1) { grid-row: 1 / span 2; }
+    .hero-image-grid.layout-3 .hero-grid-cell:nth-child(1) { grid-row: 1 / span 2; }
+    .hero-image-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--dw-text-muted);
+    }
+    .hero-image-fallback mat-icon { font-size: 52px; width: 52px; height: 52px; }
+    .hero-more-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 2;
+      min-width: 40px;
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 90%, transparent);
+      color: var(--dw-on-primary);
+      border: 1px solid color-mix(in srgb, var(--dw-border-strong) 38%, transparent);
+      font-size: 13px;
+      font-weight: 700;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
     }
 
     .items-grid {
@@ -318,6 +389,19 @@ interface OutfitResolvedItem {
         border-radius: var(--dw-radius-lg);
       }
 
+      .hero-image-grid {
+        gap: 6px;
+        padding: 8px;
+      }
+      .hero-more-badge {
+        top: 10px;
+        right: 10px;
+        height: 30px;
+        min-width: 36px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
       .image-section .meta-overlay {
         left: 10px;
         bottom: 10px;
@@ -373,6 +457,37 @@ export class OutfitDetailComponent implements OnInit {
           type: sourceItem.type,
         };
       });
+    });
+    detailPreviewImages = computed<string[]>(() => {
+      const selectedOutfit = this.outfit();
+      if (!selectedOutfit) {
+        return [];
+      }
+
+      const uniqueImages: string[] = [];
+      for (const resolvedItem of this.resolvedItems()) {
+        const imageUrl = resolvedItem.data?.imageUrl;
+        if (!imageUrl || uniqueImages.includes(imageUrl)) {
+          continue;
+        }
+        uniqueImages.push(imageUrl);
+        if (uniqueImages.length === 4) {
+          return uniqueImages;
+        }
+      }
+
+      if (uniqueImages.length === 0 && selectedOutfit.imageUrl) {
+        uniqueImages.push(selectedOutfit.imageUrl);
+      }
+
+      return uniqueImages;
+    });
+    hiddenDetailItemsCount = computed<number>(() => {
+      const selectedOutfit = this.outfit();
+      if (!selectedOutfit) {
+        return 0;
+      }
+      return Math.max(0, selectedOutfit.items.length - 4);
     });
 
     ngOnInit() {

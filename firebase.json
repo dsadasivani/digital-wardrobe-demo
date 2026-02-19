@@ -1,4 +1,7 @@
 {
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "public": "dist\\digital-wardrobe\\browser",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],

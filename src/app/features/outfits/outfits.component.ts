@@ -61,7 +61,29 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
               [class.favorite]="outfit.favorite"
               [routerLink]="['/outfits', outfit.id]">
               <div class="outfit-image">
-                <img [src]="outfit.imageUrl" [dwImageReady]="outfit.imageUrl" [alt]="outfit.name">
+                @if (outfitPreviewImages(outfit); as previewImages) {
+                  @if (previewImages.length > 0) {
+                    <div
+                      class="outfit-image-grid"
+                      [class.layout-1]="previewImages.length === 1"
+                      [class.layout-2]="previewImages.length === 2"
+                      [class.layout-3]="previewImages.length === 3"
+                    >
+                      @for (imageUrl of previewImages; track imageUrl + '-' + $index) {
+                        <div class="grid-cell">
+                          <img [src]="imageUrl" [dwImageReady]="imageUrl" [alt]="outfit.name + ' item ' + ($index + 1)" />
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <div class="outfit-image-fallback">
+                      <mat-icon>style</mat-icon>
+                    </div>
+                  }
+                }
+                @if (hiddenItemsCount(outfit) > 0) {
+                  <div class="more-items-badge">+{{ hiddenItemsCount(outfit) }}</div>
+                }
                 @if (outfit.rating) {<div class="rating"><mat-icon>star</mat-icon>{{ outfit.rating }}</div>}
               </div>
               <div class="outfit-content">
@@ -133,7 +155,57 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
     .outfit-card { background: var(--dw-gradient-card); border-radius: var(--dw-radius-lg); border: 1px solid var(--dw-border-subtle); overflow: hidden; transition: all 0.25s; }
     .outfit-card:hover { transform: translateY(-4px); box-shadow: var(--dw-shadow-glow); }
     .outfit-image { position: relative; aspect-ratio: 4/5; overflow: hidden; }
-    .outfit-image img { width: 100%; height: 100%; object-fit: cover; }
+    .outfit-image-grid {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 6px;
+      padding: 8px;
+      background:
+        radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--dw-primary) 16%, transparent), transparent 58%),
+        var(--dw-surface-elevated);
+    }
+    .grid-cell {
+      border-radius: 12px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--dw-surface-card) 78%, black);
+      border: 1px solid color-mix(in srgb, var(--dw-border-subtle) 76%, transparent);
+    }
+    .grid-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .outfit-image-grid.layout-1 .grid-cell:nth-child(1) { grid-column: 1 / span 2; grid-row: 1 / span 2; }
+    .outfit-image-grid.layout-2 .grid-cell:nth-child(1) { grid-row: 1 / span 2; }
+    .outfit-image-grid.layout-3 .grid-cell:nth-child(1) { grid-row: 1 / span 2; }
+    .outfit-image-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--dw-text-muted);
+      background: var(--dw-surface-elevated);
+    }
+    .outfit-image-fallback mat-icon { font-size: 44px; width: 44px; height: 44px; }
+    .more-items-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      min-width: 36px;
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: color-mix(in srgb, var(--dw-overlay-scrim) 90%, transparent);
+      color: var(--dw-on-primary);
+      border: 1px solid color-mix(in srgb, var(--dw-border-strong) 38%, transparent);
+      font-size: 12px;
+      font-weight: 700;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
     .rating { position: absolute; bottom: 8px; left: 8px; display: flex; align-items: center; gap: 4px; background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent); padding: 4px 10px; border-radius: 20px; font-size: 13px; color: var(--dw-on-primary); }
     .rating mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--dw-warning); }
     .outfit-content { padding: var(--dw-spacing-md); }
@@ -178,6 +250,8 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 export class OutfitsComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
   outfits = this.wardrobeService.outfitList;
+  wardrobeItems = this.wardrobeService.items;
+  accessoryItems = this.wardrobeService.accessoryList;
   totalOutfits = this.wardrobeService.outfitsTotalElements;
   hasMoreOutfits = this.wardrobeService.hasMoreOutfitsPages;
   isLoadingMoreOutfits = this.wardrobeService.outfitsPageLoading;
@@ -200,10 +274,36 @@ export class OutfitsComponent implements OnInit {
     const total = this.totalOutfits();
     return total > 0 ? total : this.outfits().length;
   });
+  outfitPreviewMap = computed<Record<string, string[]>>(() => {
+    const wardrobeImageById = new Map(this.wardrobeItems().map(item => [item.id, item.imageUrl]));
+    const accessoryImageById = new Map(this.accessoryItems().map(item => [item.id, item.imageUrl]));
+    const map: Record<string, string[]> = {};
+
+    for (const outfit of this.outfits()) {
+      const uniqueImages: string[] = [];
+      for (const item of outfit.items) {
+        const imageUrl =
+          item.type === 'wardrobe'
+            ? wardrobeImageById.get(item.itemId)
+            : accessoryImageById.get(item.itemId);
+        if (!imageUrl || uniqueImages.includes(imageUrl)) {
+          continue;
+        }
+        uniqueImages.push(imageUrl);
+        if (uniqueImages.length === 4) {
+          break;
+        }
+      }
+      map[outfit.id] = uniqueImages.length > 0 ? uniqueImages : outfit.imageUrl ? [outfit.imageUrl] : [];
+    }
+
+    return map;
+  });
 
   private async loadOutfits(): Promise<void> {
     try {
       await this.wardrobeService.ensureOutfitsPageLoaded();
+      await this.hydratePreviewImages();
     } catch {
       // Keep page responsive while data retries on next navigation.
     }
@@ -216,8 +316,25 @@ export class OutfitsComponent implements OnInit {
   private async loadNextPage(): Promise<void> {
     try {
       await this.wardrobeService.loadNextOutfitsPage();
+      await this.hydratePreviewImages();
     } catch {
       // Keep filters and navigation responsive if page fetch fails.
     }
+  }
+
+  outfitPreviewImages(outfit: Outfit): string[] {
+    return this.outfitPreviewMap()[outfit.id] ?? [];
+  }
+
+  hiddenItemsCount(outfit: Outfit): number {
+    return Math.max(0, outfit.items.length - 4);
+  }
+
+  private async hydratePreviewImages(): Promise<void> {
+    const outfits = this.outfits();
+    if (outfits.length === 0) {
+      return;
+    }
+    await Promise.allSettled(outfits.map(outfit => this.wardrobeService.ensureOutfitDependenciesLoaded(outfit)));
   }
 }

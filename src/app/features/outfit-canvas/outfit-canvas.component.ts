@@ -118,6 +118,31 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
           <p class="form-error">{{ loadError() }}</p>
         }
 
+        <section class="canvas-toolbar glass">
+          <div class="toolbar-group">
+            <button mat-stroked-button type="button" (click)="autoArrange()">
+              <mat-icon>auto_awesome</mat-icon>Auto Arrange
+            </button>
+            <button mat-stroked-button type="button" (click)="fitItemsToCanvas()">
+              <mat-icon>fit_screen</mat-icon>Fit to Canvas
+            </button>
+            <button mat-stroked-button type="button" (click)="showGrid.set(!showGrid())">
+              <mat-icon>{{ showGrid() ? 'grid_off' : 'grid_on' }}</mat-icon>
+              Grid {{ showGrid() ? 'On' : 'Off' }}
+            </button>
+            <button mat-stroked-button type="button" (click)="snapToGrid.set(!snapToGrid())">
+              <mat-icon>{{ snapToGrid() ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+              Snap {{ snapToGrid() ? 'On' : 'Off' }}
+            </button>
+          </div>
+          <div class="toolbar-meta">
+            <span>{{ canvasItems().length }} items</span>
+            @if (selectedItem()) {
+              <span>Selected: {{ selectedItem()!.name }}</span>
+            }
+          </div>
+        </section>
+
         <section class="schedule-panel glass">
           <div class="schedule-header">
             <h4>Schedule Dates</h4>
@@ -191,27 +216,74 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
           }
         </section>
 
-        <div class="canvas" #canvasEl>
+        <div class="canvas" #canvasEl [class.grid-visible]="showGrid()" (click)="clearSelection()">
           <div class="canvas-bg">
             <span>Drag items here to create your outfit</span>
           </div>
           @for (item of canvasItems(); track item.type + '-' + item.id + '-' + $index; let i = $index) {
             <div
               class="canvas-item"
+              [class.selected]="selectedCanvasIndex() === i"
               cdkDrag
               [cdkDragBoundary]="'.canvas'"
               [style.left.px]="item.x"
               [style.top.px]="item.y"
               [style.z-index]="item.zIndex"
+              (click)="onCanvasItemClick(i, $event)"
               (cdkDragEnded)="onDragEnd($event, i)">
               <img [src]="item.imageUrl" [dwImageReady]="item.imageUrl" [alt]="item.name" [style.transform]="'scale(' + item.scale + ')'" />
               <div class="item-controls">
-                <button (click)="bringToFront(i)" matTooltip="Bring to front"><mat-icon>flip_to_front</mat-icon></button>
-                <button (click)="removeFromCanvas(i)" matTooltip="Remove"><mat-icon>close</mat-icon></button>
+                <button (click)="scaleItem(i, -0.05, $event)" matTooltip="Scale down"><mat-icon>remove</mat-icon></button>
+                <button (click)="scaleItem(i, 0.05, $event)" matTooltip="Scale up"><mat-icon>add</mat-icon></button>
+                <button (click)="bringToFront(i, $event)" matTooltip="Bring to front"><mat-icon>flip_to_front</mat-icon></button>
+                <button (click)="removeFromCanvas(i, $event)" matTooltip="Remove"><mat-icon>close</mat-icon></button>
               </div>
             </div>
           }
         </div>
+
+        @if (selectedItem(); as currentItem) {
+          <section class="item-editor glass">
+            <div class="item-editor-header">
+              <h4>Editing: {{ currentItem.name }}</h4>
+              <button mat-stroked-button type="button" (click)="clearSelection()">
+                <mat-icon>check</mat-icon>Done
+              </button>
+            </div>
+            <div class="item-editor-grid">
+              <div class="scale-controls">
+                <span>Scale</span>
+                <button type="button" (click)="scaleSelected(-0.05)">-</button>
+                <input
+                  type="range"
+                  min="0.6"
+                  max="1.8"
+                  step="0.05"
+                  [ngModel]="currentItem.scale"
+                  (ngModelChange)="setSelectedScale($event)"
+                />
+                <button type="button" (click)="scaleSelected(0.05)">+</button>
+              </div>
+              <div class="nudge-controls">
+                <span>Nudge</span>
+                <div class="nudge-pad">
+                  <button type="button" (click)="nudgeSelected(0, -12)">U</button>
+                  <button type="button" (click)="nudgeSelected(-12, 0)">L</button>
+                  <button type="button" (click)="nudgeSelected(12, 0)">R</button>
+                  <button type="button" (click)="nudgeSelected(0, 12)">D</button>
+                </div>
+              </div>
+              <div class="selected-actions">
+                <button mat-stroked-button type="button" (click)="bringSelectedToFront()">
+                  <mat-icon>flip_to_front</mat-icon>Bring Front
+                </button>
+                <button mat-stroked-button type="button" color="warn" (click)="removeSelected()">
+                  <mat-icon>delete</mat-icon>Remove
+                </button>
+              </div>
+            </div>
+          </section>
+        }
       </main>
     </div>
   `,
@@ -289,8 +361,25 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     .canvas-area { flex: 1; display: flex; flex-direction: column; padding: var(--dw-spacing-md); gap: var(--dw-spacing-md); }
     .canvas-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .outfit-name-field { flex: 1; min-width: 200px; max-width: 400px; }
-    .canvas-actions { display: flex; gap: 8px; }
+    .canvas-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
+    .canvas-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--dw-radius-lg);
+      flex-wrap: wrap;
+    }
+    .toolbar-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--dw-text-secondary); }
+    .toolbar-meta span {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(140,123,112,0.2);
+      background: var(--dw-surface-card);
+    }
     .save-btn {
       --mdc-protected-button-container-color: transparent !important;
       --mdc-protected-button-label-text-color: var(--dw-primary) !important;
@@ -314,20 +403,101 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     .date-chip mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .empty-date-text { font-size: 12px; color: var(--dw-text-secondary); }
     .mobile-items-panel { display: none; }
-    .canvas { flex: 1; position: relative; background: var(--dw-surface-elevated); border-radius: var(--dw-radius-xl); border: 1px solid var(--dw-border-subtle); overflow: hidden; min-height: 520px; }
+    .canvas { flex: 1; position: relative; background: var(--dw-surface-elevated); border-radius: var(--dw-radius-xl); border: 1px solid var(--dw-border-subtle); overflow: hidden; min-height: 520px; isolation: isolate; }
+    .canvas.grid-visible::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, color-mix(in srgb, var(--dw-text-muted) 15%, transparent) 1px, transparent 1px),
+        linear-gradient(to bottom, color-mix(in srgb, var(--dw-text-muted) 15%, transparent) 1px, transparent 1px);
+      background-size: 24px 24px;
+      opacity: 0.45;
+      pointer-events: none;
+      z-index: 0;
+    }
     .canvas-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dw-text-muted); pointer-events: none; }
     .canvas-item { position: absolute; cursor: move; border-radius: var(--dw-radius-md); transition: box-shadow 0.15s; }
     .canvas-item:hover { box-shadow: 0 0 0 2px var(--dw-primary); }
+    .canvas-item.selected { box-shadow: 0 0 0 2px color-mix(in srgb, var(--dw-primary) 74%, white); }
     .canvas-item img { width: clamp(110px, 16vw, 150px); height: auto; border-radius: var(--dw-radius-md); pointer-events: none; }
     .item-controls { position: absolute; top: -8px; right: -8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
-    .canvas-item:hover .item-controls { opacity: 1; }
+    .canvas-item:hover .item-controls, .canvas-item.selected .item-controls { opacity: 1; }
     .item-controls button { width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .item-controls button:hover { background: var(--dw-primary); color: white; }
     .item-controls mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .item-editor {
+      padding: 10px 12px;
+      border-radius: var(--dw-radius-lg);
+      display: grid;
+      gap: 10px;
+    }
+    .item-editor-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .item-editor-header h4 { margin: 0; font-size: 0.95rem; }
+    .item-editor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+    .scale-controls,
+    .nudge-controls,
+    .selected-actions {
+      border: 1px solid rgba(140,123,112,0.2);
+      border-radius: var(--dw-radius-md);
+      background: var(--dw-surface-card);
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+    }
+    .scale-controls span,
+    .nudge-controls span {
+      font-size: 11px;
+      color: var(--dw-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .scale-controls { grid-template-columns: auto auto 1fr auto; align-items: center; }
+    .scale-controls input[type="range"] { width: 100%; accent-color: var(--dw-primary); }
+    .scale-controls button,
+    .nudge-pad button {
+      border: 1px solid rgba(140,123,112,0.2);
+      border-radius: 8px;
+      background: var(--dw-surface-elevated);
+      color: var(--dw-text-primary);
+      cursor: pointer;
+      height: 30px;
+      min-width: 30px;
+    }
+    .scale-controls button:hover,
+    .nudge-pad button:hover {
+      border-color: color-mix(in srgb, var(--dw-primary) 50%, transparent);
+      color: var(--dw-primary);
+    }
+    .nudge-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 30px);
+      grid-template-rows: repeat(2, 30px);
+      gap: 4px;
+      justify-content: start;
+      grid-template-areas:
+        ". up ."
+        "left down right";
+    }
+    .nudge-pad button:nth-child(1) { grid-area: up; }
+    .nudge-pad button:nth-child(2) { grid-area: left; }
+    .nudge-pad button:nth-child(3) { grid-area: right; }
+    .nudge-pad button:nth-child(4) { grid-area: down; }
+    .selected-actions { align-content: center; }
+    .selected-actions button { justify-content: flex-start; }
     @media (max-width: 768px) {
       .items-panel { display: none; }
       .outfit-canvas-page { display: block; }
       .canvas-area { padding: 10px; gap: 10px; }
+      .canvas-toolbar { padding: 10px; }
+      .toolbar-group { width: 100%; }
+      .toolbar-group button { flex: 1 1 140px; }
+      .toolbar-meta { width: 100%; }
       .mobile-items-panel { display: block; padding: 10px; border-radius: var(--dw-radius-lg); }
       .mobile-items-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
       .mobile-items-header h4 { margin: 0; font-size: 0.92rem; }
@@ -376,6 +546,8 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
       .schedule-header { flex-direction: column; align-items: flex-start; }
       .canvas { min-height: 360px; }
       .item-controls { opacity: 1; }
+      .item-editor-grid { grid-template-columns: 1fr; }
+      .scale-controls { grid-template-columns: auto auto 1fr auto; }
     }
   `],
 })
@@ -384,6 +556,10 @@ export class OutfitCanvasComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private canvasRef = viewChild<ElementRef<HTMLDivElement>>('canvasEl');
+  private readonly itemWidth = 140;
+  private readonly itemHeight = 170;
+  private readonly boundaryPadding = 8;
+  private readonly gridStep = 12;
 
   wardrobeItems = this.wardrobeService.items;
   accessoryItems = this.wardrobeService.accessoryList;
@@ -402,14 +578,25 @@ export class OutfitCanvasComponent implements OnInit {
   mobileCatalogOpen = signal(true);
   sourceFilter = signal<CanvasSourceFilter>('wardrobe');
   selectedMobileItemKey = signal<string | null>(null);
+  selectedCanvasIndex = signal<number | null>(null);
+  showGrid = signal(true);
+  snapToGrid = signal(false);
   saveError = signal<string | null>(null);
   loadError = signal<string | null>(null);
   isSaving = signal(false);
   private maxZ = signal(1);
+  private lastCanvasBounds = signal<{ width: number; height: number } | null>(null);
 
   filteredAvailableItems = computed(() =>
     this.availableItems().filter(item => item.type === this.sourceFilter())
   );
+  selectedItem = computed<CanvasPlacedItem | null>(() => {
+    const index = this.selectedCanvasIndex();
+    if (index === null) {
+      return null;
+    }
+    return this.canvasItems()[index] ?? null;
+  });
 
   ngOnInit(): void {
     const preselectedDate = this.normalizeDate(this.route.snapshot.queryParamMap.get('date') ?? '');
@@ -434,6 +621,7 @@ export class OutfitCanvasComponent implements OnInit {
     }
 
     if (!id) {
+      this.requestCanvasReflow('clamp');
       return;
     }
 
@@ -458,6 +646,8 @@ export class OutfitCanvasComponent implements OnInit {
     this.plannedDates.set([...(outfit.plannedDates ?? [])].sort());
 
     const sourceById = new Map(this.availableItems().map(item => [item.id, item]));
+    const bounds = this.getCanvasBounds();
+    this.lastCanvasBounds.set(bounds);
     const placed: CanvasPlacedItem[] = outfit.items
       .map(item => {
         const source = sourceById.get(item.itemId);
@@ -466,33 +656,43 @@ export class OutfitCanvasComponent implements OnInit {
         }
         return {
           ...source,
-          x: item.positionX,
-          y: item.positionY,
-          scale: item.scale,
+          x: this.decodeStoredPosition(item.positionX, bounds.width),
+          y: this.decodeStoredPosition(item.positionY, bounds.height),
+          scale: this.clampScale(item.scale),
           zIndex: item.zIndex,
         };
       })
       .filter((item): item is CanvasPlacedItem => item !== null);
-    this.canvasItems.set(placed);
+    this.canvasItems.set(placed.map(item => ({ ...item, ...this.clampPosition(item.x, item.y, false) })));
     this.maxZ.set(Math.max(1, ...placed.map(item => item.zIndex + 1)));
+    this.requestCanvasReflow('proportional');
   }
 
   addToCanvas(item: CanvasSourceItem): void {
     const { width, height } = this.getCanvasBounds();
-    const imageWidth = 140;
-    const imageHeight = 170;
-    const safeX = Math.max(12, width - imageWidth - 12);
-    const safeY = Math.max(12, height - imageHeight - 12);
-    this.canvasItems.update(items => [
-      ...items,
-      {
-        ...item,
-        x: 12 + Math.random() * safeX,
-        y: 12 + Math.random() * safeY,
-        scale: 1,
-        zIndex: this.nextZIndex(),
-      },
-    ]);
+    const safeX = Math.max(0, width - this.itemWidth - this.boundaryPadding * 2);
+    const safeY = Math.max(0, height - this.itemHeight - this.boundaryPadding * 2);
+    const nextPosition = this.clampPosition(
+      this.boundaryPadding + Math.random() * safeX,
+      this.boundaryPadding + Math.random() * safeY,
+      this.snapToGrid(),
+    );
+    const zIndex = this.nextZIndex();
+    let nextIndex = 0;
+    this.canvasItems.update(items => {
+      nextIndex = items.length;
+      return [
+        ...items,
+        {
+          ...item,
+          x: nextPosition.x,
+          y: nextPosition.y,
+          scale: 1,
+          zIndex,
+        },
+      ];
+    });
+    this.selectedCanvasIndex.set(nextIndex);
   }
 
   selectMobileItem(item: CanvasSourceItem): void {
@@ -510,8 +710,14 @@ export class OutfitCanvasComponent implements OnInit {
     this.selectedMobileItemKey.set(null);
   }
 
+  onCanvasItemClick(index: number, event: Event): void {
+    event.stopPropagation();
+    this.selectedCanvasIndex.set(index);
+  }
+
   onDragEnd(event: CdkDragEnd, index: number): void {
     const delta = event.source.getFreeDragPosition();
+    this.selectedCanvasIndex.set(index);
     this.canvasItems.update(items => {
       const next = [...items];
       const current = next[index];
@@ -522,25 +728,99 @@ export class OutfitCanvasComponent implements OnInit {
     event.source.reset();
   }
 
-  removeFromCanvas(index: number): void {
+  removeFromCanvas(index: number, event?: Event): void {
+    event?.stopPropagation();
     this.canvasItems.update(items => items.filter((_, i) => i !== index));
+    this.selectedCanvasIndex.update(selected => {
+      if (selected === null) {
+        return null;
+      }
+      if (selected === index) {
+        return null;
+      }
+      return selected > index ? selected - 1 : selected;
+    });
   }
 
-  bringToFront(index: number): void {
+  bringToFront(index: number, event?: Event): void {
+    event?.stopPropagation();
     this.canvasItems.update(items => {
       const next = [...items];
       next[index] = { ...next[index], zIndex: this.nextZIndex() };
       return next;
     });
+    this.selectedCanvasIndex.set(index);
+  }
+
+  scaleItem(index: number, delta: number, event?: Event): void {
+    event?.stopPropagation();
+    this.canvasItems.update(items => {
+      const next = [...items];
+      const current = next[index];
+      next[index] = { ...current, scale: this.clampScale(current.scale + delta) };
+      return next;
+    });
+    this.selectedCanvasIndex.set(index);
   }
 
   clearCanvas(): void {
     this.canvasItems.set([]);
+    this.selectedCanvasIndex.set(null);
   }
 
   @HostListener('window:resize')
   onWindowResize(): void {
-    this.canvasItems.update(items => items.map(item => ({ ...item, ...this.clampPosition(item.x, item.y) })));
+    this.requestCanvasReflow('proportional');
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onWindowKeydown(event: KeyboardEvent): void {
+    if (this.selectedCanvasIndex() === null) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+    ) {
+      return;
+    }
+
+    const step = event.shiftKey ? this.gridStep * 2 : this.gridStep;
+    switch (event.key) {
+      case 'ArrowUp':
+        this.nudgeSelected(0, -step);
+        event.preventDefault();
+        break;
+      case 'ArrowDown':
+        this.nudgeSelected(0, step);
+        event.preventDefault();
+        break;
+      case 'ArrowLeft':
+        this.nudgeSelected(-step, 0);
+        event.preventDefault();
+        break;
+      case 'ArrowRight':
+        this.nudgeSelected(step, 0);
+        event.preventDefault();
+        break;
+      case 'Delete':
+      case 'Backspace':
+        this.removeSelected();
+        event.preventDefault();
+        break;
+      case '[':
+        this.scaleSelected(-0.05);
+        event.preventDefault();
+        break;
+      case ']':
+        this.scaleSelected(0.05);
+        event.preventDefault();
+        break;
+      default:
+        break;
+    }
   }
 
   addDate(): void {
@@ -576,18 +856,19 @@ export class OutfitCanvasComponent implements OnInit {
     }
     this.saveError.set(null);
     this.isSaving.set(true);
+    const { width, height } = this.getCanvasBounds();
 
     const items: OutfitItem[] = this.canvasItems().map(item => ({
       itemId: item.id,
       type: item.type,
-      positionX: item.x,
-      positionY: item.y,
+      positionX: this.encodePosition(item.x, width),
+      positionY: this.encodePosition(item.y, height),
       scale: item.scale,
       rotation: 0,
       zIndex: item.zIndex,
     }));
 
-    const imageUrl = this.canvasItems()[0]?.imageUrl;
+    const imageUrl = [...this.canvasItems()].sort((left, right) => right.zIndex - left.zIndex)[0]?.imageUrl;
     const plannedDates = [...this.plannedDates()].sort();
     const editId = this.editingOutfitId();
 
@@ -624,6 +905,92 @@ export class OutfitCanvasComponent implements OnInit {
       return;
     }
     this.router.navigate(['/outfits']);
+  }
+
+  clearSelection(): void {
+    this.selectedCanvasIndex.set(null);
+  }
+
+  fitItemsToCanvas(): void {
+    this.reflowCanvasItems('clamp');
+  }
+
+  autoArrange(): void {
+    const { width } = this.getCanvasBounds();
+    const usableWidth = Math.max(1, width - this.boundaryPadding * 2);
+    const slotWidth = this.itemWidth + this.gridStep * 2;
+    const columns = Math.max(1, Math.floor((usableWidth + this.gridStep) / slotWidth));
+
+    this.canvasItems.update(items =>
+      items.map((item, index) => {
+        const column = index % columns;
+        const row = Math.floor(index / columns);
+        const targetX = this.boundaryPadding + column * slotWidth;
+        const targetY = this.boundaryPadding + row * (this.itemHeight + this.gridStep * 2);
+        const clamped = this.clampPosition(targetX, targetY, true);
+        return {
+          ...item,
+          x: clamped.x,
+          y: clamped.y,
+          zIndex: index + 1,
+        };
+      })
+    );
+    this.maxZ.set(Math.max(1, this.canvasItems().length + 1));
+  }
+
+  bringSelectedToFront(): void {
+    const index = this.selectedCanvasIndex();
+    if (index === null) {
+      return;
+    }
+    this.bringToFront(index);
+  }
+
+  removeSelected(): void {
+    const index = this.selectedCanvasIndex();
+    if (index === null) {
+      return;
+    }
+    this.removeFromCanvas(index);
+  }
+
+  scaleSelected(delta: number): void {
+    const index = this.selectedCanvasIndex();
+    if (index === null) {
+      return;
+    }
+    this.scaleItem(index, delta);
+  }
+
+  setSelectedScale(value: number | string): void {
+    const index = this.selectedCanvasIndex();
+    if (index === null) {
+      return;
+    }
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+    this.canvasItems.update(items => {
+      const next = [...items];
+      next[index] = { ...next[index], scale: this.clampScale(parsed) };
+      return next;
+    });
+  }
+
+  nudgeSelected(deltaX: number, deltaY: number): void {
+    const index = this.selectedCanvasIndex();
+    if (index === null) {
+      return;
+    }
+    this.canvasItems.update(items => {
+      const next = [...items];
+      const current = next[index];
+      const clamped = this.clampPosition(current.x + deltaX, current.y + deltaY);
+      next[index] = { ...current, x: clamped.x, y: clamped.y };
+      return next;
+    });
   }
 
   private toSource(item: WardrobeItem | Accessory, type: 'wardrobe' | 'accessory'): CanvasSourceItem {
@@ -663,16 +1030,16 @@ export class OutfitCanvasComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
 
-  private clampPosition(x: number, y: number): { x: number; y: number } {
+  private clampPosition(x: number, y: number, snap = this.snapToGrid()): { x: number; y: number } {
     const { width, height } = this.getCanvasBounds();
-    const imageWidth = 140;
-    const imageHeight = 170;
-    const min = 8;
-    const maxX = Math.max(min, width - imageWidth - min);
-    const maxY = Math.max(min, height - imageHeight - min);
+    const min = this.boundaryPadding;
+    const maxX = Math.max(min, width - this.itemWidth - min);
+    const maxY = Math.max(min, height - this.itemHeight - min);
+    const snappedX = snap ? this.snapValue(x) : x;
+    const snappedY = snap ? this.snapValue(y) : y;
     return {
-      x: Math.min(Math.max(x, min), maxX),
-      y: Math.min(Math.max(y, min), maxY),
+      x: Math.min(Math.max(snappedX, min), maxX),
+      y: Math.min(Math.max(snappedY, min), maxY),
     };
   }
 
@@ -691,6 +1058,58 @@ export class OutfitCanvasComponent implements OnInit {
     const current = this.maxZ();
     this.maxZ.set(current + 1);
     return current;
+  }
+
+  private snapValue(value: number): number {
+    return Math.round(value / this.gridStep) * this.gridStep;
+  }
+
+  private clampScale(scale: number): number {
+    return Math.min(Math.max(scale, 0.6), 1.8);
+  }
+
+  private encodePosition(value: number, bound: number): number {
+    if (bound <= 0 || !Number.isFinite(value)) {
+      return 0;
+    }
+    return Number((value / bound).toFixed(6));
+  }
+
+  private decodeStoredPosition(value: number, bound: number): number {
+    if (!Number.isFinite(value)) {
+      return this.boundaryPadding;
+    }
+    if (value >= 0 && value <= 1) {
+      return value * bound;
+    }
+    return value;
+  }
+
+  private requestCanvasReflow(mode: 'proportional' | 'clamp'): void {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => this.reflowCanvasItems(mode));
+    });
+  }
+
+  private reflowCanvasItems(mode: 'proportional' | 'clamp'): void {
+    const currentBounds = this.getCanvasBounds();
+    const previousBounds = this.lastCanvasBounds();
+
+    if (this.canvasItems().length > 0) {
+      const canScale = mode === 'proportional' && previousBounds !== null;
+      const widthScale = canScale ? currentBounds.width / Math.max(previousBounds.width, 1) : 1;
+      const heightScale = canScale ? currentBounds.height / Math.max(previousBounds.height, 1) : 1;
+      this.canvasItems.update(items =>
+        items.map(item => {
+          const scaledX = canScale ? item.x * widthScale : item.x;
+          const scaledY = canScale ? item.y * heightScale : item.y;
+          const clamped = this.clampPosition(scaledX, scaledY);
+          return { ...item, x: clamped.x, y: clamped.y };
+        }),
+      );
+    }
+
+    this.lastCanvasBounds.set(currentBounds);
   }
 
   private extractErrorMessage(error: unknown): string {
