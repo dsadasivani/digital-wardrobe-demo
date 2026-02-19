@@ -761,25 +761,6 @@ h4 {
     height: 17px;
   }
 
-  .spotlight-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    color: white;
-    background: var(--dw-gradient-primary);
-    box-shadow: var(--dw-shadow-glow);
-    animation: dw-spotlight-pulse 1.25s ease-in-out infinite;
-    z-index: 1;
-  }
-
-  .spotlight-icon mat-icon {
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
-  }
-
   .skeleton-card {
     position: relative;
     overflow: hidden;
@@ -1139,11 +1120,11 @@ h4 {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--dw-primary) 28%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--dw-primary) 22%, transparent);
   }
   50% {
-    transform: scale(1.08);
-    box-shadow: 0 0 0 12px color-mix(in srgb, var(--dw-primary) 0%, transparent);
+    transform: scale(1.03);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--dw-primary) 0%, transparent);
   }
 }
 

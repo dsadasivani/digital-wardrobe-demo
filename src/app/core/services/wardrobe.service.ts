@@ -1,4 +1,4 @@
-import { inject, Injectable, computed, signal } from '@angular/core';
+import { computed, inject, Injectable, isDevMode, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
   WardrobeItem,
@@ -37,6 +37,7 @@ import {
 
 type DataLoadState = 'idle' | 'loading' | 'loaded' | 'error';
 const DEFAULT_COLLECTION_PAGE_SIZE = 10;
+const DASHBOARD_DEBUG_LOADER_DELAY_MS_STORAGE_KEY = 'dw-debug-dashboard-loader-ms';
 
 @Injectable({
   providedIn: 'root',
@@ -877,9 +878,11 @@ export class WardrobeService {
     }
 
     this.dashboardCountersLoadState.set('loading');
+    const loaderStartedAt = Date.now();
     const loadPromise = firstValueFrom(this.dashboardApi.counters())
-      .then((counters) => {
+      .then(async (counters) => {
         this.dashboardCountersData.set(mapDashboardCountersDtoToModel(counters));
+        await this.ensureDashboardLoaderMinimumDuration(loaderStartedAt);
         this.dashboardCountersLoadState.set('loaded');
       })
       .catch((error) => {
@@ -958,11 +961,13 @@ export class WardrobeService {
     }
 
     this.dashboardCategoryBreakdownLoadState.set('loading');
+    const loaderStartedAt = Date.now();
     const loadPromise = firstValueFrom(this.dashboardApi.categoryBreakdown())
-      .then((categoryBreakdown) => {
+      .then(async (categoryBreakdown) => {
         this.dashboardCategoryBreakdownData.set(
           mapDashboardCategoryBreakdownDtoToModel(categoryBreakdown),
         );
+        await this.ensureDashboardLoaderMinimumDuration(loaderStartedAt);
         this.dashboardCategoryBreakdownLoadState.set('loaded');
       })
       .catch((error) => {
@@ -976,6 +981,42 @@ export class WardrobeService {
       });
     this.dashboardCategoryBreakdownLoadPromise = loadPromise;
     return loadPromise;
+  }
+
+  private async ensureDashboardLoaderMinimumDuration(startedAt: number): Promise<void> {
+    const minimumDurationMs = this.getDashboardDebugLoaderDelayMs();
+    if (minimumDurationMs <= 0) {
+      return;
+    }
+
+    const elapsedMs = Date.now() - startedAt;
+    const remainingMs = minimumDurationMs - elapsedMs;
+    if (remainingMs <= 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, remainingMs);
+    });
+  }
+
+  private getDashboardDebugLoaderDelayMs(): number {
+    if (!isDevMode()) {
+      return 0;
+    }
+
+    try {
+      const rawValue = globalThis.localStorage?.getItem(
+        DASHBOARD_DEBUG_LOADER_DELAY_MS_STORAGE_KEY,
+      );
+      const parsedValue = Number(rawValue ?? '');
+      if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+        return 0;
+      }
+      return Math.floor(parsedValue);
+    } catch {
+      return 0;
+    }
   }
 
   private mergeDistinctById<T extends { id: string }>(existing: T[], incoming: T[]): T[] {

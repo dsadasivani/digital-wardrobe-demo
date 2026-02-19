@@ -69,81 +69,81 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
               <span class="loader-icon-chip"><mat-icon>watch</mat-icon></span>
               <span class="loader-icon-chip"><mat-icon>style</mat-icon></span>
             </div>
-            <span class="loader-caption">Styling your dashboard counters...</span>
+            <span class="loader-caption">Tailoring your style stats...</span>
           </div>
+        } @else {
+          <button
+            class="stats-nav stats-prev"
+            type="button"
+            aria-label="Scroll stats left"
+            [class.visible]="canScrollStatsLeft()"
+            (click)="scrollStats('left')"
+          >
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+
+          <div #statsRow class="stats-row" (scroll)="onStatsScroll()">
+            <div class="stat-card" (click)="navigateTo('/wardrobe')">
+              <div class="stat-icon wardrobe">
+                <mat-icon>checkroom</mat-icon>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value">{{ stats().totalItems }}</span>
+                <span class="stat-label">Total Items</span>
+              </div>
+            </div>
+
+            <div class="stat-card" (click)="navigateTo('/accessories')">
+              <div class="stat-icon accessories">
+                <mat-icon>watch</mat-icon>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value">{{ stats().totalAccessories }}</span>
+                <span class="stat-label">Accessories</span>
+              </div>
+            </div>
+
+            <div class="stat-card" (click)="navigateTo('/outfits')">
+              <div class="stat-icon outfits">
+                <mat-icon>style</mat-icon>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value">{{ stats().totalOutfits }}</span>
+                <span class="stat-label">Saved Outfits</span>
+              </div>
+            </div>
+
+            <div class="stat-card" (click)="openFavorites()">
+              <div class="stat-icon favorites">
+                <mat-icon>favorite</mat-icon>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value">{{ favoriteCount() }}</span>
+                <span class="stat-label">Favorites</span>
+              </div>
+            </div>
+
+            <div class="stat-card" (click)="openRarelyUsed()">
+              <div class="stat-icon unused">
+                <mat-icon>visibility_off</mat-icon>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value">{{ unusedCount() }}</span>
+                <span class="stat-label">Rarely Used</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            class="stats-nav stats-next"
+            type="button"
+            aria-label="Scroll stats right"
+            [class.visible]="canScrollStatsRight()"
+            (click)="scrollStats('right')"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
         }
-
-        <button
-          class="stats-nav stats-prev"
-          type="button"
-          aria-label="Scroll stats left"
-          [class.visible]="canScrollStatsLeft()"
-          (click)="scrollStats('left')"
-        >
-          <mat-icon>chevron_left</mat-icon>
-        </button>
-
-        <div #statsRow class="stats-row" (scroll)="onStatsScroll()">
-          <div class="stat-card" (click)="navigateTo('/wardrobe')">
-            <div class="stat-icon wardrobe">
-              <mat-icon>checkroom</mat-icon>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stats().totalItems }}</span>
-              <span class="stat-label">Total Items</span>
-            </div>
-          </div>
-
-          <div class="stat-card" (click)="navigateTo('/accessories')">
-            <div class="stat-icon accessories">
-              <mat-icon>watch</mat-icon>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stats().totalAccessories }}</span>
-              <span class="stat-label">Accessories</span>
-            </div>
-          </div>
-
-          <div class="stat-card" (click)="navigateTo('/outfits')">
-            <div class="stat-icon outfits">
-              <mat-icon>style</mat-icon>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stats().totalOutfits }}</span>
-              <span class="stat-label">Saved Outfits</span>
-            </div>
-          </div>
-
-          <div class="stat-card" (click)="openFavorites()">
-            <div class="stat-icon favorites">
-              <mat-icon>favorite</mat-icon>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ favoriteCount() }}</span>
-              <span class="stat-label">Favorites</span>
-            </div>
-          </div>
-
-          <div class="stat-card" (click)="openRarelyUsed()">
-            <div class="stat-icon unused">
-              <mat-icon>visibility_off</mat-icon>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ unusedCount() }}</span>
-              <span class="stat-label">Rarely Used</span>
-            </div>
-          </div>
-        </div>
-
-        <button
-          class="stats-nav stats-next"
-          type="button"
-          aria-label="Scroll stats right"
-          [class.visible]="canScrollStatsRight()"
-          (click)="scrollStats('right')"
-        >
-          <mat-icon>chevron_right</mat-icon>
-        </button>
       </section>
       <!-- Category Breakdown -->
       <section class="category-section">
@@ -256,8 +256,10 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
           </div>
 
           <div class="spotlight-loader" role="status" aria-live="polite">
-            <div class="spotlight-icon">
-              <mat-icon>emoji_events</mat-icon>
+            <div class="loader-icons">
+              <span class="loader-icon-chip"><mat-icon>emoji_events</mat-icon></span>
+              <span class="loader-icon-chip"><mat-icon>auto_awesome</mat-icon></span>
+              <span class="loader-icon-chip"><mat-icon>checkroom</mat-icon></span>
             </div>
             <span class="loader-caption">Finding your star outfit...</span>
           </div>

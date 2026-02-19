@@ -12,6 +12,26 @@ ng serve
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
+## Dashboard Loader Debug (Dev Only)
+
+To force dashboard in-page loaders to remain visible for testing, set a minimum loader duration (in milliseconds) in browser `localStorage`:
+
+```js
+localStorage.setItem('dw-debug-dashboard-loader-ms', '1200');
+```
+
+Reload the dashboard page after setting it.
+
+To disable this debug behavior:
+
+```js
+localStorage.removeItem('dw-debug-dashboard-loader-ms');
+```
+
+Notes:
+- This is read only in Angular dev mode.
+- It affects dashboard counters and category breakdown loader minimum duration.
+
 ## Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
