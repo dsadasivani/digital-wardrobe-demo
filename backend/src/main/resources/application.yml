@@ -20,6 +20,19 @@ springdoc:
     enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
     operationsSorter: method
     tagsSorter: alpha
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    mongodb:
+      enabled: false
 
 app:
   bootstrap:
