@@ -153,21 +153,21 @@ public class DashboardService {
 
         if (!imagePaths.isEmpty()) {
             try {
-                Map<String, String> signedUrlMap = firebaseStorageService.resolveSignedUrlMap(imagePaths);
-                List<String> signedUrls = imagePaths.stream()
-                        .map(path -> signedUrlMap.get(path))
-                        .filter(StringUtils::hasText)
-                        .toList();
-                if (!signedUrls.isEmpty()) {
-                    imageUrls = signedUrls;
-                    primaryImageUrl = signedUrlMap.get(primaryImagePath);
-                    if (!StringUtils.hasText(primaryImageUrl)) {
-                        primaryImageUrl = imageUrls.getFirst();
-                    }
+                Map<String, String> signedUrlMap = firebaseStorageService
+                        .resolvePreviewSignedUrlMap(List.of(primaryImagePath));
+                String signedPrimaryUrl = signedUrlMap.get(primaryImagePath);
+                if (StringUtils.hasText(signedPrimaryUrl)) {
+                    primaryImageUrl = signedPrimaryUrl;
                 }
             } catch (ResponseStatusException ignored) {
                 // Keep fallback URLs when signing is unavailable.
             }
+        }
+        int imageCount = !imagePaths.isEmpty() ? imagePaths.size() : imageUrls.size();
+        if (StringUtils.hasText(primaryImageUrl)) {
+            imageUrls = List.of(primaryImageUrl);
+        } else if (!imageUrls.isEmpty()) {
+            imageUrls = List.of(imageUrls.getFirst());
         }
 
         return new WardrobeItemResponse(
@@ -183,6 +183,7 @@ public class DashboardService {
                 item.getPurchaseDate(),
                 primaryImageUrl,
                 imageUrls,
+                imageCount,
                 primaryImageUrl,
                 imagePaths,
                 primaryImagePath,

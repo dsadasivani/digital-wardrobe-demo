@@ -10,6 +10,7 @@ import type {
 export function mapWardrobeItemDtoToModel(dto: WardrobeItemDto): WardrobeItem {
     const imageUrls = normalizeImageUrls(dto.imageUrls, dto.imageUrl);
     const primaryImageUrl = normalizePrimaryImageUrl(dto.primaryImageUrl, imageUrls, dto.imageUrl);
+    const prioritizedImageUrls = prioritizePrimaryImage(imageUrls, primaryImageUrl);
     const imagePaths = normalizeImagePaths(dto.imagePaths);
     const primaryImagePath = normalizePrimaryImagePath(dto.primaryImagePath, imagePaths);
     return {
@@ -24,7 +25,8 @@ export function mapWardrobeItemDtoToModel(dto: WardrobeItemDto): WardrobeItem {
         price: dto.price ?? undefined,
         purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : undefined,
         imageUrl: primaryImageUrl,
-        imageUrls: prioritizePrimaryImage(imageUrls, primaryImageUrl),
+        imageUrls: prioritizedImageUrls,
+        imageCount: Math.max(dto.imageCount ?? 0, prioritizedImageUrls.length),
         primaryImageUrl,
         imagePaths,
         primaryImagePath,

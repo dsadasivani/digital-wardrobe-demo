@@ -41,7 +41,7 @@ public class AccessoryService {
 
     public List<AccessoryResponse> list(Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
-        return accessoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse).toList();
+        return accessoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toListResponse).toList();
     }
 
     public PageResponse<AccessoryResponse> listPage(Authentication authentication, int page, int size) {
@@ -49,14 +49,14 @@ public class AccessoryService {
         int resolvedPage = Math.max(page, 0);
         int resolvedSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
         var pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        var responsePage = accessoryRepository.findAllByUserId(userId, pageable).map(this::toResponse);
+        var responsePage = accessoryRepository.findAllByUserId(userId, pageable).map(this::toListResponse);
         return PageResponse.from(responsePage);
     }
 
     public AccessoryResponse getById(String id, Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
         AccessoryDocument item = findByIdForUserOrThrow(id, userId);
-        return toResponse(item);
+        return toDetailResponse(item);
     }
 
     public AccessoryResponse create(CreateAccessoryRequest request, Authentication authentication) {
@@ -92,7 +92,7 @@ public class AccessoryService {
         item.setCreatedAt(Instant.now());
         item.setUpdatedAt(Instant.now());
         AccessoryDocument saved = accessoryRepository.save(item);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     public AccessoryResponse update(String id, UpdateAccessoryRequest request, Authentication authentication) {
@@ -143,7 +143,7 @@ public class AccessoryService {
         }
         item.setUpdatedAt(Instant.now());
         AccessoryDocument saved = accessoryRepository.save(item);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     public void delete(String id, Authentication authentication) {
@@ -157,7 +157,7 @@ public class AccessoryService {
         AccessoryDocument item = findByIdForUserOrThrow(id, userId);
         markAsWorn(item, 1, Instant.now());
         AccessoryDocument saved = accessoryRepository.save(item);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     public void incrementWornForUserAccessories(String userId, Set<String> accessoryIds, int incrementBy,
@@ -185,8 +185,17 @@ public class AccessoryService {
         item.setUpdatedAt(Instant.now());
     }
 
-    private AccessoryResponse toResponse(AccessoryDocument item) {
-        ResolvedImages resolvedImages = resolveImagesForResponse(item);
+    private AccessoryResponse toDetailResponse(AccessoryDocument item) {
+        ResolvedImages resolvedImages = resolveImagesForResponse(item, true);
+        return toResponse(item, resolvedImages);
+    }
+
+    private AccessoryResponse toListResponse(AccessoryDocument item) {
+        ResolvedImages resolvedImages = resolveImagesForResponse(item, false);
+        return toResponse(item, resolvedImages);
+    }
+
+    private AccessoryResponse toResponse(AccessoryDocument item, ResolvedImages resolvedImages) {
         return new AccessoryResponse(
                 item.getId(),
                 item.getName(),
@@ -199,6 +208,7 @@ public class AccessoryService {
                 item.getPurchaseDate(),
                 resolvedImages.primaryImageUrl(),
                 resolvedImages.imageUrls(),
+                resolvedImages.imageCount(),
                 resolvedImages.primaryImageUrl(),
                 resolvedImages.imagePaths(),
                 resolvedImages.primaryImagePath(),
@@ -209,22 +219,30 @@ public class AccessoryService {
                 item.getCreatedAt());
     }
 
-    private ResolvedImages resolveImagesForResponse(AccessoryDocument item) {
+    private ResolvedImages resolveImagesForResponse(AccessoryDocument item, boolean includeGallery) {
         List<String> imagePaths = normalizeImagePaths(item.getImagePaths());
         if (!imagePaths.isEmpty()) {
+            int imageCount = imagePaths.size();
             String primaryImagePath = resolvePrimaryImagePath(item.getPrimaryImagePath(), imagePaths, imagePaths.getFirst());
             try {
-                Map<String, String> signedUrlMap = firebaseStorageService.resolveSignedUrlMap(imagePaths);
-                List<String> imageUrls = imagePaths.stream()
-                        .map(path -> signedUrlMap.get(path))
-                        .filter(StringUtils::hasText)
-                        .toList();
-                if (!imageUrls.isEmpty()) {
-                    String primaryImageUrl = signedUrlMap.get(primaryImagePath);
-                    if (!StringUtils.hasText(primaryImageUrl)) {
-                        primaryImageUrl = imageUrls.getFirst();
+                Map<String, String> signedUrlMap = includeGallery
+                        ? firebaseStorageService.resolveSignedUrlMap(imagePaths)
+                        : firebaseStorageService.resolvePreviewSignedUrlMap(List.of(primaryImagePath));
+                String primaryImageUrl = signedUrlMap.get(primaryImagePath);
+                if (!StringUtils.hasText(primaryImageUrl)) {
+                    primaryImageUrl = resolveFallbackPrimaryImageUrl(item);
+                }
+                if (StringUtils.hasText(primaryImageUrl)) {
+                    List<String> imageUrls = includeGallery
+                            ? imagePaths.stream()
+                                    .map(path -> signedUrlMap.get(path))
+                                    .filter(StringUtils::hasText)
+                                    .toList()
+                            : List.of(primaryImageUrl);
+                    if (!imageUrls.isEmpty()) {
+                        List<String> responseImagePaths = includeGallery ? imagePaths : List.of(primaryImagePath);
+                        return new ResolvedImages(primaryImageUrl, imageUrls, responseImagePaths, primaryImagePath, imageCount);
                     }
-                    return new ResolvedImages(primaryImageUrl, imageUrls, imagePaths, primaryImagePath);
                 }
             } catch (ResponseStatusException ignored) {
                 // Fall back to stored URLs in case storage signing is unavailable.
@@ -234,12 +252,37 @@ public class AccessoryService {
                     item.getPrimaryImageUrl(),
                     fallbackImageUrls,
                     item.getImageUrl());
-            return new ResolvedImages(fallbackPrimaryImageUrl, fallbackImageUrls, imagePaths, primaryImagePath);
+            List<String> responseImageUrls = includeGallery
+                    ? fallbackImageUrls
+                    : (StringUtils.hasText(fallbackPrimaryImageUrl)
+                            ? List.of(fallbackPrimaryImageUrl)
+                            : fallbackImageUrls.stream().limit(1).toList());
+            List<String> responseImagePaths = includeGallery ? imagePaths : List.of(primaryImagePath);
+            return new ResolvedImages(
+                    fallbackPrimaryImageUrl,
+                    responseImageUrls,
+                    responseImagePaths,
+                    primaryImagePath,
+                    imageCount);
         }
 
         List<String> imageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
+        int imageCount = imageUrls.size();
         String primaryImageUrl = resolvePrimaryImageUrl(item.getPrimaryImageUrl(), imageUrls, item.getImageUrl());
-        return new ResolvedImages(primaryImageUrl, imageUrls, List.of(), null);
+        List<String> responseImageUrls = includeGallery
+                ? imageUrls
+                : (StringUtils.hasText(primaryImageUrl)
+                        ? List.of(primaryImageUrl)
+                        : imageUrls.stream().limit(1).toList());
+        return new ResolvedImages(primaryImageUrl, responseImageUrls, List.of(), null, imageCount);
+    }
+
+    private String resolveFallbackPrimaryImageUrl(AccessoryDocument item) {
+        List<String> fallbackImageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
+        return resolvePrimaryImageUrl(
+                item.getPrimaryImageUrl(),
+                fallbackImageUrls,
+                item.getImageUrl());
     }
 
     private List<String> normalizeImageUrls(List<String> imageUrls, String fallbackImageUrl) {
@@ -383,6 +426,7 @@ public class AccessoryService {
             String primaryImageUrl,
             List<String> imageUrls,
             List<String> imagePaths,
-            String primaryImagePath) {
+            String primaryImagePath,
+            int imageCount) {
     }
 }

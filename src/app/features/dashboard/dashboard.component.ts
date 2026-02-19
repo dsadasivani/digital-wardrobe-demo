@@ -972,16 +972,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   private loadDashboardData(): void {
-    void this.wardrobeService.ensureDashboardCountersLoaded().catch(() => {
-      // Keep dashboard shell interactive; data loading can be retried.
-    });
-    void this.wardrobeService.ensureDashboardWearInsightsLoaded().catch(() => {
-      // Keep dashboard shell interactive; data loading can be retried.
-    });
-    void this.wardrobeService.ensureDashboardRecentlyAddedLoaded().catch(() => {
-      // Keep dashboard shell interactive; data loading can be retried.
-    });
-    void this.wardrobeService.ensureDashboardCategoryBreakdownLoaded().catch(() => {
+    void this.wardrobeService.ensureDashboardSummaryLoaded().catch(() => {
       // Keep dashboard shell interactive; data loading can be retried.
     });
   }

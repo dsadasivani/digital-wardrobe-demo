@@ -13,6 +13,11 @@ public class FirebaseStorageProperties {
     private String credentialsJsonBase64;
     private String rootPath = "users";
     private Duration signedUrlTtl = Duration.ofHours(24);
+    private boolean signedUrlCacheEnabled = true;
+    private long signedUrlCacheMaximumSize = 10000;
+    private Duration signedUrlCacheRefreshBeforeExpiry = Duration.ofMinutes(5);
+    private boolean thumbnailsEnabled = true;
+    private int thumbnailMaxWidth = 480;
 
     public boolean isEnabled() {
         return enabled;
@@ -76,5 +81,45 @@ public class FirebaseStorageProperties {
 
     public void setSignedUrlTtl(Duration signedUrlTtl) {
         this.signedUrlTtl = signedUrlTtl;
+    }
+
+    public boolean isSignedUrlCacheEnabled() {
+        return signedUrlCacheEnabled;
+    }
+
+    public void setSignedUrlCacheEnabled(boolean signedUrlCacheEnabled) {
+        this.signedUrlCacheEnabled = signedUrlCacheEnabled;
+    }
+
+    public long getSignedUrlCacheMaximumSize() {
+        return signedUrlCacheMaximumSize;
+    }
+
+    public void setSignedUrlCacheMaximumSize(long signedUrlCacheMaximumSize) {
+        this.signedUrlCacheMaximumSize = signedUrlCacheMaximumSize;
+    }
+
+    public Duration getSignedUrlCacheRefreshBeforeExpiry() {
+        return signedUrlCacheRefreshBeforeExpiry;
+    }
+
+    public void setSignedUrlCacheRefreshBeforeExpiry(Duration signedUrlCacheRefreshBeforeExpiry) {
+        this.signedUrlCacheRefreshBeforeExpiry = signedUrlCacheRefreshBeforeExpiry;
+    }
+
+    public boolean isThumbnailsEnabled() {
+        return thumbnailsEnabled;
+    }
+
+    public void setThumbnailsEnabled(boolean thumbnailsEnabled) {
+        this.thumbnailsEnabled = thumbnailsEnabled;
+    }
+
+    public int getThumbnailMaxWidth() {
+        return thumbnailMaxWidth;
+    }
+
+    public void setThumbnailMaxWidth(int thumbnailMaxWidth) {
+        this.thumbnailMaxWidth = thumbnailMaxWidth;
     }
 }

@@ -17,6 +17,7 @@ public record WardrobeItemResponse(
     Instant purchaseDate,
     String imageUrl,
     List<String> imageUrls,
+    int imageCount,
     String primaryImageUrl,
     List<String> imagePaths,
     String primaryImagePath,

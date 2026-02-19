@@ -13,6 +13,7 @@ export interface AccessoryDto {
     purchaseDate: string | null; // ISO-8601
     imageUrl: string;
     imageUrls?: string[];
+    imageCount?: number;
     primaryImageUrl?: string;
     imagePaths?: string[];
     primaryImagePath?: string;

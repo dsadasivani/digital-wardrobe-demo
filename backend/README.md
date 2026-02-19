@@ -111,6 +111,11 @@ Note: this app currently uses one active JWT signing secret, so rotating `JWT_SE
 - `FIREBASE_CREDENTIALS_JSON_BASE64` (base64-encoded service account JSON)
 - `FIREBASE_STORAGE_ROOT_PATH` (default: `users`)
 - `FIREBASE_SIGNED_URL_TTL` (default: `24h`)
+- `FIREBASE_SIGNED_URL_CACHE_ENABLED` (default: `true`)
+- `FIREBASE_SIGNED_URL_CACHE_MAXIMUM_SIZE` (default: `10000`)
+- `FIREBASE_SIGNED_URL_CACHE_REFRESH_BEFORE_EXPIRY` (default: `5m`)
+- `FIREBASE_THUMBNAILS_ENABLED` (default: `true`)
+- `FIREBASE_THUMBNAIL_MAX_WIDTH` (default: `480`)
 
 When `SPRING_PROFILES_ACTIVE=observability`, these optional vars are used:
 
@@ -129,6 +134,63 @@ When `SPRING_PROFILES_ACTIVE=observability`, these optional vars are used:
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
 - `POST /api/v1/media/images` (multipart upload, authenticated, returns `{ path, url, ... }` for Firebase-backed images)
+- `POST /api/v1/media/images/thumbnails/backfill` (authenticated, idempotent thumbnail backfill for the current user's existing image paths)
+- `POST /api/v1/media/images/thumbnails/backfill/admin` (authenticated, `ROLE_ADMIN` required, batch backfill with cursor + dry-run support)
+
+Image payload behavior:
+- `GET /api/v1/wardrobe-items` and `GET /api/v1/wardrobe-items/page` return primary image data only (`imageUrls` contains primary URL) plus `imageCount`.
+- `GET /api/v1/accessories` and `GET /api/v1/accessories/page` return primary image data only (`imageUrls` contains primary URL) plus `imageCount`.
+- When thumbnail support is enabled, list/summary responses prefer signed thumbnail URLs and automatically fall back to original image URLs if a thumbnail is unavailable.
+- Detail endpoints (`GET /api/v1/wardrobe-items/{id}`, `GET /api/v1/accessories/{id}`) return full image galleries.
+
+Thumbnail backfill response fields:
+- `wardrobeItemsScanned`, `accessoriesScanned`, `uniqueSourcePaths`
+- `thumbnailsCreated`, `thumbnailsAlreadyPresent`
+- `skippedNotEligible` (small/non-decodable images), `skippedMissingSource`, `failed`
+
+Admin thumbnail backfill request body (all fields optional):
+- `batchSize` (default `25`, max `200`)
+- `maxUsers` (default `batchSize`, max `1000`)
+- `cursor` (last processed user id from previous response; empty for first batch)
+- `dryRun` (`true` to simulate without writes)
+
+Admin thumbnail backfill response fields:
+- `dryRun`, `processedUsers`, `nextCursor`, `hasMore`
+- `wardrobeItemsScanned`, `accessoriesScanned`, `uniqueSourcePaths`
+- `thumbnailsCreated`, `thumbnailsWouldCreate`, `thumbnailsAlreadyPresent`
+- `skippedNotEligible`, `skippedMissingSource`, `failed`
+
+Admin batch runner script (PowerShell):
+- Path: `backend/scripts/run-thumbnail-backfill.ps1`
+- It keeps calling the admin endpoint using `nextCursor` until `hasMore=false` (or guard limits are hit).
+
+Examples:
+```powershell
+# Dry run over all users (uses ADMIN_JWT env var)
+.\scripts\run-thumbnail-backfill.ps1 -DryRun
+
+# Real run with explicit token and batch sizing
+.\scripts\run-thumbnail-backfill.ps1 -Token "<ADMIN_JWT>" -BatchSize 50
+
+# Resume from a cursor and cap to 10 batches for controlled rollout
+.\scripts\run-thumbnail-backfill.ps1 -Token "<ADMIN_JWT>" -Cursor "<LAST_CURSOR>" -MaxBatches 10
+```
+
+Windows Command Prompt (`cmd`) equivalents:
+```cmd
+:: Run from backend folder
+:: c:\dilip\repos\digital-wardrobe-demo\backend
+
+:: Dry run over all users (uses ADMIN_JWT env var)
+set "ADMIN_JWT=<ADMIN_JWT>"
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\run-thumbnail-backfill.ps1" -DryRun
+
+:: Real run with explicit token and batch sizing
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\run-thumbnail-backfill.ps1" -Token "<ADMIN_JWT>" -BatchSize 50
+
+:: Resume from a cursor and cap to 10 batches for controlled rollout
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\run-thumbnail-backfill.ps1" -Token "<ADMIN_JWT>" -Cursor "<LAST_CURSOR>" -MaxBatches 10
+```
 
 ## API documentation
 

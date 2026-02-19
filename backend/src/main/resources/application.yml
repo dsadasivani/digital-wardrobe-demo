@@ -54,3 +54,8 @@ app:
       credentials-json-base64: ${FIREBASE_CREDENTIALS_JSON_BASE64:}
       root-path: ${FIREBASE_STORAGE_ROOT_PATH:users}
       signed-url-ttl: ${FIREBASE_SIGNED_URL_TTL:24h}
+      signed-url-cache-enabled: ${FIREBASE_SIGNED_URL_CACHE_ENABLED:true}
+      signed-url-cache-maximum-size: ${FIREBASE_SIGNED_URL_CACHE_MAXIMUM_SIZE:10000}
+      signed-url-cache-refresh-before-expiry: ${FIREBASE_SIGNED_URL_CACHE_REFRESH_BEFORE_EXPIRY:5m}
+      thumbnails-enabled: ${FIREBASE_THUMBNAILS_ENABLED:true}
+      thumbnail-max-width: ${FIREBASE_THUMBNAIL_MAX_WIDTH:480}

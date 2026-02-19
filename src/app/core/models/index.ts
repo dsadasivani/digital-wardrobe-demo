@@ -12,6 +12,7 @@ export interface WardrobeItem {
   purchaseDate?: Date;
   imageUrl: string;
   imageUrls: string[];
+  imageCount?: number;
   primaryImageUrl: string;
   imagePaths?: string[];
   primaryImagePath?: string;
@@ -66,6 +67,7 @@ export interface Accessory {
   purchaseDate?: Date;
   imageUrl: string;
   imageUrls: string[];
+  imageCount?: number;
   primaryImageUrl: string;
   imagePaths?: string[];
   primaryImagePath?: string;

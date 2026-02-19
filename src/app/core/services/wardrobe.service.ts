@@ -71,6 +71,7 @@ export class WardrobeService {
   private dashboardWearInsightsLoadPromise: Promise<void> | null = null;
   private dashboardRecentlyAddedLoadPromise: Promise<void> | null = null;
   private dashboardCategoryBreakdownLoadPromise: Promise<void> | null = null;
+  private dashboardSummaryLoadPromise: Promise<void> | null = null;
   private wardrobePageIndex = signal(-1);
   private accessoriesPageIndex = signal(-1);
   private outfitsPageIndex = signal(-1);
@@ -208,12 +209,7 @@ export class WardrobeService {
   }
 
   async ensureDashboardSummaryLoaded(): Promise<void> {
-    await Promise.all([
-      this.ensureDashboardCountersLoaded(),
-      this.ensureDashboardWearInsightsLoaded(),
-      this.ensureDashboardRecentlyAddedLoaded(),
-      this.ensureDashboardCategoryBreakdownLoaded(),
-    ]);
+    await this.loadDashboardSummaryData(false);
   }
 
   async ensureWardrobePageLoaded(): Promise<void> {
@@ -299,12 +295,7 @@ export class WardrobeService {
   }
 
   async refreshDashboardSummary(): Promise<void> {
-    await Promise.all([
-      this.refreshDashboardCounters(),
-      this.refreshDashboardWearInsights(),
-      this.refreshDashboardRecentlyAdded(),
-      this.refreshDashboardCategoryBreakdown(),
-    ]);
+    await this.loadDashboardSummaryData(true);
   }
 
   async refreshAll(): Promise<void> {
@@ -350,6 +341,7 @@ export class WardrobeService {
     this.dashboardWearInsightsLoadPromise = null;
     this.dashboardRecentlyAddedLoadPromise = null;
     this.dashboardCategoryBreakdownLoadPromise = null;
+    this.dashboardSummaryLoadPromise = null;
     this.wardrobePageLoadPromise = null;
     this.accessoriesPageLoadPromise = null;
     this.outfitsPageLoadPromise = null;
@@ -363,7 +355,7 @@ export class WardrobeService {
 
   async fetchWardrobeItemById(id: string, force = false): Promise<WardrobeItem | undefined> {
     const existing = this.getItemById(id);
-    if (existing && !force) {
+    if (existing && !force && this.hasCompleteImageGallery(existing)) {
       return existing;
     }
 
@@ -436,7 +428,7 @@ export class WardrobeService {
 
   async fetchAccessoryById(id: string, force = false): Promise<Accessory | undefined> {
     const existing = this.getAccessoryById(id);
-    if (existing && !force) {
+    if (existing && !force && this.hasCompleteImageGallery(existing)) {
       return existing;
     }
 
@@ -606,6 +598,7 @@ export class WardrobeService {
     this.dashboardWearInsightsLoadPromise = null;
     this.dashboardRecentlyAddedLoadPromise = null;
     this.dashboardCategoryBreakdownLoadPromise = null;
+    this.dashboardSummaryLoadPromise = null;
   }
 
   private async loadWardrobeData(force: boolean): Promise<void> {
@@ -871,6 +864,9 @@ export class WardrobeService {
   }
 
   private async loadDashboardCountersData(force: boolean): Promise<void> {
+    if (this.dashboardSummaryLoadPromise) {
+      return this.dashboardSummaryLoadPromise;
+    }
     if (this.dashboardCountersLoadPromise) {
       return this.dashboardCountersLoadPromise;
     }
@@ -900,6 +896,9 @@ export class WardrobeService {
   }
 
   private async loadDashboardWearInsightsData(force: boolean): Promise<void> {
+    if (this.dashboardSummaryLoadPromise) {
+      return this.dashboardSummaryLoadPromise;
+    }
     if (this.dashboardWearInsightsLoadPromise) {
       return this.dashboardWearInsightsLoadPromise;
     }
@@ -927,6 +926,9 @@ export class WardrobeService {
   }
 
   private async loadDashboardRecentlyAddedData(force: boolean): Promise<void> {
+    if (this.dashboardSummaryLoadPromise) {
+      return this.dashboardSummaryLoadPromise;
+    }
     if (this.dashboardRecentlyAddedLoadPromise) {
       return this.dashboardRecentlyAddedLoadPromise;
     }
@@ -954,6 +956,9 @@ export class WardrobeService {
   }
 
   private async loadDashboardCategoryBreakdownData(force: boolean): Promise<void> {
+    if (this.dashboardSummaryLoadPromise) {
+      return this.dashboardSummaryLoadPromise;
+    }
     if (this.dashboardCategoryBreakdownLoadPromise) {
       return this.dashboardCategoryBreakdownLoadPromise;
     }
@@ -981,6 +986,73 @@ export class WardrobeService {
         }
       });
     this.dashboardCategoryBreakdownLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  private async loadDashboardSummaryData(force: boolean): Promise<void> {
+    if (this.dashboardSummaryLoadPromise) {
+      return this.dashboardSummaryLoadPromise;
+    }
+    if (
+      !force &&
+      this.dashboardCountersLoadState() === 'loaded' &&
+      this.dashboardWearInsightsLoadState() === 'loaded' &&
+      this.dashboardRecentlyAddedLoadState() === 'loaded' &&
+      this.dashboardCategoryBreakdownLoadState() === 'loaded'
+    ) {
+      return;
+    }
+
+    const inFlightSectionLoads = [
+      this.dashboardCountersLoadPromise,
+      this.dashboardWearInsightsLoadPromise,
+      this.dashboardRecentlyAddedLoadPromise,
+      this.dashboardCategoryBreakdownLoadPromise,
+    ].filter((promise): promise is Promise<void> => promise !== null);
+    if (inFlightSectionLoads.length) {
+      await Promise.all(inFlightSectionLoads);
+      if (
+        !force &&
+        this.dashboardCountersLoadState() === 'loaded' &&
+        this.dashboardWearInsightsLoadState() === 'loaded' &&
+        this.dashboardRecentlyAddedLoadState() === 'loaded' &&
+        this.dashboardCategoryBreakdownLoadState() === 'loaded'
+      ) {
+        return;
+      }
+    }
+
+    this.dashboardCountersLoadState.set('loading');
+    this.dashboardWearInsightsLoadState.set('loading');
+    this.dashboardRecentlyAddedLoadState.set('loading');
+    this.dashboardCategoryBreakdownLoadState.set('loading');
+
+    const loaderStartedAt = Date.now();
+    const loadPromise = firstValueFrom(this.dashboardApi.summary())
+      .then(async (summary) => {
+        this.dashboardCountersData.set(mapDashboardCountersDtoToModel(summary));
+        this.dashboardWearInsightsData.set(mapDashboardWearInsightsDtoToModel(summary));
+        this.dashboardRecentlyAddedData.set(mapDashboardRecentlyAddedDtoToModel(summary));
+        this.dashboardCategoryBreakdownData.set(mapDashboardCategoryBreakdownDtoToModel(summary));
+        await this.ensureDashboardLoaderMinimumDuration(loaderStartedAt);
+        this.dashboardCountersLoadState.set('loaded');
+        this.dashboardWearInsightsLoadState.set('loaded');
+        this.dashboardRecentlyAddedLoadState.set('loaded');
+        this.dashboardCategoryBreakdownLoadState.set('loaded');
+      })
+      .catch((error) => {
+        this.dashboardCountersLoadState.set('error');
+        this.dashboardWearInsightsLoadState.set('error');
+        this.dashboardRecentlyAddedLoadState.set('error');
+        this.dashboardCategoryBreakdownLoadState.set('error');
+        throw error;
+      })
+      .finally(() => {
+        if (this.dashboardSummaryLoadPromise === loadPromise) {
+          this.dashboardSummaryLoadPromise = null;
+        }
+      });
+    this.dashboardSummaryLoadPromise = loadPromise;
     return loadPromise;
   }
 
@@ -1043,6 +1115,11 @@ export class WardrobeService {
     const updated = [...existing];
     updated[index] = incoming;
     return updated;
+  }
+
+  private hasCompleteImageGallery(item: { imageUrls: string[]; imageCount?: number }): boolean {
+    const declaredImageCount = item.imageCount ?? item.imageUrls.length;
+    return item.imageUrls.length >= declaredImageCount;
   }
 
   private syncDashboardWardrobeItem(updatedItem: WardrobeItem): void {

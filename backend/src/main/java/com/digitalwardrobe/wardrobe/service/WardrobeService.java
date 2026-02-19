@@ -41,7 +41,7 @@ public class WardrobeService {
 
     public List<WardrobeItemResponse> list(Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
-        return wardrobeItemRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse)
+        return wardrobeItemRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toListResponse)
                 .toList();
     }
 
@@ -50,14 +50,14 @@ public class WardrobeService {
         int resolvedPage = Math.max(page, 0);
         int resolvedSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
         var pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        var responsePage = wardrobeItemRepository.findAllByUserId(userId, pageable).map(this::toResponse);
+        var responsePage = wardrobeItemRepository.findAllByUserId(userId, pageable).map(this::toListResponse);
         return PageResponse.from(responsePage);
     }
 
     public WardrobeItemResponse getById(String id, Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
         WardrobeItemDocument item = findByIdForUserOrThrow(id, userId);
-        return toResponse(item);
+        return toDetailResponse(item);
     }
 
     public WardrobeItemResponse create(CreateWardrobeItemRequest request, Authentication authentication) {
@@ -95,7 +95,7 @@ public class WardrobeService {
         item.setCreatedAt(Instant.now());
         item.setUpdatedAt(Instant.now());
         WardrobeItemDocument saved = wardrobeItemRepository.save(item);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     public WardrobeItemResponse update(String id, UpdateWardrobeItemRequest request, Authentication authentication) {
@@ -158,7 +158,7 @@ public class WardrobeService {
         }
         item.setUpdatedAt(Instant.now());
         WardrobeItemDocument saved = wardrobeItemRepository.save(item);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     public void delete(String id, Authentication authentication) {
@@ -172,7 +172,7 @@ public class WardrobeService {
         WardrobeItemDocument item = findByIdForUserOrThrow(id, userId);
         markAsWorn(item, 1, Instant.now());
         WardrobeItemDocument saved = wardrobeItemRepository.save(item);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     public void incrementWornForUserItems(String userId, Set<String> itemIds, int incrementBy, Instant wornAt) {
@@ -199,8 +199,17 @@ public class WardrobeService {
         item.setUpdatedAt(Instant.now());
     }
 
-    private WardrobeItemResponse toResponse(WardrobeItemDocument item) {
-        ResolvedImages resolvedImages = resolveImagesForResponse(item);
+    private WardrobeItemResponse toDetailResponse(WardrobeItemDocument item) {
+        ResolvedImages resolvedImages = resolveImagesForResponse(item, true);
+        return toResponse(item, resolvedImages);
+    }
+
+    private WardrobeItemResponse toListResponse(WardrobeItemDocument item) {
+        ResolvedImages resolvedImages = resolveImagesForResponse(item, false);
+        return toResponse(item, resolvedImages);
+    }
+
+    private WardrobeItemResponse toResponse(WardrobeItemDocument item, ResolvedImages resolvedImages) {
         return new WardrobeItemResponse(
                 item.getId(),
                 item.getName(),
@@ -214,6 +223,7 @@ public class WardrobeService {
                 item.getPurchaseDate(),
                 resolvedImages.primaryImageUrl(),
                 resolvedImages.imageUrls(),
+                resolvedImages.imageCount(),
                 resolvedImages.primaryImageUrl(),
                 resolvedImages.imagePaths(),
                 resolvedImages.primaryImagePath(),
@@ -225,22 +235,30 @@ public class WardrobeService {
                 item.getCreatedAt());
     }
 
-    private ResolvedImages resolveImagesForResponse(WardrobeItemDocument item) {
+    private ResolvedImages resolveImagesForResponse(WardrobeItemDocument item, boolean includeGallery) {
         List<String> imagePaths = normalizeImagePaths(item.getImagePaths());
         if (!imagePaths.isEmpty()) {
+            int imageCount = imagePaths.size();
             String primaryImagePath = resolvePrimaryImagePath(item.getPrimaryImagePath(), imagePaths, imagePaths.getFirst());
             try {
-                Map<String, String> signedUrlMap = firebaseStorageService.resolveSignedUrlMap(imagePaths);
-                List<String> imageUrls = imagePaths.stream()
-                        .map(path -> signedUrlMap.get(path))
-                        .filter(StringUtils::hasText)
-                        .toList();
-                if (!imageUrls.isEmpty()) {
-                    String primaryImageUrl = signedUrlMap.get(primaryImagePath);
-                    if (!StringUtils.hasText(primaryImageUrl)) {
-                        primaryImageUrl = imageUrls.getFirst();
+                Map<String, String> signedUrlMap = includeGallery
+                        ? firebaseStorageService.resolveSignedUrlMap(imagePaths)
+                        : firebaseStorageService.resolvePreviewSignedUrlMap(List.of(primaryImagePath));
+                String primaryImageUrl = signedUrlMap.get(primaryImagePath);
+                if (!StringUtils.hasText(primaryImageUrl)) {
+                    primaryImageUrl = resolveFallbackPrimaryImageUrl(item);
+                }
+                if (StringUtils.hasText(primaryImageUrl)) {
+                    List<String> imageUrls = includeGallery
+                            ? imagePaths.stream()
+                                    .map(path -> signedUrlMap.get(path))
+                                    .filter(StringUtils::hasText)
+                                    .toList()
+                            : List.of(primaryImageUrl);
+                    if (!imageUrls.isEmpty()) {
+                        List<String> responseImagePaths = includeGallery ? imagePaths : List.of(primaryImagePath);
+                        return new ResolvedImages(primaryImageUrl, imageUrls, responseImagePaths, primaryImagePath, imageCount);
                     }
-                    return new ResolvedImages(primaryImageUrl, imageUrls, imagePaths, primaryImagePath);
                 }
             } catch (ResponseStatusException ignored) {
                 // Fall back to stored URLs in case storage signing is unavailable.
@@ -250,12 +268,37 @@ public class WardrobeService {
                     item.getPrimaryImageUrl(),
                     fallbackImageUrls,
                     item.getImageUrl());
-            return new ResolvedImages(fallbackPrimaryImageUrl, fallbackImageUrls, imagePaths, primaryImagePath);
+            List<String> responseImageUrls = includeGallery
+                    ? fallbackImageUrls
+                    : (StringUtils.hasText(fallbackPrimaryImageUrl)
+                            ? List.of(fallbackPrimaryImageUrl)
+                            : fallbackImageUrls.stream().limit(1).toList());
+            List<String> responseImagePaths = includeGallery ? imagePaths : List.of(primaryImagePath);
+            return new ResolvedImages(
+                    fallbackPrimaryImageUrl,
+                    responseImageUrls,
+                    responseImagePaths,
+                    primaryImagePath,
+                    imageCount);
         }
 
         List<String> imageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
+        int imageCount = imageUrls.size();
         String primaryImageUrl = resolvePrimaryImageUrl(item.getPrimaryImageUrl(), imageUrls, item.getImageUrl());
-        return new ResolvedImages(primaryImageUrl, imageUrls, List.of(), null);
+        List<String> responseImageUrls = includeGallery
+                ? imageUrls
+                : (StringUtils.hasText(primaryImageUrl)
+                        ? List.of(primaryImageUrl)
+                        : imageUrls.stream().limit(1).toList());
+        return new ResolvedImages(primaryImageUrl, responseImageUrls, List.of(), null, imageCount);
+    }
+
+    private String resolveFallbackPrimaryImageUrl(WardrobeItemDocument item) {
+        List<String> fallbackImageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
+        return resolvePrimaryImageUrl(
+                item.getPrimaryImageUrl(),
+                fallbackImageUrls,
+                item.getImageUrl());
     }
 
     private List<String> normalizeImageUrls(List<String> imageUrls, String fallbackImageUrl) {
@@ -399,6 +442,7 @@ public class WardrobeService {
             String primaryImageUrl,
             List<String> imageUrls,
             List<String> imagePaths,
-            String primaryImagePath) {
+            String primaryImagePath,
+            int imageCount) {
     }
 }
