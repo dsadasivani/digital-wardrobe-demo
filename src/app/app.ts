@@ -83,6 +83,26 @@ import { SidebarComponent } from './shared/components/sidebar/sidebar.component'
 
     @if (showLoader()) {
       <div class="route-loader-overlay" aria-live="polite" aria-label="Loading page">
+        <div class="loader-cosmos" aria-hidden="true">
+          <span class="cosmos-item c1"><mat-icon>checkroom</mat-icon></span>
+          <span class="cosmos-item c2"><mat-icon>dry_cleaning</mat-icon></span>
+          <span class="cosmos-item c3"><mat-icon>style</mat-icon></span>
+          <span class="cosmos-item c4"><mat-icon>watch</mat-icon></span>
+          <span class="cosmos-item c5"><mat-icon>hiking</mat-icon></span>
+          <span class="cosmos-item c6"><mat-icon>local_mall</mat-icon></span>
+          <span class="cosmos-item c7"><mat-icon>checkroom</mat-icon></span>
+          <span class="cosmos-item c8"><mat-icon>style</mat-icon></span>
+          <span class="cosmos-item c9"><mat-icon>dry_cleaning</mat-icon></span>
+          <span class="cosmos-item c10"><mat-icon>watch</mat-icon></span>
+          <span class="cosmos-item c11"><mat-icon>hiking</mat-icon></span>
+          <span class="cosmos-item c12"><mat-icon>local_mall</mat-icon></span>
+          <span class="cosmos-item c13"><mat-icon>checkroom</mat-icon></span>
+          <span class="cosmos-item c14"><mat-icon>style</mat-icon></span>
+          <span class="cosmos-item c15"><mat-icon>watch</mat-icon></span>
+          <span class="cosmos-item c16"><mat-icon>dry_cleaning</mat-icon></span>
+          <span class="cosmos-item c17"><mat-icon>hiking</mat-icon></span>
+          <span class="cosmos-item c18"><mat-icon>local_mall</mat-icon></span>
+        </div>
         <div class="wardrobe-loader">
           <div class="style-loader" aria-hidden="true">
             <div class="style-core">
@@ -142,13 +162,189 @@ import { SidebarComponent } from './shared/components/sidebar/sidebar.component'
         z-index: 1200;
         display: grid;
         place-items: center;
-        background: color-mix(in srgb, var(--dw-surface-base) 68%, transparent);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
+        background:
+          radial-gradient(
+            circle at 14% 18%,
+            color-mix(in srgb, var(--dw-accent) 20%, transparent) 0%,
+            transparent 34%
+          ),
+          radial-gradient(
+            circle at 84% 20%,
+            color-mix(in srgb, var(--dw-primary) 22%, transparent) 0%,
+            transparent 38%
+          ),
+          radial-gradient(
+            circle at 62% 78%,
+            color-mix(in srgb, var(--dw-info) 18%, transparent) 0%,
+            transparent 42%
+          ),
+          linear-gradient(
+            168deg,
+            color-mix(in srgb, var(--dw-surface-base) 38%, #030611 62%),
+            color-mix(in srgb, var(--dw-surface-base) 22%, #080f24 78%)
+          );
+        backdrop-filter: blur(10px) saturate(120%);
+        -webkit-backdrop-filter: blur(10px) saturate(120%);
+        overflow: hidden;
+        isolation: isolate;
         animation: fadeIn 180ms var(--dw-ease-emphasis);
       }
 
+      .loader-cosmos {
+        position: absolute;
+        inset: -8%;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .loader-cosmos::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 12% 30%, color-mix(in srgb, white 36%, transparent) 0 1px, transparent 2px),
+          radial-gradient(circle at 36% 74%, color-mix(in srgb, white 30%, transparent) 0 1px, transparent 2px),
+          radial-gradient(circle at 68% 20%, color-mix(in srgb, white 34%, transparent) 0 1px, transparent 2px),
+          radial-gradient(circle at 88% 64%, color-mix(in srgb, white 28%, transparent) 0 1px, transparent 2px),
+          radial-gradient(circle at 46% 46%, color-mix(in srgb, white 24%, transparent) 0 1px, transparent 2px),
+          radial-gradient(circle at 72% 84%, color-mix(in srgb, white 20%, transparent) 0 1px, transparent 2px),
+          radial-gradient(circle at 22% 62%, color-mix(in srgb, white 18%, transparent) 0 1px, transparent 2px);
+        opacity: 0.76;
+        animation: starlightPulse 6.8s ease-in-out infinite;
+      }
+
+      .loader-cosmos::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          118deg,
+          transparent 0%,
+          color-mix(in srgb, var(--dw-primary) 16%, transparent) 48%,
+          transparent 74%
+        );
+        transform: translateX(-120%);
+        animation: cosmosSweep 7.8s ease-in-out infinite;
+        opacity: 0.42;
+      }
+
+      .cosmos-item {
+        position: absolute;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: color-mix(in srgb, var(--dw-primary-light) 72%, var(--dw-on-primary) 28%);
+        opacity: 0.64;
+        filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--dw-primary) 48%, transparent));
+        animation: clothesDrift 22s ease-in-out infinite;
+      }
+
+      .cosmos-item mat-icon {
+        font-size: 26px;
+        width: 26px;
+        height: 26px;
+      }
+
+      .cosmos-item:nth-child(odd) mat-icon {
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+      }
+
+      .c1 {
+        top: 9%;
+        left: 6%;
+        animation-delay: -0.4s;
+      }
+      .c2 {
+        top: 18%;
+        right: 10%;
+        animation-delay: -1.2s;
+      }
+      .c3 {
+        top: 34%;
+        left: 18%;
+        animation-delay: -2.2s;
+      }
+      .c4 {
+        top: 42%;
+        right: 22%;
+        animation-delay: -3.1s;
+      }
+      .c5 {
+        top: 57%;
+        left: 8%;
+        animation-delay: -4s;
+      }
+      .c6 {
+        top: 62%;
+        right: 12%;
+        animation-delay: -5.1s;
+      }
+      .c7 {
+        top: 74%;
+        left: 24%;
+        animation-delay: -6.2s;
+      }
+      .c8 {
+        top: 12%;
+        left: 42%;
+        animation-delay: -7.1s;
+      }
+      .c9 {
+        top: 24%;
+        right: 36%;
+        animation-delay: -8.4s;
+      }
+      .c10 {
+        top: 48%;
+        left: 38%;
+        animation-delay: -9.6s;
+      }
+      .c11 {
+        top: 72%;
+        right: 34%;
+        animation-delay: -10.3s;
+      }
+      .c12 {
+        top: 82%;
+        right: 6%;
+        animation-delay: -11.4s;
+      }
+      .c13 {
+        top: 6%;
+        left: 28%;
+        animation-delay: -12.3s;
+      }
+      .c14 {
+        top: 16%;
+        right: 48%;
+        animation-delay: -13.1s;
+      }
+      .c15 {
+        top: 38%;
+        left: 58%;
+        animation-delay: -14.2s;
+      }
+      .c16 {
+        top: 52%;
+        right: 4%;
+        animation-delay: -15.3s;
+      }
+      .c17 {
+        top: 66%;
+        left: 46%;
+        animation-delay: -16.2s;
+      }
+      .c18 {
+        top: 88%;
+        left: 14%;
+        animation-delay: -17.4s;
+      }
+
       .wardrobe-loader {
+        position: relative;
+        z-index: 2;
         min-width: 230px;
         padding: 6px 8px;
         display: grid;
@@ -361,7 +557,59 @@ import { SidebarComponent } from './shared/components/sidebar/sidebar.component'
         }
       }
 
+      @keyframes clothesDrift {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+        }
+        30% {
+          transform: translate3d(12px, -14px, 0) rotate(8deg) scale(1.05);
+        }
+        60% {
+          transform: translate3d(-10px, 12px, 0) rotate(-7deg) scale(0.96);
+        }
+      }
+
+      @keyframes starlightPulse {
+        0%,
+        100% {
+          opacity: 0.62;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+
+      @keyframes cosmosSweep {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(120%);
+        }
+      }
+
       @media (max-width: 768px) {
+        .loader-cosmos {
+          inset: -14%;
+        }
+
+        .cosmos-item {
+          opacity: 0.56;
+        }
+
+        .cosmos-item mat-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+        }
+
+        .cosmos-item:nth-child(odd) mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+
         .main-content {
           margin-left: 0;
 
