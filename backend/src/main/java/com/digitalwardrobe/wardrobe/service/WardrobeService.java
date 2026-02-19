@@ -25,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class WardrobeService {
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE = 30;
+    private static final int LIST_PREVIEW_GALLERY_LIMIT = 4;
 
     private final WardrobeItemRepository wardrobeItemRepository;
     private final UserService userService;
@@ -200,12 +201,12 @@ public class WardrobeService {
     }
 
     private WardrobeItemResponse toDetailResponse(WardrobeItemDocument item) {
-        ResolvedImages resolvedImages = resolveImagesForResponse(item, true);
+        ResolvedImages resolvedImages = resolveImagesForResponse(item, true, false, Integer.MAX_VALUE);
         return toResponse(item, resolvedImages);
     }
 
     private WardrobeItemResponse toListResponse(WardrobeItemDocument item) {
-        ResolvedImages resolvedImages = resolveImagesForResponse(item, false);
+        ResolvedImages resolvedImages = resolveImagesForResponse(item, true, true, LIST_PREVIEW_GALLERY_LIMIT);
         return toResponse(item, resolvedImages);
     }
 
@@ -235,28 +236,42 @@ public class WardrobeService {
                 item.getCreatedAt());
     }
 
-    private ResolvedImages resolveImagesForResponse(WardrobeItemDocument item, boolean includeGallery) {
+    private ResolvedImages resolveImagesForResponse(
+            WardrobeItemDocument item,
+            boolean includeGallery,
+            boolean preferPreviewUrls,
+            int galleryLimit) {
         List<String> imagePaths = normalizeImagePaths(item.getImagePaths());
         if (!imagePaths.isEmpty()) {
             int imageCount = imagePaths.size();
             String primaryImagePath = resolvePrimaryImagePath(item.getPrimaryImagePath(), imagePaths, imagePaths.getFirst());
+            List<String> selectedImagePaths = includeGallery
+                    ? limitGalleryEntries(imagePaths, primaryImagePath, galleryLimit)
+                    : List.of(primaryImagePath);
             try {
-                Map<String, String> signedUrlMap = includeGallery
-                        ? firebaseStorageService.resolveSignedUrlMap(imagePaths)
-                        : firebaseStorageService.resolvePreviewSignedUrlMap(List.of(primaryImagePath));
+                Map<String, String> signedUrlMap = preferPreviewUrls
+                        ? firebaseStorageService.resolvePreviewSignedUrlMap(selectedImagePaths)
+                        : firebaseStorageService.resolveSignedUrlMap(selectedImagePaths);
                 String primaryImageUrl = signedUrlMap.get(primaryImagePath);
                 if (!StringUtils.hasText(primaryImageUrl)) {
                     primaryImageUrl = resolveFallbackPrimaryImageUrl(item);
                 }
+                if (!StringUtils.hasText(primaryImageUrl)) {
+                    primaryImageUrl = selectedImagePaths.stream()
+                            .map(path -> signedUrlMap.get(path))
+                            .filter(StringUtils::hasText)
+                            .findFirst()
+                            .orElse(null);
+                }
                 if (StringUtils.hasText(primaryImageUrl)) {
                     List<String> imageUrls = includeGallery
-                            ? imagePaths.stream()
+                            ? selectedImagePaths.stream()
                                     .map(path -> signedUrlMap.get(path))
                                     .filter(StringUtils::hasText)
                                     .toList()
                             : List.of(primaryImageUrl);
                     if (!imageUrls.isEmpty()) {
-                        List<String> responseImagePaths = includeGallery ? imagePaths : List.of(primaryImagePath);
+                        List<String> responseImagePaths = includeGallery ? selectedImagePaths : List.of(primaryImagePath);
                         return new ResolvedImages(primaryImageUrl, imageUrls, responseImagePaths, primaryImagePath, imageCount);
                     }
                 }
@@ -269,11 +284,11 @@ public class WardrobeService {
                     fallbackImageUrls,
                     item.getImageUrl());
             List<String> responseImageUrls = includeGallery
-                    ? fallbackImageUrls
+                    ? limitGalleryEntries(fallbackImageUrls, fallbackPrimaryImageUrl, galleryLimit)
                     : (StringUtils.hasText(fallbackPrimaryImageUrl)
                             ? List.of(fallbackPrimaryImageUrl)
                             : fallbackImageUrls.stream().limit(1).toList());
-            List<String> responseImagePaths = includeGallery ? imagePaths : List.of(primaryImagePath);
+            List<String> responseImagePaths = includeGallery ? selectedImagePaths : List.of(primaryImagePath);
             return new ResolvedImages(
                     fallbackPrimaryImageUrl,
                     responseImageUrls,
@@ -286,11 +301,32 @@ public class WardrobeService {
         int imageCount = imageUrls.size();
         String primaryImageUrl = resolvePrimaryImageUrl(item.getPrimaryImageUrl(), imageUrls, item.getImageUrl());
         List<String> responseImageUrls = includeGallery
-                ? imageUrls
+                ? limitGalleryEntries(imageUrls, primaryImageUrl, galleryLimit)
                 : (StringUtils.hasText(primaryImageUrl)
                         ? List.of(primaryImageUrl)
                         : imageUrls.stream().limit(1).toList());
         return new ResolvedImages(primaryImageUrl, responseImageUrls, List.of(), null, imageCount);
+    }
+
+    private List<String> limitGalleryEntries(List<String> entries, String primaryEntry, int limit) {
+        if (entries == null || entries.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> ordered = new ArrayList<>();
+        if (StringUtils.hasText(primaryEntry) && entries.contains(primaryEntry)) {
+            ordered.add(primaryEntry);
+        }
+        for (String entry : entries) {
+            if (!StringUtils.hasText(entry) || ordered.contains(entry)) {
+                continue;
+            }
+            ordered.add(entry);
+        }
+        if (limit <= 0 || ordered.size() <= limit) {
+            return ordered;
+        }
+        return new ArrayList<>(ordered.subList(0, limit));
     }
 
     private String resolveFallbackPrimaryImageUrl(WardrobeItemDocument item) {

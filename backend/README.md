@@ -127,8 +127,8 @@ Note: this app currently uses one active JWT signing secret, so rotating `JWT_SE
 - `POST /api/v1/media/images/thumbnails/backfill/admin` (authenticated, `ROLE_ADMIN` required, batch backfill with cursor + dry-run support)
 
 Image payload behavior:
-- `GET /api/v1/wardrobe-items` and `GET /api/v1/wardrobe-items/page` return primary image data only (`imageUrls` contains primary URL) plus `imageCount`.
-- `GET /api/v1/accessories` and `GET /api/v1/accessories/page` return primary image data only (`imageUrls` contains primary URL) plus `imageCount`.
+- `GET /api/v1/wardrobe-items` and `GET /api/v1/wardrobe-items/page` return preview gallery image data (`imageUrls` includes up to 4 images, primary first) plus total `imageCount`.
+- `GET /api/v1/accessories` and `GET /api/v1/accessories/page` return preview gallery image data (`imageUrls` includes up to 4 images, primary first) plus total `imageCount`.
 - When thumbnail support is enabled, list/summary responses prefer signed thumbnail URLs and automatically fall back to original image URLs if a thumbnail is unavailable.
 - Detail endpoints (`GET /api/v1/wardrobe-items/{id}`, `GET /api/v1/accessories/{id}`) return full image galleries.
 
