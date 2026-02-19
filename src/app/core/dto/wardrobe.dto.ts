@@ -15,6 +15,8 @@ export interface WardrobeItemDto {
     imageUrl: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    imagePaths?: string[];
+    primaryImagePath?: string;
     worn: number;
     lastWorn: string | null; // ISO-8601
     favorite: boolean;
@@ -37,6 +39,8 @@ export interface CreateWardrobeItemRequestDto {
     imageUrl: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    imagePaths?: string[];
+    primaryImagePath?: string;
     favorite: boolean;
     tags: string[];
     notes?: string;
@@ -56,6 +60,8 @@ export interface UpdateWardrobeItemRequestDto {
     imageUrl?: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    imagePaths?: string[];
+    primaryImagePath?: string;
     worn?: number;
     lastWorn?: string; // ISO-8601
     favorite?: boolean;

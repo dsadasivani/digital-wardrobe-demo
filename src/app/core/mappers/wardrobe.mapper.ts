@@ -10,6 +10,8 @@ import type {
 export function mapWardrobeItemDtoToModel(dto: WardrobeItemDto): WardrobeItem {
     const imageUrls = normalizeImageUrls(dto.imageUrls, dto.imageUrl);
     const primaryImageUrl = normalizePrimaryImageUrl(dto.primaryImageUrl, imageUrls, dto.imageUrl);
+    const imagePaths = normalizeImagePaths(dto.imagePaths);
+    const primaryImagePath = normalizePrimaryImagePath(dto.primaryImagePath, imagePaths);
     return {
         id: dto.id,
         name: dto.name,
@@ -24,6 +26,8 @@ export function mapWardrobeItemDtoToModel(dto: WardrobeItemDto): WardrobeItem {
         imageUrl: primaryImageUrl,
         imageUrls: prioritizePrimaryImage(imageUrls, primaryImageUrl),
         primaryImageUrl,
+        imagePaths,
+        primaryImagePath,
         worn: dto.worn,
         lastWorn: dto.lastWorn ? new Date(dto.lastWorn) : undefined,
         favorite: dto.favorite,
@@ -40,6 +44,8 @@ export function mapWardrobeItemToCreateDto(
 ): CreateWardrobeItemRequestDto {
     const imageUrls = normalizeImageUrls(item.imageUrls, item.imageUrl);
     const primaryImageUrl = normalizePrimaryImageUrl(item.primaryImageUrl, imageUrls, item.imageUrl);
+    const imagePaths = normalizeImagePaths(item.imagePaths);
+    const primaryImagePath = normalizePrimaryImagePath(item.primaryImagePath, imagePaths);
     return {
         name: item.name,
         category: item.category,
@@ -53,6 +59,8 @@ export function mapWardrobeItemToCreateDto(
         imageUrl: primaryImageUrl,
         imageUrls: prioritizePrimaryImage(imageUrls, primaryImageUrl),
         primaryImageUrl,
+        imagePaths: imagePaths.length ? prioritizePrimaryImage(imagePaths, primaryImagePath) : undefined,
+        primaryImagePath: primaryImagePath || undefined,
         favorite: item.favorite,
         tags: item.tags,
         notes: item.notes,
@@ -82,12 +90,26 @@ export function mapWardrobeItemToUpdateDto(
         dto.primaryImageUrl = changes.primaryImageUrl;
         dto.imageUrl = changes.primaryImageUrl;
     }
+    if (changes.primaryImagePath !== undefined) {
+        dto.primaryImagePath = changes.primaryImagePath;
+    }
     if (changes.imageUrls !== undefined) {
         const imageUrls = normalizeImageUrls(changes.imageUrls, changes.imageUrl ?? changes.primaryImageUrl);
         const primaryImageUrl = normalizePrimaryImageUrl(changes.primaryImageUrl, imageUrls, changes.imageUrl);
         dto.imageUrls = prioritizePrimaryImage(imageUrls, primaryImageUrl);
         dto.primaryImageUrl = primaryImageUrl;
         dto.imageUrl = primaryImageUrl;
+    }
+    if (changes.imagePaths !== undefined) {
+        const imagePaths = normalizeImagePaths(changes.imagePaths);
+        const primaryImagePath = normalizePrimaryImagePath(
+            changes.primaryImagePath,
+            imagePaths,
+        );
+        if (imagePaths.length) {
+            dto.imagePaths = prioritizePrimaryImage(imagePaths, primaryImagePath);
+            dto.primaryImagePath = primaryImagePath || undefined;
+        }
     }
     if (changes.worn !== undefined) dto.worn = changes.worn;
     if (changes.lastWorn !== undefined) dto.lastWorn = changes.lastWorn?.toISOString();
@@ -108,6 +130,10 @@ function normalizeImageUrls(
     return normalized;
 }
 
+function normalizeImagePaths(imagePaths: string[] | undefined): string[] {
+    return (imagePaths ?? []).map(path => path.trim()).filter(Boolean);
+}
+
 function normalizePrimaryImageUrl(
     primaryImageUrl: string | undefined,
     imageUrls: string[],
@@ -121,6 +147,21 @@ function normalizePrimaryImageUrl(
         return normalizedPrimary;
     }
     return imageUrls[0] ?? fallbackImageUrl?.trim() ?? '';
+}
+
+function normalizePrimaryImagePath(
+    primaryImagePath: string | undefined,
+    imagePaths: string[],
+    fallbackImagePath?: string | undefined,
+): string {
+    const normalizedPrimary = primaryImagePath?.trim();
+    if (normalizedPrimary && imagePaths.includes(normalizedPrimary)) {
+        return normalizedPrimary;
+    }
+    if (normalizedPrimary && !imagePaths.length) {
+        return normalizedPrimary;
+    }
+    return imagePaths[0] ?? fallbackImagePath?.trim() ?? '';
 }
 
 function prioritizePrimaryImage(imageUrls: string[], primaryImageUrl: string): string[] {

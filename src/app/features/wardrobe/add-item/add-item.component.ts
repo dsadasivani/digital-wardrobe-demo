@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { ImageCropperService, WardrobeService } from '../../../core/services';
+import { ImageCropperService, MediaUploadService, WardrobeService } from '../../../core/services';
 import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
 
 @Component({
@@ -227,6 +227,7 @@ import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory } from '../../.
 export class AddItemComponent {
     private wardrobeService = inject(WardrobeService);
     private imageCropper = inject(ImageCropperService);
+    private mediaUpload = inject(MediaUploadService);
     private router = inject(Router);
 
     categories = WARDROBE_CATEGORIES;
@@ -241,6 +242,7 @@ export class AddItemComponent {
     occasion = '';
     tags = '';
     previewUrls = signal<string[]>([]);
+    imagePaths = signal<string[]>([]);
     selectedImageIndex = signal(0);
     primaryPreviewUrl = computed(() => this.previewUrls()[this.selectedImageIndex()] ?? this.previewUrls()[0] ?? '');
     isSaving = signal(false);
@@ -271,6 +273,7 @@ export class AddItemComponent {
           }
           if (croppedUrls.length) {
             this.previewUrls.update(existing => [...existing, ...croppedUrls]);
+            this.imagePaths.update(existing => [...existing, ...croppedUrls.map(() => '')]);
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to open image cropper.';
@@ -281,6 +284,7 @@ export class AddItemComponent {
     removeImage(index: number, event: Event) {
         event.stopPropagation();
         this.previewUrls.update(images => images.filter((_, i) => i !== index));
+        this.imagePaths.update(paths => paths.filter((_, i) => i !== index));
         this.selectedImageIndex.update(current => {
           if (current === index) {
             return 0;
@@ -295,6 +299,7 @@ export class AddItemComponent {
     clearImages(event: Event): void {
         event.stopPropagation();
         this.previewUrls.set([]);
+        this.imagePaths.set([]);
         this.selectedImageIndex.set(0);
     }
 
@@ -311,9 +316,18 @@ export class AddItemComponent {
         this.isSaving.set(true);
         this.errorMessage.set(null);
         try {
-            const imageUrls = this.previewUrls().length
-              ? this.getOrderedImageUrls()
-              : ['https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=500&fit=crop'];
+            if (this.previewUrls().length) {
+              await this.uploadPendingImages();
+            }
+            const orderedImages = this.previewUrls().length
+              ? this.getOrderedImages()
+              : {
+                  imageUrls: ['https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=500&fit=crop'],
+                  imagePaths: [] as string[],
+                };
+            const hasCompletePaths =
+              orderedImages.imagePaths.length === orderedImages.imageUrls.length &&
+              orderedImages.imagePaths.every(path => !!path);
             await this.wardrobeService.addItem({
                 name: this.itemName,
                 category: this.category as WardrobeCategory,
@@ -324,9 +338,11 @@ export class AddItemComponent {
                 purchaseDate: this.purchaseDate ? new Date(this.purchaseDate) : undefined,
                 price: this.price ? Number(this.price) : undefined,
                 occasion: this.occasion || undefined,
-                imageUrl: imageUrls[0],
-                imageUrls,
-                primaryImageUrl: imageUrls[0],
+                imageUrl: orderedImages.imageUrls[0],
+                imageUrls: orderedImages.imageUrls,
+                primaryImageUrl: orderedImages.imageUrls[0],
+                imagePaths: hasCompletePaths ? orderedImages.imagePaths : undefined,
+                primaryImagePath: hasCompletePaths ? orderedImages.imagePaths[0] : undefined,
                 favorite: false,
                 tags: this.tags.split(',').map(t => t.trim()).filter(t => t),
             });
@@ -355,14 +371,55 @@ export class AddItemComponent {
         return 'Unable to save item. Please review your inputs and try again.';
     }
 
-    private getOrderedImageUrls(): string[] {
+    private getOrderedImages(): { imageUrls: string[]; imagePaths: string[] } {
         const images = this.previewUrls();
+        const paths = this.normalizeImagePaths(images.length);
         if (images.length <= 1) {
-          return images;
+          return { imageUrls: images, imagePaths: paths };
         }
         const primaryIndex = this.selectedImageIndex();
         const normalizedPrimaryIndex = ((primaryIndex % images.length) + images.length) % images.length;
         const primaryImage = images[normalizedPrimaryIndex];
-        return [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)];
+        const primaryPath = paths[normalizedPrimaryIndex] ?? '';
+        return {
+          imageUrls: [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)],
+          imagePaths: [primaryPath, ...paths.filter((_, index) => index !== normalizedPrimaryIndex)],
+        };
+    }
+
+    private normalizeImagePaths(expectedLength: number): string[] {
+      const paths = this.imagePaths();
+      return Array.from({ length: expectedLength }, (_, index) => paths[index] ?? '');
+    }
+
+    private async uploadPendingImages(): Promise<void> {
+      const currentUrls = this.previewUrls();
+      const currentPaths = this.normalizeImagePaths(currentUrls.length);
+      const pending = currentUrls
+        .map((url, index) => ({ url, index }))
+        .filter(entry => this.mediaUpload.isDataUrl(entry.url) && !currentPaths[entry.index]);
+
+      if (!pending.length) {
+        return;
+      }
+
+      const uploadedImages = await this.mediaUpload.uploadDataUrls(
+        pending.map(entry => entry.url),
+        'wardrobe-item',
+      );
+
+      if (uploadedImages.length !== pending.length) {
+        throw new Error('Image upload was incomplete.');
+      }
+
+      const nextUrls = [...currentUrls];
+      const nextPaths = [...currentPaths];
+      pending.forEach((entry, index) => {
+        nextUrls[entry.index] = uploadedImages[index].url;
+        nextPaths[entry.index] = uploadedImages[index].path;
+      });
+
+      this.previewUrls.set(nextUrls);
+      this.imagePaths.set(nextPaths);
     }
 }

@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { Outfit } from '../../core/models';
+import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
 const OUTFIT_LOADING_ICONS = ['style', 'checkroom', 'auto_awesome', 'self_improvement'] as const;
 const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
@@ -13,7 +14,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-outfits',
-  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, MatTooltipModule],
+  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, MatTooltipModule, ImageReadyDirective],
   template: `
     <div class="outfits-page animate-fade-in">
       <header class="page-header">
@@ -60,7 +61,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
               [class.favorite]="outfit.favorite"
               [routerLink]="['/outfits', outfit.id]">
               <div class="outfit-image">
-                <img [src]="outfit.imageUrl" [alt]="outfit.name">
+                <img [src]="outfit.imageUrl" [dwImageReady]="outfit.imageUrl" [alt]="outfit.name">
                 @if (outfit.rating) {<div class="rating"><mat-icon>star</mat-icon>{{ outfit.rating }}</div>}
               </div>
               <div class="outfit-content">

@@ -38,6 +38,8 @@ interface Point {
   y: number;
 }
 
+type PointerMode = 'draw' | 'move';
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-image-cropper-dialog',
@@ -61,8 +63,8 @@ interface Point {
           [style.height.px]="canvasHeight()"
           (pointerdown)="onPointerDown($event)"
           (pointermove)="onPointerMove($event)"
-          (pointerup)="onPointerUp()"
-          (pointerleave)="onPointerUp()"
+          (pointerup)="onPointerUp($event)"
+          (pointercancel)="onPointerUp($event)"
         >
           <canvas #previewCanvas [width]="canvasWidth()" [height]="canvasHeight()"></canvas>
           @if (selection()) {
@@ -76,18 +78,23 @@ interface Point {
           }
           <div class="instructions">
             <mat-icon>crop</mat-icon>
-            <span>Drag to choose crop area</span>
+            <span>Drag to crop. Drag inside box to reposition.</span>
           </div>
         </div>
       }
     </mat-dialog-content>
 
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" (click)="resetSelection()" [disabled]="isLoading() || !!errorMessage()">
+    <mat-dialog-actions align="end" class="crop-actions">
+      <button mat-flat-button type="button" class="action-neutral action-utility" (click)="fitToImage()" [disabled]="isLoading() || !!errorMessage()">
+        <mat-icon>fit_screen</mat-icon>
+        Full Image
+      </button>
+      <button mat-flat-button type="button" class="action-neutral action-utility" (click)="resetSelection()" [disabled]="isLoading() || !!errorMessage()">
+        <mat-icon>restart_alt</mat-icon>
         Reset
       </button>
-      <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
-      <button mat-flat-button color="primary" type="button" (click)="confirmCrop()" [disabled]="isLoading() || !!errorMessage()">
+      <button mat-flat-button type="button" class="action-secondary" (click)="cancel()">Cancel</button>
+      <button mat-flat-button type="button" class="action-primary" (click)="confirmCrop()" [disabled]="isLoading() || !!errorMessage()">
         Use Image
       </button>
     </mat-dialog-actions>
@@ -98,6 +105,7 @@ interface Point {
         min-width: min(86vw, 780px);
         max-width: min(92vw, 860px);
         overflow: hidden;
+        padding-bottom: 6px;
       }
 
       .crop-loading {
@@ -144,6 +152,15 @@ interface Point {
         pointer-events: none;
       }
 
+      .selection::before {
+        content: '';
+        position: absolute;
+        inset: 10px;
+        border: 1px dashed color-mix(in srgb, #fff 58%, transparent);
+        border-radius: 8px;
+        opacity: 0.9;
+      }
+
       .instructions {
         position: absolute;
         left: 10px;
@@ -165,10 +182,88 @@ interface Point {
         font-size: 14px;
       }
 
+      .crop-actions {
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid color-mix(in srgb, var(--dw-border-subtle) 82%, transparent);
+      }
+
+      .action-neutral {
+        --mdc-filled-button-container-color: var(--dw-surface-elevated) !important;
+        --mdc-filled-button-label-text-color: var(--dw-text-secondary) !important;
+        border-radius: 10px !important;
+        color: var(--dw-text-secondary) !important;
+      }
+
+      .action-utility {
+        --mdc-filled-button-container-color: var(--dw-surface-card) !important;
+        border: 1px solid var(--dw-border-subtle) !important;
+        background: var(--dw-surface-card) !important;
+        min-height: 34px;
+      }
+
+      .action-utility .mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        margin-right: 4px;
+        opacity: 0.86;
+      }
+
+      .action-secondary {
+        --mdc-filled-button-container-color: var(--dw-surface-card) !important;
+        --mdc-filled-button-label-text-color: var(--dw-text-primary) !important;
+        border-radius: 10px !important;
+        border: 1px solid var(--dw-border-strong) !important;
+        color: var(--dw-text-primary) !important;
+        background: var(--dw-surface-card) !important;
+      }
+
+      .action-primary {
+        --mdc-filled-button-container-color: var(--dw-surface-elevated) !important;
+        --mdc-filled-button-label-text-color: var(--dw-primary) !important;
+        border-radius: 10px !important;
+        color: var(--dw-primary) !important;
+        background: var(--dw-surface-elevated) !important;
+        border: 1px solid var(--dw-primary) !important;
+        box-shadow: none !important;
+      }
+
+      .action-neutral:hover {
+        background: var(--dw-surface-hover) !important;
+        color: var(--dw-text-primary) !important;
+      }
+
+      .action-utility:hover {
+        border-color: var(--dw-border-strong) !important;
+        background: var(--dw-surface-hover) !important;
+      }
+
+      .action-secondary:hover {
+        background: var(--dw-surface-hover) !important;
+        border-color: var(--dw-border-strong) !important;
+      }
+
+      .action-primary:hover {
+        background: var(--dw-surface-card) !important;
+        border-color: var(--dw-primary-dark) !important;
+      }
+
+      .action-primary[disabled],
+      .action-secondary[disabled],
+      .action-neutral[disabled] {
+        opacity: 0.52;
+      }
+
       @media (max-width: 768px) {
         .cropper-content {
           min-width: min(92vw, 560px);
           padding-inline: 4px;
+        }
+
+        .crop-actions {
+          flex-wrap: wrap;
+          justify-content: flex-end;
         }
       }
     `,
@@ -189,6 +284,9 @@ export class ImageCropperDialogComponent implements OnInit {
   canvasHeight = signal(0);
   selection = signal<CropRect | null>(null);
   pointerStart = signal<Point | null>(null);
+  pointerMode = signal<PointerMode>('draw');
+  dragOffset = signal<Point | null>(null);
+  activePointerId = signal<number | null>(null);
 
   private sourceImage: HTMLImageElement | null = null;
 
@@ -210,23 +308,59 @@ export class ImageCropperDialogComponent implements OnInit {
     }
     event.preventDefault();
     const point = this.getLocalPoint(event);
+    const currentSelection = this.selection();
+    const surface = this.cropSurface()?.nativeElement;
+    surface?.setPointerCapture(event.pointerId);
+    this.activePointerId.set(event.pointerId);
+
+    if (
+      currentSelection &&
+      this.isPointInsideSelection(point, currentSelection) &&
+      !this.isSelectionCoveringSurface(currentSelection)
+    ) {
+      this.pointerMode.set('move');
+      this.dragOffset.set({
+        x: point.x - currentSelection.x,
+        y: point.y - currentSelection.y,
+      });
+      this.pointerStart.set(point);
+      return;
+    }
+
+    this.pointerMode.set('draw');
+    this.dragOffset.set(null);
     this.pointerStart.set(point);
     this.selection.set({ x: point.x, y: point.y, width: 1, height: 1 });
   }
 
   onPointerMove(event: PointerEvent): void {
-    if (!this.pointerStart()) {
+    const start = this.pointerStart();
+    if (!start) {
       return;
     }
     event.preventDefault();
-    const start = this.pointerStart()!;
     const end = this.getLocalPoint(event);
+
+    if (this.pointerMode() === 'move') {
+      this.moveSelection(end);
+      return;
+    }
+
     this.selection.set(this.buildSelection(start, end));
   }
 
-  onPointerUp(): void {
+  onPointerUp(event?: PointerEvent): void {
+    const surface = this.cropSurface()?.nativeElement;
+    const activePointer = event?.pointerId ?? this.activePointerId();
+    if (surface && activePointer !== null && surface.hasPointerCapture(activePointer)) {
+      surface.releasePointerCapture(activePointer);
+    }
+
     const current = this.selection();
     this.pointerStart.set(null);
+    this.dragOffset.set(null);
+    this.pointerMode.set('draw');
+    this.activePointerId.set(null);
     if (!current) {
       return;
     }
@@ -244,12 +378,17 @@ export class ImageCropperDialogComponent implements OnInit {
 
     const ratio = this.data.options?.aspectRatio;
     if (!ratio || ratio <= 0) {
-      this.selection.set({ x: 0, y: 0, width, height });
+      this.selection.set({
+        x: width * 0.06,
+        y: height * 0.06,
+        width: width * 0.88,
+        height: height * 0.88,
+      });
       return;
     }
 
-    const maxWidth = width * 0.9;
-    const maxHeight = height * 0.9;
+    const maxWidth = width * 0.88;
+    const maxHeight = height * 0.88;
     let cropWidth = maxWidth;
     let cropHeight = cropWidth / ratio;
     if (cropHeight > maxHeight) {
@@ -263,6 +402,15 @@ export class ImageCropperDialogComponent implements OnInit {
       width: cropWidth,
       height: cropHeight,
     });
+  }
+
+  fitToImage(): void {
+    const width = this.canvasWidth();
+    const height = this.canvasHeight();
+    if (!width || !height) {
+      return;
+    }
+    this.selection.set({ x: 0, y: 0, width, height });
   }
 
   confirmCrop(): void {
@@ -400,6 +548,41 @@ export class ImageCropperDialogComponent implements OnInit {
       width: this.clamp(width, 1, this.canvasWidth()),
       height: this.clamp(height, 1, this.canvasHeight()),
     };
+  }
+
+  private moveSelection(pointer: Point): void {
+    const currentSelection = this.selection();
+    const offset = this.dragOffset();
+    if (!currentSelection || !offset) {
+      return;
+    }
+
+    const nextX = this.clamp(pointer.x - offset.x, 0, this.canvasWidth() - currentSelection.width);
+    const nextY = this.clamp(pointer.y - offset.y, 0, this.canvasHeight() - currentSelection.height);
+    this.selection.set({
+      ...currentSelection,
+      x: nextX,
+      y: nextY,
+    });
+  }
+
+  private isPointInsideSelection(point: Point, selection: CropRect): boolean {
+    return (
+      point.x >= selection.x &&
+      point.x <= selection.x + selection.width &&
+      point.y >= selection.y &&
+      point.y <= selection.y + selection.height
+    );
+  }
+
+  private isSelectionCoveringSurface(selection: CropRect): boolean {
+    const epsilon = 1;
+    return (
+      selection.x <= epsilon &&
+      selection.y <= epsilon &&
+      Math.abs(this.canvasWidth() - selection.width) <= epsilon &&
+      Math.abs(this.canvasHeight() - selection.height) <= epsilon
+    );
   }
 
   private resolveOutputType(): 'image/jpeg' | 'image/png' | 'image/webp' {

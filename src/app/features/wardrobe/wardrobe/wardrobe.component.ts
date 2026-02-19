@@ -663,8 +663,12 @@ export class WardrobeComponent implements OnInit {
     this.wardrobeService.deleteItem(item.id);
   }
 
-  onToggleFavorite(item: WardrobeItem | Accessory): void {
-    this.wardrobeService.toggleFavorite(item.id);
+  async onToggleFavorite(item: WardrobeItem | Accessory): Promise<void> {
+    try {
+      await this.wardrobeService.toggleFavorite(item.id);
+    } catch {
+      // Keep collection interactions responsive if favorite update fails.
+    }
   }
 
   onAddToOutfit(item: WardrobeItem | Accessory): void {

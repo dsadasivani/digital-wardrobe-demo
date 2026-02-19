@@ -9,8 +9,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory, WardrobeItem } from '../../../core/models';
-import { ImageCropperService } from '../../../core/services';
+import { ImageCropperService, MediaUploadService } from '../../../core/services';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
+import { ImageReadyDirective } from '../../../shared/directives/image-ready.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,6 +25,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    ImageReadyDirective,
   ],
   template: `
     @if (itemId()) {
@@ -39,7 +41,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
         <form class="edit-form glass" (ngSubmit)="save()">
           <div class="image-editor">
             <div class="image-preview">
-              <img [src]="primaryImage()" alt="Item image preview">
+              <img [src]="primaryImage()" [dwImageReady]="primaryImage()" alt="Item image preview">
             </div>
             <div class="image-actions">
               <button mat-stroked-button type="button" (click)="imageInput.click()">
@@ -53,7 +55,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
               <div class="preview-grid">
                 @for (url of imageUrls(); track i; let i = $index) {
                   <div class="preview-thumb" [class.active]="i === selectedImageIndex()">
-                    <img [src]="url" [alt]="'Image ' + (i + 1)" (click)="setPrimaryImage(i, $event)">
+                    <img [src]="url" [dwImageReady]="url" [alt]="'Image ' + (i + 1)" (click)="setPrimaryImage(i, $event)">
                     @if (i === selectedImageIndex()) {
                       <span class="primary-chip" aria-label="Primary image">
                         <mat-icon>workspace_premium</mat-icon>
@@ -216,6 +218,7 @@ export class EditItemComponent implements OnInit {
   private router = inject(Router);
   private location = inject(Location);
   private imageCropper = inject(ImageCropperService);
+  private mediaUpload = inject(MediaUploadService);
   private wardrobeService = inject(WardrobeService);
 
   categories = WARDROBE_CATEGORIES;
@@ -231,6 +234,7 @@ export class EditItemComponent implements OnInit {
   price = '';
   purchaseDate = '';
   imageUrls = signal<string[]>([]);
+  imagePaths = signal<string[]>([]);
   selectedImageIndex = signal(0);
   primaryImage = computed(() => this.imageUrls()[this.selectedImageIndex()] ?? this.imageUrls()[0] ?? '');
   tags = '';
@@ -274,6 +278,7 @@ export class EditItemComponent implements OnInit {
       }
       if (croppedUrls.length) {
         this.imageUrls.update(existing => [...existing, ...croppedUrls]);
+        this.imagePaths.update(existing => [...existing, ...croppedUrls.map(() => '')]);
         this.selectedImageIndex.set(0);
       }
     } catch (error) {
@@ -285,6 +290,7 @@ export class EditItemComponent implements OnInit {
   removeImage(index: number, event: Event): void {
     event.stopPropagation();
     this.imageUrls.update(images => images.filter((_, i) => i !== index));
+    this.imagePaths.update(paths => paths.filter((_, i) => i !== index));
     this.selectedImageIndex.update(current => {
       if (current === index) {
         return 0;
@@ -314,7 +320,11 @@ export class EditItemComponent implements OnInit {
     this.isSaving.set(true);
     this.errorMessage.set(null);
     try {
-      const imageUrls = this.getOrderedImageUrls();
+      await this.uploadPendingImages();
+      const orderedImages = this.getOrderedImages();
+      const hasCompletePaths =
+        orderedImages.imagePaths.length === orderedImages.imageUrls.length &&
+        orderedImages.imagePaths.every(path => !!path);
       await this.wardrobeService.updateItem(id, {
         name: this.name.trim(),
         category: this.category,
@@ -324,9 +334,11 @@ export class EditItemComponent implements OnInit {
         occasion: this.occasion || undefined,
         price: this.price ? Number(this.price) : undefined,
         purchaseDate: this.purchaseDate ? new Date(this.purchaseDate) : undefined,
-        imageUrl: imageUrls[0]?.trim(),
-        imageUrls,
-        primaryImageUrl: imageUrls[0]?.trim(),
+        imageUrl: orderedImages.imageUrls[0]?.trim(),
+        imageUrls: orderedImages.imageUrls,
+        primaryImageUrl: orderedImages.imageUrls[0]?.trim(),
+        imagePaths: hasCompletePaths ? orderedImages.imagePaths : undefined,
+        primaryImagePath: hasCompletePaths ? orderedImages.imagePaths[0] : undefined,
         tags: this.tags.split(',').map(tag => tag.trim()).filter(Boolean),
         notes: this.notes.trim() || undefined,
       });
@@ -348,7 +360,9 @@ export class EditItemComponent implements OnInit {
     this.occasion = item.occasion ?? '';
     this.price = item.price?.toString() ?? '';
     this.purchaseDate = item.purchaseDate ? this.toDateInput(item.purchaseDate) : '';
-    this.imageUrls.set(item.imageUrls?.length ? item.imageUrls : [item.imageUrl]);
+    const urls = item.imageUrls?.length ? item.imageUrls : [item.imageUrl];
+    this.imageUrls.set(urls);
+    this.imagePaths.set(this.alignImagePaths(item.imagePaths, urls.length));
     this.selectedImageIndex.set(0);
     this.tags = item.tags.join(', ');
     this.notes = item.notes ?? '';
@@ -372,15 +386,60 @@ export class EditItemComponent implements OnInit {
     return 'Unable to save changes. Please review your inputs and try again.';
   }
 
-  private getOrderedImageUrls(): string[] {
+  private getOrderedImages(): { imageUrls: string[]; imagePaths: string[] } {
     const images = this.imageUrls();
+    const paths = this.normalizeImagePaths(images.length);
     if (images.length <= 1) {
-      return images;
+      return { imageUrls: images, imagePaths: paths };
     }
     const primaryIndex = this.selectedImageIndex();
     const normalizedPrimaryIndex = ((primaryIndex % images.length) + images.length) % images.length;
     const primaryImage = images[normalizedPrimaryIndex];
-    return [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)];
+    const primaryPath = paths[normalizedPrimaryIndex] ?? '';
+    return {
+      imageUrls: [primaryImage, ...images.filter((_, index) => index !== normalizedPrimaryIndex)],
+      imagePaths: [primaryPath, ...paths.filter((_, index) => index !== normalizedPrimaryIndex)],
+    };
+  }
+
+  private alignImagePaths(imagePaths: string[] | undefined, expectedLength: number): string[] {
+    const paths = imagePaths ?? [];
+    return Array.from({ length: expectedLength }, (_, index) => paths[index] ?? '');
+  }
+
+  private normalizeImagePaths(expectedLength: number): string[] {
+    return this.alignImagePaths(this.imagePaths(), expectedLength);
+  }
+
+  private async uploadPendingImages(): Promise<void> {
+    const currentUrls = this.imageUrls();
+    const currentPaths = this.normalizeImagePaths(currentUrls.length);
+    const pending = currentUrls
+      .map((url, index) => ({ url, index }))
+      .filter(entry => this.mediaUpload.isDataUrl(entry.url) && !currentPaths[entry.index]);
+
+    if (!pending.length) {
+      return;
+    }
+
+    const uploadedImages = await this.mediaUpload.uploadDataUrls(
+      pending.map(entry => entry.url),
+      'wardrobe-item',
+    );
+
+    if (uploadedImages.length !== pending.length) {
+      throw new Error('Image upload was incomplete.');
+    }
+
+    const nextUrls = [...currentUrls];
+    const nextPaths = [...currentPaths];
+    pending.forEach((entry, index) => {
+      nextUrls[entry.index] = uploadedImages[index].url;
+      nextPaths[entry.index] = uploadedImages[index].path;
+    });
+
+    this.imageUrls.set(nextUrls);
+    this.imagePaths.set(nextPaths);
   }
 
   private async loadItemForEdit(id: string | null): Promise<void> {

@@ -17,6 +17,8 @@ public record AccessoryResponse(
         String imageUrl,
         List<String> imageUrls,
         String primaryImageUrl,
+        List<String> imagePaths,
+        String primaryImagePath,
         int worn,
         Instant lastWorn,
         boolean favorite,

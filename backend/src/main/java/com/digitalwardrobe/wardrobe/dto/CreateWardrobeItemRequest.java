@@ -25,10 +25,11 @@ public record CreateWardrobeItemRequest(
     @DecimalMin(value = "0.0", inclusive = false, message = "price must be greater than 0")
     BigDecimal price,
     Instant purchaseDate,
-    @NotBlank(message = "imageUrl is required")
     String imageUrl,
     List<String> imageUrls,
     String primaryImageUrl,
+    List<String> imagePaths,
+    String primaryImagePath,
     @NotNull(message = "favorite is required")
     Boolean favorite,
     @NotEmpty(message = "tags are required")

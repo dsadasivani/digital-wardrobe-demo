@@ -10,6 +10,7 @@ import { Router } from '@angular/router';
 import { User } from '../../../core/models';
 import { AuthService } from '../../../core/services';
 import { ThemeService } from '../../../core/services/theme.service';
+import { ImageReadyDirective } from '../../directives/image-ready.directive';
 
 export interface MobileProfileSheetData {
   user: User | null;
@@ -18,7 +19,7 @@ export interface MobileProfileSheetData {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-mobile-profile-sheet',
-  imports: [CommonModule, MatButtonModule, MatButtonToggleModule, MatDividerModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatButtonToggleModule, MatDividerModule, MatIconModule, ImageReadyDirective],
   template: `
     <div class="sheet-root">
       <div class="sheet-handle"></div>
@@ -26,7 +27,7 @@ export interface MobileProfileSheetData {
       <div class="menu-user-info">
         <div class="info-avatar">
           @if (data.user?.avatar) {
-            <img [src]="data.user!.avatar" [alt]="data.user!.name || 'User'" />
+            <img [src]="data.user!.avatar" [dwImageReady]="data.user!.avatar" [alt]="data.user!.name || 'User'" />
           } @else {
             <mat-icon>account_circle</mat-icon>
           }

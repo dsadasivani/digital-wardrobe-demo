@@ -634,9 +634,7 @@ export class App implements OnInit, OnDestroy {
   mobileMenuOpen = this.uiState.mobileMenuOpen;
   isMobile = this.uiState.isMobile;
   isRouteLoading = this.uiState.isRouteLoading;
-  showLoader = computed(
-    () => !this.authenticated() && (this.loadingService.isLoading() || this.isRouteLoading()),
-  );
+  showLoader = computed(() => this.loadingService.isLoading() || this.isRouteLoading());
   showLayout = this.uiState.showLayout;
   createMenuOpen = this.uiState.createMenuOpen;
   mobileNavItems = this.uiState.mobileNavItems;

@@ -6,6 +6,7 @@ import com.digitalwardrobe.dashboard.dto.DashboardCountersResponse;
 import com.digitalwardrobe.dashboard.dto.DashboardRecentlyAddedResponse;
 import com.digitalwardrobe.dashboard.dto.DashboardSummaryResponse;
 import com.digitalwardrobe.dashboard.dto.DashboardWearInsightsResponse;
+import com.digitalwardrobe.media.service.FirebaseStorageService;
 import com.digitalwardrobe.outfits.repository.OutfitRepository;
 import com.digitalwardrobe.users.service.UserService;
 import com.digitalwardrobe.wardrobe.domain.WardrobeItemDocument;
@@ -14,8 +15,11 @@ import com.digitalwardrobe.wardrobe.repository.WardrobeItemRepository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class DashboardService {
@@ -26,16 +30,19 @@ public class DashboardService {
     private final AccessoryRepository accessoryRepository;
     private final OutfitRepository outfitRepository;
     private final UserService userService;
+    private final FirebaseStorageService firebaseStorageService;
 
     public DashboardService(
             WardrobeItemRepository wardrobeItemRepository,
             AccessoryRepository accessoryRepository,
             OutfitRepository outfitRepository,
-            UserService userService) {
+            UserService userService,
+            FirebaseStorageService firebaseStorageService) {
         this.wardrobeItemRepository = wardrobeItemRepository;
         this.accessoryRepository = accessoryRepository;
         this.outfitRepository = outfitRepository;
         this.userService = userService;
+        this.firebaseStorageService = firebaseStorageService;
     }
 
     public DashboardCountersResponse getCounters(Authentication authentication) {
@@ -134,6 +141,35 @@ public class DashboardService {
     }
 
     private WardrobeItemResponse toWardrobeItemResponse(WardrobeItemDocument item) {
+        List<String> imagePaths = normalizeImagePaths(item.getImagePaths());
+        String primaryImagePath = imagePaths.isEmpty()
+                ? null
+                : resolvePrimaryImagePath(item.getPrimaryImagePath(), imagePaths, imagePaths.getFirst());
+        List<String> imageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
+        String primaryImageUrl = resolvePrimaryImageUrl(
+                item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl(),
+                imageUrls,
+                item.getImageUrl());
+
+        if (!imagePaths.isEmpty()) {
+            try {
+                Map<String, String> signedUrlMap = firebaseStorageService.resolveSignedUrlMap(imagePaths);
+                List<String> signedUrls = imagePaths.stream()
+                        .map(path -> signedUrlMap.get(path))
+                        .filter(StringUtils::hasText)
+                        .toList();
+                if (!signedUrls.isEmpty()) {
+                    imageUrls = signedUrls;
+                    primaryImageUrl = signedUrlMap.get(primaryImagePath);
+                    if (!StringUtils.hasText(primaryImageUrl)) {
+                        primaryImageUrl = imageUrls.getFirst();
+                    }
+                }
+            } catch (ResponseStatusException ignored) {
+                // Keep fallback URLs when signing is unavailable.
+            }
+        }
+
         return new WardrobeItemResponse(
                 item.getId(),
                 item.getName(),
@@ -145,14 +181,74 @@ public class DashboardService {
                 item.getOccasion(),
                 item.getPrice(),
                 item.getPurchaseDate(),
-                item.getImageUrl(),
-                item.getImageUrls(),
-                item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl(),
+                primaryImageUrl,
+                imageUrls,
+                primaryImageUrl,
+                imagePaths,
+                primaryImagePath,
                 item.getWorn(),
                 item.getLastWorn(),
                 item.isFavorite(),
                 item.getTags(),
                 item.getNotes(),
                 item.getCreatedAt());
+    }
+
+    private List<String> normalizeImageUrls(List<String> imageUrls, String fallbackImageUrl) {
+        List<String> normalized = new ArrayList<>();
+        if (imageUrls != null) {
+            normalized = imageUrls.stream()
+                    .filter(url -> url != null && !url.isBlank())
+                    .map(String::trim)
+                    .toList();
+        }
+        if (normalized.isEmpty() && fallbackImageUrl != null && !fallbackImageUrl.isBlank()) {
+            normalized = List.of(fallbackImageUrl.trim());
+        }
+        return normalized;
+    }
+
+    private List<String> normalizeImagePaths(List<String> imagePaths) {
+        if (imagePaths == null) {
+            return List.of();
+        }
+        return imagePaths.stream()
+                .filter(path -> path != null && !path.isBlank())
+                .map(String::trim)
+                .toList();
+    }
+
+    private String resolvePrimaryImageUrl(String requestedPrimaryImageUrl, List<String> imageUrls,
+            String fallbackImageUrl) {
+        if (requestedPrimaryImageUrl != null && !requestedPrimaryImageUrl.isBlank()) {
+            String normalizedPrimaryImageUrl = requestedPrimaryImageUrl.trim();
+            if (imageUrls.contains(normalizedPrimaryImageUrl) || imageUrls.isEmpty()) {
+                return normalizedPrimaryImageUrl;
+            }
+        }
+        if (fallbackImageUrl != null && !fallbackImageUrl.isBlank() && imageUrls.contains(fallbackImageUrl.trim())) {
+            return fallbackImageUrl.trim();
+        }
+        if (!imageUrls.isEmpty()) {
+            return imageUrls.getFirst();
+        }
+        return "";
+    }
+
+    private String resolvePrimaryImagePath(String requestedPrimaryImagePath, List<String> imagePaths,
+            String fallbackImagePath) {
+        if (requestedPrimaryImagePath != null && !requestedPrimaryImagePath.isBlank()) {
+            String normalizedPrimaryImagePath = requestedPrimaryImagePath.trim();
+            if (imagePaths.contains(normalizedPrimaryImagePath) || imagePaths.isEmpty()) {
+                return normalizedPrimaryImagePath;
+            }
+        }
+        if (fallbackImagePath != null && !fallbackImagePath.isBlank() && imagePaths.contains(fallbackImagePath.trim())) {
+            return fallbackImagePath.trim();
+        }
+        if (!imagePaths.isEmpty()) {
+            return imagePaths.getFirst();
+        }
+        return "";
     }
 }

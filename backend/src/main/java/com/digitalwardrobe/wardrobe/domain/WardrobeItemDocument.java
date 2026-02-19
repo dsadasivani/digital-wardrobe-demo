@@ -33,6 +33,8 @@ public class WardrobeItemDocument {
     private String imageUrl;
     private List<String> imageUrls = new ArrayList<>();
     private String primaryImageUrl;
+    private List<String> imagePaths = new ArrayList<>();
+    private String primaryImagePath;
     private int worn = 0;
     private Instant lastWorn;
     private boolean favorite = false;
@@ -151,6 +153,22 @@ public class WardrobeItemDocument {
 
     public void setPrimaryImageUrl(String primaryImageUrl) {
         this.primaryImageUrl = primaryImageUrl;
+    }
+
+    public List<String> getImagePaths() {
+        return imagePaths;
+    }
+
+    public void setImagePaths(List<String> imagePaths) {
+        this.imagePaths = imagePaths;
+    }
+
+    public String getPrimaryImagePath() {
+        return primaryImagePath;
+    }
+
+    public void setPrimaryImagePath(String primaryImagePath) {
+        this.primaryImagePath = primaryImagePath;
     }
 
     public int getWorn() {

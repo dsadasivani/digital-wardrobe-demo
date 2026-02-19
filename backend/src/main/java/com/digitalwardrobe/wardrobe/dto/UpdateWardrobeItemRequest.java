@@ -22,6 +22,8 @@ public record UpdateWardrobeItemRequest(
     String imageUrl,
     List<String> imageUrls,
     String primaryImageUrl,
+    List<String> imagePaths,
+    String primaryImagePath,
     @Min(value = 0, message = "worn must be >= 0")
     Integer worn,
     Instant lastWorn,

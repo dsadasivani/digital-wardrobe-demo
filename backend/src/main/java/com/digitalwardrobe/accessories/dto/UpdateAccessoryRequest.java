@@ -17,6 +17,8 @@ public record UpdateAccessoryRequest(
         String imageUrl,
         List<String> imageUrls,
         String primaryImageUrl,
+        List<String> imagePaths,
+        String primaryImagePath,
         Boolean favorite,
         List<String> tags) {
 }

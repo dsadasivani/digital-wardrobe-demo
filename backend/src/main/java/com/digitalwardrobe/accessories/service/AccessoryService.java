@@ -6,16 +6,19 @@ import com.digitalwardrobe.accessories.dto.CreateAccessoryRequest;
 import com.digitalwardrobe.accessories.dto.UpdateAccessoryRequest;
 import com.digitalwardrobe.accessories.repository.AccessoryRepository;
 import com.digitalwardrobe.common.api.PageResponse;
+import com.digitalwardrobe.media.service.FirebaseStorageService;
 import com.digitalwardrobe.users.service.UserService;
-import java.util.ArrayList;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -25,10 +28,15 @@ public class AccessoryService {
 
     private final AccessoryRepository accessoryRepository;
     private final UserService userService;
+    private final FirebaseStorageService firebaseStorageService;
 
-    public AccessoryService(AccessoryRepository accessoryRepository, UserService userService) {
+    public AccessoryService(
+            AccessoryRepository accessoryRepository,
+            UserService userService,
+            FirebaseStorageService firebaseStorageService) {
         this.accessoryRepository = accessoryRepository;
         this.userService = userService;
+        this.firebaseStorageService = firebaseStorageService;
     }
 
     public List<AccessoryResponse> list(Authentication authentication) {
@@ -63,11 +71,21 @@ public class AccessoryService {
         item.setPrice(request.price());
         item.setOccasion(request.occasion());
         item.setPurchaseDate(request.purchaseDate());
-        List<String> imageUrls = normalizeImageUrls(request.imageUrls(), request.imageUrl());
-        String primaryImageUrl = resolvePrimaryImageUrl(request.primaryImageUrl(), imageUrls, request.imageUrl());
-        item.setImageUrls(imageUrls);
-        item.setPrimaryImageUrl(primaryImageUrl);
-        item.setImageUrl(primaryImageUrl);
+
+        List<String> imagePaths = normalizeImagePaths(request.imagePaths());
+        if (!imagePaths.isEmpty()) {
+            String primaryImagePath = resolvePrimaryImagePath(request.primaryImagePath(), imagePaths, null);
+            applyPathImages(item, imagePaths, primaryImagePath);
+        } else {
+            List<String> imageUrls = normalizeImageUrls(request.imageUrls(), request.imageUrl());
+            String primaryImageUrl = resolvePrimaryImageUrl(request.primaryImageUrl(), imageUrls, request.imageUrl());
+            item.setImageUrls(imageUrls);
+            item.setPrimaryImageUrl(primaryImageUrl);
+            item.setImageUrl(primaryImageUrl);
+            item.setImagePaths(List.of());
+            item.setPrimaryImagePath(null);
+        }
+
         item.setWorn(0);
         item.setFavorite(Boolean.TRUE.equals(request.favorite()));
         item.setTags(request.tags());
@@ -104,8 +122,18 @@ public class AccessoryService {
         if (request.purchaseDate() != null) {
             item.setPurchaseDate(request.purchaseDate());
         }
-        if (request.imageUrl() != null || request.imageUrls() != null || request.primaryImageUrl() != null) {
-            applyImageUpdates(item, request.imageUrl(), request.imageUrls(), request.primaryImageUrl());
+        if (request.imageUrl() != null
+                || request.imageUrls() != null
+                || request.primaryImageUrl() != null
+                || request.imagePaths() != null
+                || request.primaryImagePath() != null) {
+            applyImageUpdates(
+                    item,
+                    request.imageUrl(),
+                    request.imageUrls(),
+                    request.primaryImageUrl(),
+                    request.imagePaths(),
+                    request.primaryImagePath());
         }
         if (request.favorite() != null) {
             item.setFavorite(request.favorite());
@@ -158,6 +186,7 @@ public class AccessoryService {
     }
 
     private AccessoryResponse toResponse(AccessoryDocument item) {
+        ResolvedImages resolvedImages = resolveImagesForResponse(item);
         return new AccessoryResponse(
                 item.getId(),
                 item.getName(),
@@ -168,14 +197,49 @@ public class AccessoryService {
                 item.getPrice(),
                 item.getOccasion(),
                 item.getPurchaseDate(),
-                item.getImageUrl(),
-                item.getImageUrls(),
-                item.getPrimaryImageUrl() != null ? item.getPrimaryImageUrl() : item.getImageUrl(),
+                resolvedImages.primaryImageUrl(),
+                resolvedImages.imageUrls(),
+                resolvedImages.primaryImageUrl(),
+                resolvedImages.imagePaths(),
+                resolvedImages.primaryImagePath(),
                 item.getWorn(),
                 item.getLastWorn(),
                 item.isFavorite(),
                 item.getTags(),
                 item.getCreatedAt());
+    }
+
+    private ResolvedImages resolveImagesForResponse(AccessoryDocument item) {
+        List<String> imagePaths = normalizeImagePaths(item.getImagePaths());
+        if (!imagePaths.isEmpty()) {
+            String primaryImagePath = resolvePrimaryImagePath(item.getPrimaryImagePath(), imagePaths, imagePaths.getFirst());
+            try {
+                Map<String, String> signedUrlMap = firebaseStorageService.resolveSignedUrlMap(imagePaths);
+                List<String> imageUrls = imagePaths.stream()
+                        .map(path -> signedUrlMap.get(path))
+                        .filter(StringUtils::hasText)
+                        .toList();
+                if (!imageUrls.isEmpty()) {
+                    String primaryImageUrl = signedUrlMap.get(primaryImagePath);
+                    if (!StringUtils.hasText(primaryImageUrl)) {
+                        primaryImageUrl = imageUrls.getFirst();
+                    }
+                    return new ResolvedImages(primaryImageUrl, imageUrls, imagePaths, primaryImagePath);
+                }
+            } catch (ResponseStatusException ignored) {
+                // Fall back to stored URLs in case storage signing is unavailable.
+            }
+            List<String> fallbackImageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
+            String fallbackPrimaryImageUrl = resolvePrimaryImageUrl(
+                    item.getPrimaryImageUrl(),
+                    fallbackImageUrls,
+                    item.getImageUrl());
+            return new ResolvedImages(fallbackPrimaryImageUrl, fallbackImageUrls, imagePaths, primaryImagePath);
+        }
+
+        List<String> imageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
+        String primaryImageUrl = resolvePrimaryImageUrl(item.getPrimaryImageUrl(), imageUrls, item.getImageUrl());
+        return new ResolvedImages(primaryImageUrl, imageUrls, List.of(), null);
     }
 
     private List<String> normalizeImageUrls(List<String> imageUrls, String fallbackImageUrl) {
@@ -195,11 +259,42 @@ public class AccessoryService {
         return normalized;
     }
 
+    private List<String> normalizeImagePaths(List<String> imagePaths) {
+        if (imagePaths == null) {
+            return List.of();
+        }
+        return imagePaths.stream()
+                .filter(path -> path != null && !path.isBlank())
+                .map(String::trim)
+                .toList();
+    }
+
     private void applyImageUpdates(
             AccessoryDocument item,
             String requestedImageUrl,
             List<String> requestedImageUrls,
-            String requestedPrimaryImageUrl) {
+            String requestedPrimaryImageUrl,
+            List<String> requestedImagePaths,
+            String requestedPrimaryImagePath) {
+        List<String> currentImagePaths = normalizeImagePaths(item.getImagePaths());
+        if (requestedImagePaths != null || requestedPrimaryImagePath != null || !currentImagePaths.isEmpty()) {
+            List<String> nextImagePaths = requestedImagePaths != null
+                    ? new ArrayList<>(normalizeImagePaths(requestedImagePaths))
+                    : new ArrayList<>(currentImagePaths);
+            if (nextImagePaths.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one image path is required");
+            }
+            String primaryImagePath = resolvePrimaryImagePath(
+                    requestedPrimaryImagePath,
+                    nextImagePaths,
+                    item.getPrimaryImagePath());
+            if (!nextImagePaths.contains(primaryImagePath)) {
+                nextImagePaths.add(0, primaryImagePath);
+            }
+            applyPathImages(item, nextImagePaths, primaryImagePath);
+            return;
+        }
+
         List<String> currentImageUrls = normalizeImageUrls(item.getImageUrls(), item.getImageUrl());
         List<String> nextImageUrls = requestedImageUrls != null
                 ? new ArrayList<>(normalizeImageUrls(requestedImageUrls,
@@ -225,6 +320,29 @@ public class AccessoryService {
         item.setImageUrls(nextImageUrls);
         item.setPrimaryImageUrl(primaryImageUrl);
         item.setImageUrl(primaryImageUrl);
+        item.setImagePaths(List.of());
+        item.setPrimaryImagePath(null);
+    }
+
+    private void applyPathImages(AccessoryDocument item, List<String> imagePaths, String primaryImagePath) {
+        Map<String, String> signedUrlMap = firebaseStorageService.resolveSignedUrlMap(imagePaths);
+        List<String> imageUrls = imagePaths.stream()
+                .map(path -> signedUrlMap.get(path))
+                .filter(StringUtils::hasText)
+                .toList();
+        if (imageUrls.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to resolve image URLs");
+        }
+        String primaryImageUrl = signedUrlMap.get(primaryImagePath);
+        if (!StringUtils.hasText(primaryImageUrl)) {
+            primaryImageUrl = imageUrls.getFirst();
+        }
+
+        item.setImagePaths(new ArrayList<>(imagePaths));
+        item.setPrimaryImagePath(primaryImagePath);
+        item.setImageUrls(imageUrls);
+        item.setPrimaryImageUrl(primaryImageUrl);
+        item.setImageUrl(primaryImageUrl);
     }
 
     private String resolvePrimaryImageUrl(String requestedPrimaryImageUrl, List<String> imageUrls,
@@ -242,5 +360,29 @@ public class AccessoryService {
             return imageUrls.getFirst();
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one image URL is required");
+    }
+
+    private String resolvePrimaryImagePath(String requestedPrimaryImagePath, List<String> imagePaths,
+            String fallbackImagePath) {
+        if (requestedPrimaryImagePath != null && !requestedPrimaryImagePath.isBlank()) {
+            String normalizedPrimaryImagePath = requestedPrimaryImagePath.trim();
+            if (imagePaths.contains(normalizedPrimaryImagePath) || imagePaths.isEmpty()) {
+                return normalizedPrimaryImagePath;
+            }
+        }
+        if (fallbackImagePath != null && !fallbackImagePath.isBlank() && imagePaths.contains(fallbackImagePath.trim())) {
+            return fallbackImagePath.trim();
+        }
+        if (!imagePaths.isEmpty()) {
+            return imagePaths.getFirst();
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one image path is required");
+    }
+
+    private record ResolvedImages(
+            String primaryImageUrl,
+            List<String> imageUrls,
+            List<String> imagePaths,
+            String primaryImagePath) {
     }
 }

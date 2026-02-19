@@ -389,7 +389,8 @@ export class WardrobeService {
     const dto = mapWardrobeItemToUpdateDto(updates);
     const response = await firstValueFrom(this.wardrobeApi.update(id, dto));
     const updated = mapWardrobeItemDtoToModel(response);
-    this.wardrobeItems.update((items) => items.map((item) => (item.id === id ? updated : item)));
+    this.wardrobeItems.update((items) => this.upsertById(items, updated));
+    this.syncDashboardWardrobeItem(updated);
     this.invalidateDashboardSections();
   }
 
@@ -459,7 +460,7 @@ export class WardrobeService {
     const dto = mapAccessoryToUpdateDto(updates);
     const response = await firstValueFrom(this.accessoriesApi.update(id, dto));
     const updated = mapAccessoryDtoToModel(response);
-    this.accessories.update((items) => items.map((item) => (item.id === id ? updated : item)));
+    this.accessories.update((items) => this.upsertById(items, updated));
     this.invalidateDashboardSections();
   }
 
@@ -1042,6 +1043,31 @@ export class WardrobeService {
     const updated = [...existing];
     updated[index] = incoming;
     return updated;
+  }
+
+  private syncDashboardWardrobeItem(updatedItem: WardrobeItem): void {
+    this.dashboardRecentlyAddedData.update((items) => {
+      if (!items) {
+        return items;
+      }
+      return items.map((item) => (item.id === updatedItem.id ? updatedItem : item));
+    });
+
+    this.dashboardWearInsightsData.update((insights) => {
+      if (!insights) {
+        return insights;
+      }
+      const mostWornItem =
+        insights.mostWornItem?.id === updatedItem.id ? updatedItem : insights.mostWornItem;
+      const leastWornItems = insights.leastWornItems.map((item) =>
+        item.id === updatedItem.id ? updatedItem : item,
+      );
+      return {
+        ...insights,
+        mostWornItem,
+        leastWornItems,
+      };
+    });
   }
 }
 

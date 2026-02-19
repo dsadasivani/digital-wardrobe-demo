@@ -101,6 +101,16 @@ Note: this app currently uses one active JWT signing secret, so rotating `JWT_SE
 - `SPRINGDOC_API_DOCS_ENABLED` (default: `true`)
 - `SPRINGDOC_SWAGGER_UI_ENABLED` (default: `true`)
 - `ACTUATOR_PUBLIC_ENDPOINTS` (default: `/actuator/health,/actuator/info`)
+- `MULTIPART_MAX_FILE_SIZE` (default: `12MB`)
+- `MULTIPART_MAX_REQUEST_SIZE` (default: `50MB`)
+- `FIREBASE_STORAGE_ENABLED` (default: `false`)
+- `FIREBASE_STORAGE_BUCKET` (required when Firebase storage is enabled)
+- `FIREBASE_PROJECT_ID` (optional but recommended)
+- `FIREBASE_CREDENTIALS_FILE` (path to service account JSON)
+- `FIREBASE_CREDENTIALS_JSON` (raw service account JSON string)
+- `FIREBASE_CREDENTIALS_JSON_BASE64` (base64-encoded service account JSON)
+- `FIREBASE_STORAGE_ROOT_PATH` (default: `users`)
+- `FIREBASE_SIGNED_URL_TTL` (default: `24h`)
 
 When `SPRING_PROFILES_ACTIVE=observability`, these optional vars are used:
 
@@ -118,6 +128,7 @@ When `SPRING_PROFILES_ACTIVE=observability`, these optional vars are used:
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
+- `POST /api/v1/media/images` (multipart upload, authenticated, returns `{ path, url, ... }` for Firebase-backed images)
 
 ## API documentation
 

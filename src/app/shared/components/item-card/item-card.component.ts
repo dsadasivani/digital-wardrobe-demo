@@ -7,6 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { WardrobeItem, Accessory } from '../../../core/models';
+import { ImageReadyDirective } from '../../directives/image-ready.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -19,6 +20,7 @@ import { WardrobeItem, Accessory } from '../../../core/models';
     MatTooltipModule,
     MatMenuModule,
     MatDividerModule,
+    ImageReadyDirective,
   ],
   template: `
     <div
@@ -37,7 +39,7 @@ import { WardrobeItem, Accessory } from '../../../core/models';
         ></div>
 
         @for (frame of imageFrames(); track frame.key) {
-          <img [src]="frame.url" [alt]="item().name" loading="lazy" class="animated-image">
+          <img [src]="frame.url" [dwImageReady]="frame.url" [alt]="item().name" loading="lazy" class="animated-image">
         }
 
         <div class="card-overlay">
@@ -169,11 +171,9 @@ import { WardrobeItem, Accessory } from '../../../core/models';
 
     @keyframes cardImageSwap {
       from {
-        opacity: 0.25;
         transform: scale(1.03);
       }
       to {
-        opacity: 1;
         transform: scale(1);
       }
     }
@@ -186,6 +186,7 @@ import { WardrobeItem, Accessory } from '../../../core/models';
       padding: var(--dw-spacing-sm);
       display: flex;
       justify-content: space-between;
+      z-index: 2;
       opacity: 0;
       transition: opacity var(--dw-transition-fast);
       background: var(--dw-image-overlay);

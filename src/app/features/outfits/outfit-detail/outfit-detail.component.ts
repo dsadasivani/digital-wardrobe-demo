@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../../core/models';
+import { ImageReadyDirective } from '../../../shared/directives/image-ready.directive';
 
 interface OutfitResolvedItem {
   source: OutfitItem;
@@ -16,7 +17,7 @@ interface OutfitResolvedItem {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
     selector: 'dw-outfit-detail',
-    imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatChipsModule],
+    imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatChipsModule, ImageReadyDirective],
     template: `
     @if (outfit(); as selectedOutfit) {
     <div class="outfit-detail-container animate-fade-in">
@@ -40,7 +41,7 @@ interface OutfitResolvedItem {
 
       <div class="detail-content">
         <div class="image-section glass">
-          <img [src]="selectedOutfit.imageUrl" [alt]="selectedOutfit.name">
+          <img [src]="selectedOutfit.imageUrl" [dwImageReady]="selectedOutfit.imageUrl" [alt]="selectedOutfit.name">
           <div class="meta-overlay">
             @if (selectedOutfit.season) {
               <span class="badge">{{ selectedOutfit.season }}</span>
@@ -61,7 +62,7 @@ interface OutfitResolvedItem {
                     class="item-card glass"
                     [routerLink]="resolvedItem.type === 'wardrobe' ? ['/wardrobe', itemData.id] : ['/accessories', itemData.id]"
                   >
-                    <img [src]="itemData.imageUrl" [alt]="itemData.name" />
+                    <img [src]="itemData.imageUrl" [dwImageReady]="itemData.imageUrl" [alt]="itemData.name" />
                     <span>{{ itemData.name }}</span>
                     <small>{{ resolvedItem.type === 'wardrobe' ? 'Wardrobe' : 'Accessory' }}</small>
                   </a>

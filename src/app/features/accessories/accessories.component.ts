@@ -281,8 +281,12 @@ export class AccessoriesComponent implements OnInit {
     }
   }
 
-  onToggleFavorite(item: WardrobeItem | Accessory): void {
-    this.wardrobeService.toggleAccessoryFavorite(item.id);
+  async onToggleFavorite(item: WardrobeItem | Accessory): Promise<void> {
+    try {
+      await this.wardrobeService.toggleAccessoryFavorite(item.id);
+    } catch {
+      // Keep collection interactions responsive if favorite update fails.
+    }
   }
 
   onAddToOutfit(_item: WardrobeItem | Accessory): void {

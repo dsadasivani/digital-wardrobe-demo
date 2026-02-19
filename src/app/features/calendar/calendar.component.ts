@@ -9,6 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Outfit } from '../../core/models';
 import { WardrobeService } from '../../core/services/wardrobe.service';
+import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
 interface CalendarDay {
   isoDate: string;
@@ -36,7 +37,7 @@ interface DayPopoverState {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-day-outfits-sheet',
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, ImageReadyDirective],
   template: `
     <div class="day-sheet">
       <div class="sheet-handle"></div>
@@ -46,7 +47,7 @@ interface DayPopoverState {
         <div class="sheet-existing-list">
           @for (outfit of data.outfitsForDate; track outfit.id) {
             <button class="sheet-card existing" type="button" (click)="openOutfit(outfit.id)">
-              <img [src]="outfit.imageUrl || data.fallbackImage" [alt]="outfit.name" />
+              <img [src]="outfit.imageUrl || data.fallbackImage" [dwImageReady]="outfit.imageUrl || data.fallbackImage" [alt]="outfit.name" />
               <div class="sheet-card-info">
                 <strong>{{ outfit.name }}</strong>
                 <span>{{ outfit.occasion || 'General' }}</span>
@@ -87,7 +88,7 @@ interface DayPopoverState {
         <div class="sheet-list">
           @for (outfit of filteredOutfits(); track outfit.id) {
             <button class="sheet-card" type="button" (click)="addExistingOutfit(outfit.id)">
-              <img [src]="outfit.imageUrl || data.fallbackImage" [alt]="outfit.name" />
+              <img [src]="outfit.imageUrl || data.fallbackImage" [dwImageReady]="outfit.imageUrl || data.fallbackImage" [alt]="outfit.name" />
               <div class="sheet-card-info">
                 <strong>{{ outfit.name }}</strong>
                 <span>{{ outfit.occasion || 'General' }}</span>
@@ -265,7 +266,7 @@ export class DayOutfitsSheetComponent {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-calendar',
-  imports: [CommonModule, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, MatBottomSheetModule, DragDropModule],
+  imports: [CommonModule, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, MatBottomSheetModule, DragDropModule, ImageReadyDirective],
   template: `
     <div class="calendar-page animate-fade-in">
       <header class="page-header">
@@ -325,7 +326,7 @@ export class DayOutfitsSheetComponent {
                         [cdkDragData]="{ outfitId: firstOutfit.id, fromDate: day.isoDate }"
                         [matTooltip]="'Drag ' + firstOutfit.name + ' to another date'"
                         (click)="$event.stopPropagation()">
-                        <img [src]="firstOutfit.imageUrl || fallbackImage" [alt]="firstOutfit.name" />
+                        <img [src]="firstOutfit.imageUrl || fallbackImage" [dwImageReady]="firstOutfit.imageUrl || fallbackImage" [alt]="firstOutfit.name" />
                       </span>
                     }
                     @if (day.outfits.length > 1) {
@@ -339,7 +340,7 @@ export class DayOutfitsSheetComponent {
                         [cdkDragData]="{ outfitId: outfit.id, fromDate: day.isoDate }"
                         [matTooltip]="'Drag ' + outfit.name + ' to another date'"
                         (click)="$event.stopPropagation()">
-                        <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
+                        <img [src]="outfit.imageUrl || fallbackImage" [dwImageReady]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
                       </span>
                     }
                     @if (day.outfits.length > 2) {
@@ -369,7 +370,7 @@ export class DayOutfitsSheetComponent {
               <div class="popover-existing-list">
                 @for (outfit of popoverOutfitsForDate(); track outfit.id) {
                   <a class="popover-item existing" [routerLink]="['/outfits', outfit.id]" (click)="closePopover()">
-                    <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
+                    <img [src]="outfit.imageUrl || fallbackImage" [dwImageReady]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
                     <span>{{ outfit.name }}</span>
                     <span class="popover-item-pill">Added</span>
                   </a>
@@ -407,7 +408,7 @@ export class DayOutfitsSheetComponent {
               <div class="popover-list">
                 @for (outfit of filteredExistingOutfits(); track outfit.id) {
                   <button class="popover-item" type="button" (click)="addOutfitToDate(outfit.id, popover.isoDate)">
-                    <img [src]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
+                    <img [src]="outfit.imageUrl || fallbackImage" [dwImageReady]="outfit.imageUrl || fallbackImage" [alt]="outfit.name" />
                     <span>{{ outfit.name }}</span>
                     @if (isScheduledOnDate(outfit, popover.isoDate)) {
                       <span class="popover-item-pill">Added</span>

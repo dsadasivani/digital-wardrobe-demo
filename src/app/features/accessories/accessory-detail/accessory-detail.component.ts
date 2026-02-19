@@ -18,11 +18,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Accessory } from '../../../core/models';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
+import { ImageReadyDirective } from '../../../shared/directives/image-ready.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-accessory-detail',
-  imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatChipsModule],
+  imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatChipsModule, ImageReadyDirective],
   template: `
     @if (accessory()) {
       <div class="accessory-detail-page animate-fade-in">
@@ -50,6 +51,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
                 <img
                   class="animated-gallery-image"
                   [src]="frame.url"
+                  [dwImageReady]="frame.url"
                   [alt]="accessory()!.name"
                   [style.--swipe-shift.px]="frame.slideOffset"
                   (touchstart)="onImageTouchStart($event)"
@@ -81,7 +83,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
                     [class.active]="selectedImageIndex() === i"
                     (click)="selectedImageIndex.set(i)"
                   >
-                    <img [src]="url" [alt]="accessory()!.name + ' image ' + (i + 1)">
+                    <img [src]="url" [dwImageReady]="url" [alt]="accessory()!.name + ' image ' + (i + 1)">
                     @if (i === primaryImageIndex()) {
                       <span class="thumb-primary-icon" aria-label="Primary image">
                         <mat-icon>workspace_premium</mat-icon>
@@ -155,7 +157,7 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
               <div class="related-row" #relatedRow (scroll)="onRelatedScroll(relatedRow)">
                 @for (related of relatedAccessories(); track related.id) {
                   <a class="related-card glass" [routerLink]="['/accessories', related.id]">
-                    <img [src]="related.imageUrl" [alt]="related.name">
+                    <img [src]="related.imageUrl" [dwImageReady]="related.imageUrl" [alt]="related.name">
                     <div class="related-meta">
                       <span class="name">{{ related.name }}</span>
                       <span class="sub">{{ related.color }}</span>
@@ -211,11 +213,9 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
     }
     @keyframes imageSwipeIn {
       from {
-        opacity: 0.86;
         transform: translateX(var(--swipe-shift, 8px)) scale(0.995);
       }
       to {
-        opacity: 1;
         transform: translateX(0) scale(1);
       }
     }

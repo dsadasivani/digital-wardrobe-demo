@@ -20,6 +20,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { User } from '../../../core/models';
 import { AuthService, ThemeService } from '../../../core/services';
+import { ImageReadyDirective } from '../../directives/image-ready.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +36,7 @@ import { AuthService, ThemeService } from '../../../core/services';
     MatTooltipModule,
     MatDividerModule,
     MatButtonToggleModule,
+    ImageReadyDirective,
   ],
   template: `
     <header class="header glass">
@@ -83,7 +85,7 @@ import { AuthService, ThemeService } from '../../../core/services';
         @if (isMobileView()) {
           <button class="user-avatar" (click)="openMobileProfileMenu.emit()" matTooltip="Account">
             @if (user()?.avatar) {
-              <img [src]="user()!.avatar" [alt]="user()!.name" class="avatar-img" />
+              <img [src]="user()!.avatar" [dwImageReady]="user()!.avatar" [alt]="user()!.name" class="avatar-img" />
             } @else {
               <mat-icon>account_circle</mat-icon>
             }
@@ -91,7 +93,7 @@ import { AuthService, ThemeService } from '../../../core/services';
         } @else {
           <button class="user-avatar" [matMenuTriggerFor]="userMenu" matTooltip="Account">
             @if (user()?.avatar) {
-              <img [src]="user()!.avatar" [alt]="user()!.name" class="avatar-img" />
+              <img [src]="user()!.avatar" [dwImageReady]="user()!.avatar" [alt]="user()!.name" class="avatar-img" />
             } @else {
               <mat-icon>account_circle</mat-icon>
             }
@@ -101,7 +103,7 @@ import { AuthService, ThemeService } from '../../../core/services';
             <div class="menu-user-info" (click)="$event.stopPropagation()">
               <div class="info-avatar">
                 @if (user()?.avatar) {
-                  <img [src]="user()!.avatar" [alt]="user()!.name" />
+                  <img [src]="user()!.avatar" [dwImageReady]="user()!.avatar" [alt]="user()!.name" />
                 } @else {
                   <mat-icon>account_circle</mat-icon>
                 }

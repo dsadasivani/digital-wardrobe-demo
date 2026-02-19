@@ -578,6 +578,46 @@ h4 {
   border-radius: var(--dw-radius-sm);
 }
 
+img[dwImageReady] {
+  position: relative;
+  z-index: 1;
+}
+
+img[dwImageReady].dw-image-loading {
+  opacity: 0;
+}
+
+img[dwImageReady].dw-image-loaded {
+  opacity: 1;
+  transition: opacity var(--dw-motion-base) var(--dw-ease-emphasis);
+}
+
+.dw-image-ready-host {
+  position: relative;
+}
+
+.dw-image-ready-host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--dw-surface-card) 80%, transparent) 0%,
+    color-mix(in srgb, var(--dw-surface-elevated) 62%, transparent) 50%,
+    color-mix(in srgb, var(--dw-surface-card) 80%, transparent) 100%
+  );
+  background-size: 220% 100%;
+  transition: opacity var(--dw-motion-fast) linear;
+}
+
+.dw-image-ready-host.dw-image-loading-host::before {
+  opacity: 1;
+  animation: shimmer 1.2s linear infinite;
+}
+
 // -----------------------------------------
 // 10b. Dashboard Loading Experience
 // -----------------------------------------

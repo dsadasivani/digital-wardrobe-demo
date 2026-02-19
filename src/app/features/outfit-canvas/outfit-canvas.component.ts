@@ -21,6 +21,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../core/models';
 import { WardrobeService } from '../../core/services';
+import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
 interface CanvasSourceItem {
   id: string;
@@ -51,6 +52,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     MatTooltipModule,
     MatFormFieldModule,
     MatInputModule,
+    ImageReadyDirective,
   ],
   template: `
     <div class="outfit-canvas-page">
@@ -77,7 +79,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
         <div class="items-list">
           @for (item of filteredAvailableItems(); track item.type + '-' + item.id) {
             <div class="panel-item" (click)="addToCanvas(item)" matTooltip="Add to Canva">
-              <img [src]="item.imageUrl" [alt]="item.name" />
+              <img [src]="item.imageUrl" [dwImageReady]="item.imageUrl" [alt]="item.name" />
               <span>{{ item.name }}</span>
               <span class="add-overlay">Add to Canva</span>
             </div>
@@ -176,7 +178,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
                   tabindex="0"
                   (keydown.enter)="selectMobileItem(item)"
                 >
-                  <img [src]="item.imageUrl" [alt]="item.name" />
+                  <img [src]="item.imageUrl" [dwImageReady]="item.imageUrl" [alt]="item.name" />
                   <span>{{ item.name }}</span>
                   @if (isMobileItemSelected(item)) {
                     <button class="add-overlay-mobile" type="button" (click)="addFromMobile(item, $event)">
@@ -202,7 +204,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
               [style.top.px]="item.y"
               [style.z-index]="item.zIndex"
               (cdkDragEnded)="onDragEnd($event, i)">
-              <img [src]="item.imageUrl" [alt]="item.name" [style.transform]="'scale(' + item.scale + ')'" />
+              <img [src]="item.imageUrl" [dwImageReady]="item.imageUrl" [alt]="item.name" [style.transform]="'scale(' + item.scale + ')'" />
               <div class="item-controls">
                 <button (click)="bringToFront(i)" matTooltip="Bring to front"><mat-icon>flip_to_front</mat-icon></button>
                 <button (click)="removeFromCanvas(i)" matTooltip="Remove"><mat-icon>close</mat-icon></button>

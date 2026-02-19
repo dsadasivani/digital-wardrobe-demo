@@ -14,6 +14,8 @@ export interface AccessoryDto {
     imageUrl: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    imagePaths?: string[];
+    primaryImagePath?: string;
     worn: number;
     lastWorn: string | null; // ISO-8601
     favorite: boolean;
@@ -34,6 +36,8 @@ export interface CreateAccessoryRequestDto {
     imageUrl: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    imagePaths?: string[];
+    primaryImagePath?: string;
     favorite: boolean;
     tags: string[];
 }
@@ -51,6 +55,8 @@ export interface UpdateAccessoryRequestDto {
     imageUrl?: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    imagePaths?: string[];
+    primaryImagePath?: string;
     favorite?: boolean;
     tags?: string[];
 }

@@ -17,6 +17,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router } from '@angular/router';
 import { AuthService, ImageCropperService } from '../../core/services';
+import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +30,7 @@ import { AuthService, ImageCropperService } from '../../core/services';
     MatButtonModule,
     MatIconModule,
     MatSlideToggleModule,
+    ImageReadyDirective,
   ],
   template: `
     <div class="profile-page animate-fade-in">
@@ -40,7 +42,7 @@ import { AuthService, ImageCropperService } from '../../core/services';
         <div class="avatar-section">
           <div class="avatar">
             @if (displayAvatar()) {
-              <img [src]="displayAvatar()!" [alt]="user()?.name || 'Profile photo'" />
+              <img [src]="displayAvatar()!" [dwImageReady]="displayAvatar()!" [alt]="user()?.name || 'Profile photo'" />
             } @else {
               <mat-icon>person</mat-icon>
             }

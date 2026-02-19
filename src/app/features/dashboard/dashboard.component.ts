@@ -19,6 +19,7 @@ import { WardrobeService } from '../../core/services/wardrobe.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ItemCardComponent } from '../../shared/components/item-card/item-card.component';
 import { WardrobeItem, Accessory } from '../../core/models';
+import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
 const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 'style', 'ac_unit'];
 
@@ -32,6 +33,7 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
     MatIconModule,
     MatButtonModule,
     ItemCardComponent,
+    ImageReadyDirective,
   ],
   template: `
     <div class="dashboard animate-fade-in">
@@ -286,7 +288,7 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
 
           <div class="highlight-card glass clickable" (click)="openItem(stats().mostWornItem!.id)">
             <div class="highlight-image">
-              <img [src]="stats().mostWornItem!.imageUrl" [alt]="stats().mostWornItem!.name" />
+              <img [src]="stats().mostWornItem!.imageUrl" [dwImageReady]="stats().mostWornItem!.imageUrl" [alt]="stats().mostWornItem!.name" />
             </div>
             <div class="highlight-content">
               <span class="highlight-badge badge badge-primary">
@@ -932,8 +934,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.navigateTo(['/wardrobe', item.id]);
   }
 
-  onToggleFavorite(item: WardrobeItem | Accessory): void {
-    this.wardrobeService.toggleFavorite(item.id);
+  async onToggleFavorite(item: WardrobeItem | Accessory): Promise<void> {
+    try {
+      await this.wardrobeService.toggleFavorite(item.id);
+    } catch {
+      // Keep dashboard interactive if favorite update fails.
+    }
   }
 
   onStatsScroll(): void {

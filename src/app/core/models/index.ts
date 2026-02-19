@@ -13,6 +13,8 @@ export interface WardrobeItem {
   imageUrl: string;
   imageUrls: string[];
   primaryImageUrl: string;
+  imagePaths?: string[];
+  primaryImagePath?: string;
   worn: number; // times worn
   lastWorn?: Date;
   favorite: boolean;
@@ -65,6 +67,8 @@ export interface Accessory {
   imageUrl: string;
   imageUrls: string[];
   primaryImageUrl: string;
+  imagePaths?: string[];
+  primaryImagePath?: string;
   worn: number; // times worn
   lastWorn?: Date;
   favorite: boolean;

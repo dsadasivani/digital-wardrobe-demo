@@ -32,6 +32,14 @@ Notes:
 - This is read only in Angular dev mode.
 - It affects dashboard counters and category breakdown loader minimum duration.
 
+## Image Storage Flow
+
+The app now supports backend-managed image uploads to Firebase Storage:
+
+- Frontend uploads cropped images to `POST /api/v1/media/images`.
+- Backend stores image bytes in Firebase Storage and returns signed URLs + storage paths.
+- Wardrobe/accessory records persist storage references (`imagePaths`, `primaryImagePath`) in MongoDB.
+
 ## Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
