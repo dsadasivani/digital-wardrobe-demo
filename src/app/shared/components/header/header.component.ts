@@ -1,4 +1,4 @@
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import {
   Component,
   inject,
@@ -6,7 +6,6 @@ import {
   OnDestroy,
   OnInit,
   output,
-  Renderer2,
   signal,
   ChangeDetectionStrategy,
 } from '@angular/core';
@@ -20,7 +19,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { User } from '../../../core/models';
-import { AuthService } from '../../../core/services/auth.service';
+import { AuthService, ThemeService } from '../../../core/services';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -403,32 +402,20 @@ import { AuthService } from '../../../core/services/auth.service';
   ],
 })
 export class HeaderComponent implements OnInit, OnDestroy {
-  private static readonly THEME_STORAGE_KEY = 'dw-theme';
   private authService = inject(AuthService);
+  private themeService = inject(ThemeService);
   private router = inject(Router);
-  private renderer = inject(Renderer2);
-  private document = inject(DOCUMENT);
   private readonly resizeHandler = () => this.syncMobileState();
 
   toggleSidebar = output<void>();
   openMobileProfileMenu = output<void>();
   user = input.required<User | null>();
-  isDarkMode = signal(false);
+  isDarkMode = this.themeService.darkMode;
   isMobileView = signal(false);
 
   ngOnInit(): void {
     this.syncMobileState();
     window.addEventListener('resize', this.resizeHandler);
-    const savedTheme = this.readStoredTheme();
-    if (savedTheme === 'dark') {
-      this.setTheme(true);
-      return;
-    }
-    if (savedTheme === 'light') {
-      this.setTheme(false);
-      return;
-    }
-    this.isDarkMode.set(this.document.body.getAttribute('data-theme') === 'dark');
   }
 
   ngOnDestroy(): void {
@@ -450,30 +437,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   private setTheme(isDark: boolean): void {
-    this.isDarkMode.set(isDark);
-    if (isDark) {
-      this.renderer.setAttribute(this.document.body, 'data-theme', 'dark');
-    } else {
-      this.renderer.removeAttribute(this.document.body, 'data-theme');
-    }
-    this.storeTheme(isDark ? 'dark' : 'light');
-  }
-
-  private readStoredTheme(): 'dark' | 'light' | null {
-    try {
-      const saved = window.sessionStorage.getItem(HeaderComponent.THEME_STORAGE_KEY);
-      return saved === 'dark' || saved === 'light' ? saved : null;
-    } catch {
-      return null;
-    }
-  }
-
-  private storeTheme(theme: 'dark' | 'light'): void {
-    try {
-      window.sessionStorage.setItem(HeaderComponent.THEME_STORAGE_KEY, theme);
-    } catch {
-      // No-op if storage is blocked.
-    }
+    this.themeService.setDarkMode(isDark);
   }
 
   private syncMobileState(): void {

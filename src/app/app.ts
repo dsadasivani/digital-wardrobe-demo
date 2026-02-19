@@ -411,11 +411,9 @@ export class App implements OnInit, OnDestroy {
   }
 
   openMobileProfileSheet(): void {
-    const isDarkMode = this.themeService.isDarkMode();
     this.bottomSheet.open(MobileProfileSheetComponent, {
       data: {
         user: this.user(),
-        isDarkMode,
       } as MobileProfileSheetData,
       panelClass: 'dw-mobile-profile-sheet',
       backdropClass: 'dw-mobile-sheet-backdrop',

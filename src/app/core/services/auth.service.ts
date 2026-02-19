@@ -7,6 +7,7 @@ import { ApiErrorDto } from '../dto/auth.dto';
 import { mapUserDtoToModel, mapUserUpdatesToUpdateRequestDto } from '../mappers/auth.mapper';
 import { User, UserPreferences } from '../models';
 import { AuthTokenService } from './auth-token.service';
+import { ThemeService } from './theme.service';
 import { WardrobeService } from './wardrobe.service';
 
 interface AuthSessionState {
@@ -27,6 +28,7 @@ export class AuthService {
   private readonly authApi = inject(AuthApi);
   private readonly authTokenService = inject(AuthTokenService);
   private readonly wardrobeService = inject(WardrobeService);
+  private readonly themeService = inject(ThemeService);
 
   private readonly initialState = this.hydrateFromSession();
   private readonly isAuthenticated = signal(this.initialState.isAuthenticated);
@@ -36,6 +38,9 @@ export class AuthService {
   readonly user = this.currentUser.asReadonly();
 
   constructor() {
+    if (this.initialState.user?.preferences) {
+      this.applyUserThemePreference(this.initialState.user);
+    }
     if (this.authTokenService.token()) {
       this.isAuthenticated.set(true);
       void this.refreshCurrentUser();
@@ -45,9 +50,11 @@ export class AuthService {
   async login(email: string, password: string): Promise<AuthActionResult> {
     try {
       const response = await firstValueFrom(this.authApi.login({ email, password }));
+      const mappedUser = mapUserDtoToModel(response.user);
       this.authTokenService.setToken(response.token);
       this.isAuthenticated.set(true);
-      this.currentUser.set(mapUserDtoToModel(response.user));
+      this.currentUser.set(mappedUser);
+      this.applyUserThemePreference(mappedUser);
       this.persistSnapshot();
       return { success: true };
     } catch (error) {
@@ -67,9 +74,11 @@ export class AuthService {
   async signup(name: string, email: string, password: string): Promise<AuthActionResult> {
     try {
       const response = await firstValueFrom(this.authApi.signup({ name, email, password }));
+      const mappedUser = mapUserDtoToModel(response.user);
       this.authTokenService.setToken(response.token);
       this.isAuthenticated.set(true);
-      this.currentUser.set(mapUserDtoToModel(response.user));
+      this.currentUser.set(mappedUser);
+      this.applyUserThemePreference(mappedUser);
       this.persistSnapshot();
       return { success: true };
     } catch (error) {
@@ -94,19 +103,32 @@ export class AuthService {
     if (!previousUser) {
       return;
     }
+    const darkModePreferenceChanged =
+      updates.preferences?.darkMode !== undefined &&
+      updates.preferences.darkMode !== previousUser.preferences.darkMode;
 
     const nextUser = this.mergeUser(previousUser, updates);
     this.currentUser.set(nextUser);
+    if (darkModePreferenceChanged) {
+      this.applyUserThemePreference(nextUser);
+    }
     this.persistSnapshot();
 
     const request = mapUserUpdatesToUpdateRequestDto(updates);
     void firstValueFrom(this.authApi.updateMe(request))
       .then((updatedUserDto) => {
-        this.currentUser.set(mapUserDtoToModel(updatedUserDto));
+        const mappedUser = mapUserDtoToModel(updatedUserDto);
+        this.currentUser.set(mappedUser);
+        if (darkModePreferenceChanged) {
+          this.applyUserThemePreference(mappedUser);
+        }
         this.persistSnapshot();
       })
       .catch(() => {
         this.currentUser.set(previousUser);
+        if (darkModePreferenceChanged) {
+          this.applyUserThemePreference(previousUser);
+        }
         this.persistSnapshot();
       });
   }
@@ -114,8 +136,10 @@ export class AuthService {
   private async refreshCurrentUser(): Promise<void> {
     try {
       const userDto = await firstValueFrom(this.authApi.me());
+      const mappedUser = mapUserDtoToModel(userDto);
       this.isAuthenticated.set(true);
-      this.currentUser.set(mapUserDtoToModel(userDto));
+      this.currentUser.set(mappedUser);
+      this.applyUserThemePreference(mappedUser);
       this.persistSnapshot();
     } catch (error) {
       if (this.isUnauthorizedError(error)) {
@@ -199,6 +223,10 @@ export class AuthService {
     this.isAuthenticated.set(false);
     this.currentUser.set(null);
     this.persistSnapshot();
+  }
+
+  private applyUserThemePreference(user: User): void {
+    this.themeService.setDarkMode(user.preferences.darkMode);
   }
 
   private hydrateUser(user: User): User {

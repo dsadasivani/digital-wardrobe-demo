@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatBottomSheetRef, MAT_BOTTOM_SHEET_DATA } from '@angular/material/bottom-sheet';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleChange, MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -13,7 +13,6 @@ import { ThemeService } from '../../../core/services/theme.service';
 
 export interface MobileProfileSheetData {
   user: User | null;
-  isDarkMode: boolean;
 }
 
 @Component({
@@ -272,7 +271,7 @@ export class MobileProfileSheetComponent {
   private themeService = inject(ThemeService);
 
   data = inject<MobileProfileSheetData>(MAT_BOTTOM_SHEET_DATA);
-  isDarkMode = signal(this.data.isDarkMode);
+  isDarkMode = this.themeService.darkMode;
 
   goToProfile(): void {
     this.bottomSheetRef.dismiss();
@@ -285,7 +284,6 @@ export class MobileProfileSheetComponent {
 
   onThemeChange(event: MatButtonToggleChange): void {
     const isDark = event.value === 'dark';
-    this.isDarkMode.set(isDark);
     this.themeService.setDarkMode(isDark);
   }
 
