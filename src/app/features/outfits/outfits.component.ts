@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { CatalogOptionsService } from '../../core/services';
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { Outfit } from '../../core/models';
 import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
@@ -30,8 +31,23 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       </header>
 
       <section class="filter-chips">
-        @for (f of occasionFilters; track f) {
-          <button class="chip" [class.active]="selectedOccasion() === f" (click)="selectedOccasion.set(f)">{{ f }}</button>
+        <button
+          type="button"
+          class="chip"
+          [class.active]="selectedCategory() === 'all'"
+          (click)="selectedCategory.set('all')">
+          All
+        </button>
+        @for (entry of outfitCategories(); track entry.id) {
+          <button
+            type="button"
+            class="chip"
+            [class.active]="selectedCategory() === entry.id"
+            (click)="selectedCategory.set(entry.id)">
+            <mat-icon>{{ entry.icon }}</mat-icon>
+            {{ entry.label }}
+            <span>{{ getCategoryCount(entry.id) }}</span>
+          </button>
         }
       </section>
 
@@ -89,6 +105,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
               <div class="outfit-content">
                 <h3>{{ outfit.name }}</h3>
                 <div class="meta">
+                  @if (outfit.category) {<span class="badge">{{ displayCategoryLabel(outfit.category) }}</span>}
                   @if (outfit.occasion) {<span class="badge">{{ outfit.occasion }}</span>}
                   @if (outfit.season) {<span class="badge">{{ outfit.season }}</span>}
                 </div>
@@ -106,8 +123,8 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
               </div>
               <h3>No outfits found</h3>
               <p>
-                @if (selectedOccasion() !== 'All') {
-                  Try changing your occasion filter
+                @if (selectedCategory() !== 'all') {
+                  Try changing your category filter
                 } @else {
                   Create your first outfit combination
                 }
@@ -148,8 +165,11 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
     .action-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: var(--dw-radius-md); border: none; background: var(--dw-gradient-primary); color: white; font-weight: 500; cursor: pointer; }
     .action-btn.secondary { background: var(--dw-surface-card); color: var(--dw-text-primary); border: 1px solid var(--dw-border-strong); }
     .filter-chips { display: flex; gap: 8px; margin-bottom: var(--dw-spacing-xl); flex-wrap: wrap; }
-    .chip { padding: 8px 16px; border-radius: var(--dw-radius-full); border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; }
+    .chip { padding: 8px 14px; border-radius: var(--dw-radius-full); border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .chip mat-icon { width: 15px; height: 15px; font-size: 15px; }
+    .chip span { font-size: 11px; color: var(--dw-text-muted); }
     .chip.active { background: var(--dw-primary); border-color: var(--dw-primary); color: white; }
+    .chip.active span { color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent); }
     .outfits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--dw-spacing-lg); }
     .load-more-row { margin-top: var(--dw-spacing-lg); display: flex; justify-content: center; }
     .outfit-card { background: var(--dw-gradient-card); border-radius: var(--dw-radius-lg); border: 1px solid var(--dw-border-subtle); overflow: hidden; transition: all 0.25s; }
@@ -249,25 +269,30 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 })
 export class OutfitsComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
+  private catalogOptionsService = inject(CatalogOptionsService);
   outfits = this.wardrobeService.outfitList;
   wardrobeItems = this.wardrobeService.items;
   accessoryItems = this.wardrobeService.accessoryList;
+  outfitCategories = this.catalogOptionsService.outfitCategories;
   totalOutfits = this.wardrobeService.outfitsTotalElements;
   hasMoreOutfits = this.wardrobeService.hasMoreOutfitsPages;
   isLoadingMoreOutfits = this.wardrobeService.outfitsPageLoading;
   isInitialLoading = computed(() => this.isLoadingMoreOutfits() && this.outfits().length === 0);
   readonly loadingIcons = OUTFIT_LOADING_ICONS;
   readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
-  selectedOccasion = signal<string>('All');
-  occasionFilters = ['All', 'Work', 'Casual', 'Formal', 'Party', 'Vacation'];
+  selectedCategory = signal<string>('all');
 
   ngOnInit(): void {
     void this.loadOutfits();
+    void this.loadOutfitCategoryOptions();
   }
 
   filteredOutfits = computed(() => {
-    if (this.selectedOccasion() === 'All') return this.outfits();
-    return this.outfits().filter(o => o.occasion?.toLowerCase() === this.selectedOccasion().toLowerCase());
+    const selectedCategory = this.selectedCategory();
+    if (selectedCategory === 'all') {
+      return this.outfits();
+    }
+    return this.outfits().filter((outfit) => outfit.category === selectedCategory);
   });
 
   totalOutfitsCount = computed(() => {
@@ -330,11 +355,39 @@ export class OutfitsComponent implements OnInit {
     return Math.max(0, outfit.items.length - 4);
   }
 
+  getCategoryCount(categoryId: string): number {
+    return this.outfits().filter((outfit) => outfit.category === categoryId).length;
+  }
+
+  displayCategoryLabel(categoryId: string): string {
+    const option = this.outfitCategories().find((entry) => entry.id === categoryId);
+    if (option) {
+      return option.label;
+    }
+    return this.formatCategoryLabel(categoryId);
+  }
+
   private async hydratePreviewImages(): Promise<void> {
     const outfits = this.outfits();
     if (outfits.length === 0) {
       return;
     }
     await Promise.allSettled(outfits.map(outfit => this.wardrobeService.ensureOutfitDependenciesLoaded(outfit)));
+  }
+
+  private async loadOutfitCategoryOptions(): Promise<void> {
+    try {
+      await this.catalogOptionsService.ensureOutfitOptionsLoaded();
+    } catch {
+      // Keep outfit list interactive with fallback options when metadata loading fails.
+    }
+  }
+
+  private formatCategoryLabel(category: string): string {
+    return category
+      .split('-')
+      .filter((part) => part.length > 0)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 }

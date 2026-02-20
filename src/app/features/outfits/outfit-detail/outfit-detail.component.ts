@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../../core/models';
 import { AppUiStateService } from '../../../core/services/app-ui-state.service';
+import { CatalogOptionsService } from '../../../core/services/catalog-options.service';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { DetailSkeletonComponent } from '../../../shared/components/detail-skeleton/detail-skeleton.component';
 import { InlineActionLoaderComponent } from '../../../shared/components/inline-action-loader/inline-action-loader.component';
@@ -80,6 +81,7 @@ const MAX_DETAIL_COLOR_SWATCHES = 8;
               }
               @if (hiddenDetailItemsCount() > 0) { <span class="more">+{{ hiddenDetailItemsCount() }}</span> }
               <mat-chip-set class="chips">
+                <mat-chip>{{ categoryLabel() ?? 'Unspecified' }}</mat-chip>
                 @if (selectedOutfit.season) { <mat-chip>{{ displayLabel(selectedOutfit.season) }}</mat-chip> }
                 @if (selectedOutfit.occasion) { <mat-chip>{{ displayLabel(selectedOutfit.occasion) }}</mat-chip> }
               </mat-chip-set>
@@ -87,6 +89,7 @@ const MAX_DETAIL_COLOR_SWATCHES = 8;
 
             <div class="summary">
               <div class="stat-grid">
+                <article><label>Category</label><strong>{{ categoryLabel() ?? 'Unspecified' }}</strong><small>Outfit group</small></article>
                 <article><label>Items</label><strong>{{ selectedOutfit.items.length }}</strong><small>{{ wardrobePiecesCount() }} wardrobe · {{ accessoryPiecesCount() }} accessory</small></article>
                 <article><label>Worn</label><strong>{{ selectedOutfit.worn }}x</strong><small>{{ selectedOutfit.lastWorn ? ('Last ' + (selectedOutfit.lastWorn | date: 'MMM d')) : 'Never worn' }}</small></article>
                 <article><label>Next plan</label><strong>{{ nextPlannedDate() ? (nextPlannedDate()! | date: 'MMM d') : 'Not set' }}</strong><small>{{ upcomingPlannedDates().length }} upcoming</small></article>
@@ -409,32 +412,22 @@ const MAX_DETAIL_COLOR_SWATCHES = 8;
         }
 
         .stat-grid {
-          display: grid;
-          grid-auto-flow: column;
-          grid-auto-columns: minmax(146px, 1fr);
-          overflow-x: auto;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 8px;
-          padding-bottom: 2px;
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-
-        .stat-grid::-webkit-scrollbar {
-          display: none;
         }
 
         .stat-grid article {
           padding: 9px;
-          min-height: 86px;
+          min-height: 80px;
           align-content: start;
         }
 
         .stat-grid strong {
-          font-size: 1rem;
+          font-size: 0.95rem;
         }
 
         .stat-grid small {
-          font-size: 11px;
+          font-size: 10.5px;
           line-height: 1.3;
         }
 
@@ -558,6 +551,7 @@ export class OutfitDetailComponent implements OnInit {
   private router = inject(Router);
   private location = inject(Location);
   private wardrobeService = inject(WardrobeService);
+  private catalogOptionsService = inject(CatalogOptionsService);
   private uiState = inject(AppUiStateService);
   private destroyRef = inject(DestroyRef);
 
@@ -566,6 +560,7 @@ export class OutfitDetailComponent implements OnInit {
   isFavoritePending = signal(false);
   todayIso = signal(new Date().toISOString().slice(0, 10));
   isMobile = this.uiState.isMobile;
+  outfitCategoryOptions = this.catalogOptionsService.outfitCategories;
 
   isDeletePending = computed(() => {
     const id = this.outfit()?.id;
@@ -664,6 +659,14 @@ export class OutfitDetailComponent implements OnInit {
     [...this.sortedPlannedDates().filter((day) => day < this.todayIso())].reverse(),
   );
   nextPlannedDate = computed<string | null>(() => this.upcomingPlannedDates()[0] ?? null);
+  categoryLabel = computed<string | null>(() => {
+    const category = this.outfit()?.category;
+    if (!category) {
+      return null;
+    }
+    return this.outfitCategoryOptions().find((option) => option.id === category)?.label
+      ?? this.displayLabel(category);
+  });
 
   colorPalette = computed<OutfitColorSwatch[]>(() => {
     const swatches = new Map<string, OutfitColorSwatch>();
@@ -688,6 +691,7 @@ export class OutfitDetailComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    void this.loadOutfitCategoryOptions();
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.isDetailLoading.set(true);
       void this.loadOutfitDetails(params.get('id'));
@@ -785,6 +789,14 @@ export class OutfitDetailComponent implements OnInit {
       this.outfit.set(undefined);
     } finally {
       this.isDetailLoading.set(false);
+    }
+  }
+
+  private async loadOutfitCategoryOptions(): Promise<void> {
+    try {
+      await this.catalogOptionsService.ensureOutfitOptionsLoaded();
+    } catch {
+      // Keep detail page interactive with fallback category labels.
     }
   }
 }

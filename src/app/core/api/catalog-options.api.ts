@@ -27,12 +27,20 @@ export class CatalogOptionsApi {
     return this.http.get<CatalogOptionsDto>(`${this.url}/accessories`, { context: this.skipLoadingContext });
   }
 
+  outfitOptions(): Observable<CatalogOptionsDto> {
+    return this.http.get<CatalogOptionsDto>(`${this.url}/outfits`, { context: this.skipLoadingContext });
+  }
+
   addWardrobeCategory(label: string): Observable<CatalogCategoryOptionDto> {
     return this.http.post<CatalogCategoryOptionDto>(`${this.url}/wardrobe/categories`, { label });
   }
 
   addAccessoryCategory(label: string): Observable<CatalogCategoryOptionDto> {
     return this.http.post<CatalogCategoryOptionDto>(`${this.url}/accessories/categories`, { label });
+  }
+
+  addOutfitCategory(label: string): Observable<CatalogCategoryOptionDto> {
+    return this.http.post<CatalogCategoryOptionDto>(`${this.url}/outfits/categories`, { label });
   }
 
   addOccasion(value: string): Observable<OccasionOptionDto> {

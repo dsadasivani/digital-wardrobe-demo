@@ -7,6 +7,7 @@ import {
   AccessoryCategoryInfo,
   CategoryInfo,
   OCCASION_OPTIONS,
+  OUTFIT_CATEGORIES,
   WARDROBE_CATEGORIES,
 } from '../models';
 
@@ -16,25 +17,32 @@ export class CatalogOptionsService {
 
   private readonly wardrobeCategoriesState = signal<CategoryInfo[]>(WARDROBE_CATEGORIES);
   private readonly accessoryCategoriesState = signal<AccessoryCategoryInfo[]>(ACCESSORY_CATEGORIES);
+  private readonly outfitCategoriesState = signal<CategoryInfo[]>(OUTFIT_CATEGORIES);
   private readonly occasionOptionsState = signal<string[]>(OCCASION_OPTIONS);
 
   private wardrobeOptionsLoaded = false;
   private accessoryOptionsLoaded = false;
+  private outfitOptionsLoaded = false;
   private wardrobeOptionsLoadPromise: Promise<void> | null = null;
   private accessoryOptionsLoadPromise: Promise<void> | null = null;
+  private outfitOptionsLoadPromise: Promise<void> | null = null;
 
   readonly wardrobeCategories = this.wardrobeCategoriesState.asReadonly();
   readonly accessoryCategories = this.accessoryCategoriesState.asReadonly();
+  readonly outfitCategories = this.outfitCategoriesState.asReadonly();
   readonly occasionOptions = this.occasionOptionsState.asReadonly();
 
   clearAll(): void {
     this.wardrobeCategoriesState.set(WARDROBE_CATEGORIES);
     this.accessoryCategoriesState.set(ACCESSORY_CATEGORIES);
+    this.outfitCategoriesState.set(OUTFIT_CATEGORIES);
     this.occasionOptionsState.set(OCCASION_OPTIONS);
     this.wardrobeOptionsLoaded = false;
     this.accessoryOptionsLoaded = false;
+    this.outfitOptionsLoaded = false;
     this.wardrobeOptionsLoadPromise = null;
     this.accessoryOptionsLoadPromise = null;
+    this.outfitOptionsLoadPromise = null;
   }
 
   async ensureWardrobeOptionsLoaded(force = false): Promise<void> {
@@ -85,6 +93,30 @@ export class CatalogOptionsService {
     return loadPromise;
   }
 
+  async ensureOutfitOptionsLoaded(force = false): Promise<void> {
+    if (this.outfitOptionsLoadPromise) {
+      return this.outfitOptionsLoadPromise;
+    }
+    if (!force && this.outfitOptionsLoaded) {
+      return;
+    }
+    const loadPromise = firstValueFrom(this.catalogOptionsApi.outfitOptions())
+      .then((response) => {
+        this.outfitCategoriesState.set(
+          this.normalizeCategoryOptions(response.categories, OUTFIT_CATEGORIES, 'style'),
+        );
+        this.occasionOptionsState.set(this.normalizeOccasionOptions(response.occasions));
+        this.outfitOptionsLoaded = true;
+      })
+      .finally(() => {
+        if (this.outfitOptionsLoadPromise === loadPromise) {
+          this.outfitOptionsLoadPromise = null;
+        }
+      });
+    this.outfitOptionsLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
   async addWardrobeCategory(label: string): Promise<CategoryInfo> {
     const created = await firstValueFrom(this.catalogOptionsApi.addWardrobeCategory(label));
     const next = this.toCategoryOption(created, 'checkroom');
@@ -96,6 +128,13 @@ export class CatalogOptionsService {
     const created = await firstValueFrom(this.catalogOptionsApi.addAccessoryCategory(label));
     const next = this.toCategoryOption(created, 'watch');
     this.accessoryCategoriesState.update((current) => this.upsertCategoryOption(current, next));
+    return next;
+  }
+
+  async addOutfitCategory(label: string): Promise<CategoryInfo> {
+    const created = await firstValueFrom(this.catalogOptionsApi.addOutfitCategory(label));
+    const next = this.toCategoryOption(created, 'style');
+    this.outfitCategoriesState.update((current) => this.upsertCategoryOption(current, next));
     return next;
   }
 

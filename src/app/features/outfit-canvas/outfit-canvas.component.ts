@@ -18,9 +18,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../core/models';
-import { WardrobeService } from '../../core/services';
+import { Accessory, CategoryInfo, Outfit, OutfitItem, WardrobeItem } from '../../core/models';
+import { CatalogOptionsService, WardrobeService } from '../../core/services';
 import { FormSaveLoaderComponent } from '../../shared/components/form-save-loader/form-save-loader.component';
 import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
@@ -53,6 +54,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     MatTooltipModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     ImageReadyDirective,
     FormSaveLoaderComponent,
   ],
@@ -101,6 +103,54 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
                 placeholder="My New Outfit"
               />
             </mat-form-field>
+            <div class="field-stack outfit-category-field">
+              <div class="select-plus-row">
+                <mat-form-field appearance="outline" class="select-field">
+                  <mat-label>Outfit Category</mat-label>
+                  <mat-select
+                    [ngModel]="outfitCategory()"
+                    (ngModelChange)="outfitCategory.set($event)"
+                  >
+                    @for (entry of categoryOptions(); track entry.id) {
+                      <mat-option [value]="entry.id">{{ entry.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <button
+                  type="button"
+                  class="field-plus-btn"
+                  [class.active]="isAddingCategory()"
+                  [attr.aria-expanded]="isAddingCategory()"
+                  [attr.aria-label]="isAddingCategory() ? 'Close category creator' : 'Add category'"
+                  (click)="toggleCategoryCreator()"
+                >
+                  <mat-icon>{{ isAddingCategory() ? 'close' : 'add' }}</mat-icon>
+                </button>
+              </div>
+              @if (isAddingCategory()) {
+                <div class="inline-create-panel">
+                  <p class="inline-hint">Create your own outfit category label</p>
+                  <div class="inline-create-row">
+                    <input
+                      type="text"
+                      [ngModel]="newCategoryLabel()"
+                      (ngModelChange)="newCategoryLabel.set($event)"
+                      name="newOutfitCategory"
+                      placeholder="e.g., Date Night"
+                    />
+                    <button
+                      type="button"
+                      class="inline-create-btn"
+                      (click)="createCategory()"
+                      [disabled]="isCreatingCategory()"
+                    >
+                      <mat-icon>{{ isCreatingCategory() ? 'hourglass_top' : 'check' }}</mat-icon>
+                      <span>{{ isCreatingCategory() ? 'Adding...' : 'Save' }}</span>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
             <mat-form-field appearance="outline" class="outfit-notes-field">
               <mat-label>Stylist Notes</mat-label>
               <textarea
@@ -390,6 +440,97 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
       width: 100%;
       margin: 0;
     }
+    .field-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .select-plus-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .select-field {
+      flex: 1;
+      margin: 0;
+    }
+    .field-plus-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--dw-border-subtle);
+      border-radius: 10px;
+      background: var(--dw-surface-elevated);
+      color: var(--dw-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all var(--dw-transition-fast);
+      flex-shrink: 0;
+    }
+    .field-plus-btn mat-icon {
+      width: 18px;
+      height: 18px;
+      font-size: 18px;
+    }
+    .field-plus-btn:hover {
+      border-color: color-mix(in srgb, var(--dw-primary) 48%, transparent);
+      background: color-mix(in srgb, var(--dw-primary) 12%, var(--dw-surface-elevated) 88%);
+    }
+    .field-plus-btn.active {
+      color: var(--dw-on-primary);
+      border-color: color-mix(in srgb, var(--dw-primary) 62%, transparent);
+      background: color-mix(in srgb, var(--dw-primary) 70%, black 30%);
+    }
+    .inline-create-panel {
+      display: grid;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 20%, var(--dw-border-subtle));
+      border-radius: var(--dw-radius-sm);
+      background: color-mix(in srgb, var(--dw-surface-card) 80%, transparent);
+    }
+    .inline-hint {
+      margin: 0;
+      font-size: 11px;
+      color: var(--dw-text-secondary);
+      line-height: 1.4;
+    }
+    .inline-create-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .inline-create-row input {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid var(--dw-border-subtle);
+      border-radius: var(--dw-radius-md);
+      background: var(--dw-surface-elevated);
+      color: var(--dw-text-primary);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .inline-create-btn {
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 42%, transparent);
+      border-radius: var(--dw-radius-md);
+      background: color-mix(in srgb, var(--dw-primary) 14%, var(--dw-surface-elevated) 86%);
+      color: var(--dw-primary);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .inline-create-btn mat-icon {
+      width: 14px;
+      height: 14px;
+      font-size: 14px;
+    }
     .canvas-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
     .canvas-toolbar {
@@ -525,6 +666,8 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
       .canvas-area { padding: 10px; gap: 10px; }
       .canvas-header { align-items: stretch; gap: 10px; }
       .canvas-fields { min-width: 0; width: 100%; }
+      .inline-create-row { flex-direction: column; align-items: stretch; }
+      .inline-create-btn { width: 100%; justify-content: center; }
       .canvas-actions { width: 100%; }
       .canvas-actions button { flex: 1 1 140px; }
       .canvas-toolbar { padding: 10px; }
@@ -586,6 +729,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
 })
 export class OutfitCanvasComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
+  private catalogOptionsService = inject(CatalogOptionsService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private canvasRef = viewChild<ElementRef<HTMLDivElement>>('canvasEl');
@@ -596,6 +740,7 @@ export class OutfitCanvasComponent implements OnInit {
 
   wardrobeItems = this.wardrobeService.items;
   accessoryItems = this.wardrobeService.accessoryList;
+  outfitCategories = this.catalogOptionsService.outfitCategories;
 
   availableItems = computed<CanvasSourceItem[]>(() => {
     const wardrobe = this.wardrobeItems().map(item => this.toSource(item, 'wardrobe'));
@@ -605,6 +750,7 @@ export class OutfitCanvasComponent implements OnInit {
 
   canvasItems = signal<CanvasPlacedItem[]>([]);
   outfitName = signal('');
+  outfitCategory = signal('');
   outfitNotes = signal('');
   dateInput = signal('');
   plannedDates = signal<string[]>([]);
@@ -618,8 +764,27 @@ export class OutfitCanvasComponent implements OnInit {
   saveError = signal<string | null>(null);
   loadError = signal<string | null>(null);
   isSaving = signal(false);
+  isAddingCategory = signal(false);
+  isCreatingCategory = signal(false);
+  newCategoryLabel = signal('');
   private maxZ = signal(1);
   private lastCanvasBounds = signal<{ width: number; height: number } | null>(null);
+
+  categoryOptions = computed<CategoryInfo[]>(() => {
+    const options = this.outfitCategories();
+    const currentCategory = this.outfitCategory().trim();
+    if (!currentCategory || options.some((option) => option.id === currentCategory)) {
+      return options;
+    }
+    return [
+      ...options,
+      {
+        id: currentCategory,
+        label: this.formatCategoryLabel(currentCategory),
+        icon: 'style',
+      },
+    ];
+  });
 
   filteredAvailableItems = computed(() =>
     this.availableItems().filter(item => item.type === this.sourceFilter())
@@ -648,11 +813,14 @@ export class OutfitCanvasComponent implements OnInit {
       await Promise.all([
         this.wardrobeService.ensureWardrobeLoaded(),
         this.wardrobeService.ensureAccessoriesLoaded(),
+        this.catalogOptionsService.ensureOutfitOptionsLoaded().catch(() => undefined),
       ]);
     } catch {
       this.loadError.set('Unable to load wardrobe data. Please refresh and try again.');
       return;
     }
+
+    this.ensureOutfitCategorySelected();
 
     if (!id) {
       this.requestCanvasReflow('clamp');
@@ -677,8 +845,10 @@ export class OutfitCanvasComponent implements OnInit {
 
     this.editingOutfitId.set(id);
     this.outfitName.set(outfit.name);
+    this.outfitCategory.set((outfit.category ?? '').trim());
     this.outfitNotes.set(outfit.notes ?? '');
     this.plannedDates.set([...(outfit.plannedDates ?? [])].sort());
+    this.ensureOutfitCategorySelected();
 
     const sourceById = new Map(this.availableItems().map(item => [item.id, item]));
     const bounds = this.getCanvasBounds();
@@ -883,10 +1053,37 @@ export class OutfitCanvasComponent implements OnInit {
     }
   }
 
+  toggleCategoryCreator(): void {
+    this.isAddingCategory.update((current) => !current);
+    if (!this.isAddingCategory()) {
+      this.newCategoryLabel.set('');
+    }
+  }
+
+  async createCategory(): Promise<void> {
+    const label = this.newCategoryLabel().trim();
+    if (!label || this.isCreatingCategory()) {
+      return;
+    }
+    this.isCreatingCategory.set(true);
+    this.saveError.set(null);
+    try {
+      const created = await this.catalogOptionsService.addOutfitCategory(label);
+      this.outfitCategory.set(created.id);
+      this.newCategoryLabel.set('');
+      this.isAddingCategory.set(false);
+    } catch (error) {
+      this.saveError.set(this.extractErrorMessage(error));
+    } finally {
+      this.isCreatingCategory.set(false);
+    }
+  }
+
   async saveOutfit(): Promise<void> {
     const outfitName = this.outfitName().trim();
-    if (!outfitName || this.canvasItems().length === 0) {
-      this.saveError.set('Outfit name and at least one item are required.');
+    const outfitCategory = this.outfitCategory().trim();
+    if (!outfitName || !outfitCategory || this.canvasItems().length === 0) {
+      this.saveError.set('Outfit name, category, and at least one item are required.');
       return;
     }
     this.saveError.set(null);
@@ -912,6 +1109,7 @@ export class OutfitCanvasComponent implements OnInit {
       if (editId) {
         await this.wardrobeService.updateOutfit(editId, {
           name: outfitName,
+          category: outfitCategory,
           items,
           imageUrl,
           notes,
@@ -920,6 +1118,7 @@ export class OutfitCanvasComponent implements OnInit {
       } else {
         await this.wardrobeService.addOutfit({
           name: outfitName,
+          category: outfitCategory,
           items,
           favorite: false,
           imageUrl,
@@ -1038,6 +1237,25 @@ export class OutfitCanvasComponent implements OnInit {
       imageUrl: item.imageUrl,
       type,
     };
+  }
+
+  private ensureOutfitCategorySelected(): void {
+    const selectedCategory = this.outfitCategory().trim();
+    if (selectedCategory.length > 0) {
+      return;
+    }
+    const firstCategory = this.categoryOptions()[0];
+    if (firstCategory) {
+      this.outfitCategory.set(firstCategory.id);
+    }
+  }
+
+  private formatCategoryLabel(category: string): string {
+    return category
+      .split('-')
+      .filter((part) => part.length > 0)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 
   private addPlannedDate(date: string): void {

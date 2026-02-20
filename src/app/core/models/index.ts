@@ -104,10 +104,21 @@ export const OCCASION_OPTIONS: string[] = [
   'streetwear',
 ];
 
+export type OutfitCategory = string;
+
+export const OUTFIT_CATEGORIES: CategoryInfo[] = [
+  { id: 'work', label: 'Work', icon: 'work' },
+  { id: 'casual', label: 'Casual', icon: 'weekend' },
+  { id: 'formal', label: 'Formal', icon: 'style' },
+  { id: 'party', label: 'Party', icon: 'celebration' },
+  { id: 'vacation', label: 'Vacation', icon: 'flight_takeoff' },
+];
+
 // Outfit Interface
 export interface Outfit {
   id: string;
   name: string;
+  category?: OutfitCategory;
   items: OutfitItem[];
   occasion?: string;
   season?: string;

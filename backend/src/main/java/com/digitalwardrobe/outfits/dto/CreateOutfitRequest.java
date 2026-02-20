@@ -8,6 +8,7 @@ import java.util.List;
 
 public record CreateOutfitRequest(
         @NotBlank(message = "name is required") @Size(max = 160, message = "name must be at most 160 chars") String name,
+        String category,
         @NotNull(message = "items are required") List<@Valid OutfitItemRequest> items,
         String occasion,
         String season,

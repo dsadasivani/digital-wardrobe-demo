@@ -70,6 +70,7 @@ public class OutfitService {
         OutfitDocument outfit = new OutfitDocument();
         outfit.setUserId(userId);
         outfit.setName(request.name());
+        outfit.setCategory(request.category());
         outfit.setItems(toEmbeds(request.items()));
         outfit.setOccasion(request.occasion());
         outfit.setSeason(request.season());
@@ -90,6 +91,9 @@ public class OutfitService {
         OutfitDocument outfit = findByIdForUserOrThrow(id, userId);
         if (request.name() != null) {
             outfit.setName(request.name());
+        }
+        if (request.category() != null) {
+            outfit.setCategory(request.category());
         }
         if (request.items() != null) {
             outfit.setItems(toEmbeds(request.items()));
@@ -240,6 +244,7 @@ public class OutfitService {
         return new OutfitResponse(
                 outfit.getId(),
                 outfit.getName(),
+                outfit.getCategory(),
                 items,
                 outfit.getOccasion(),
                 outfit.getSeason(),

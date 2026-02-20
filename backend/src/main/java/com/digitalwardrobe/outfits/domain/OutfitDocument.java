@@ -19,6 +19,7 @@ public class OutfitDocument {
 
     private String userId;
     private String name;
+    private String category;
     private List<OutfitItemEmbed> items = new ArrayList<>();
     private String occasion;
     private String season;
@@ -63,6 +64,14 @@ public class OutfitDocument {
 
     public void setItems(List<OutfitItemEmbed> items) {
         this.items = items;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public String getOccasion() {

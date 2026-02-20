@@ -6,6 +6,7 @@ import java.util.List;
 public record OutfitResponse(
         String id,
         String name,
+        String category,
         List<OutfitItemResponse> items,
         String occasion,
         String season,

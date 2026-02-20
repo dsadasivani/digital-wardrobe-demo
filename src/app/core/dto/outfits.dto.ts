@@ -15,6 +15,7 @@ export interface OutfitItemDto {
 export interface OutfitDto {
     id: string;
     name: string;
+    category: string | null;
     items: OutfitItemDto[];
     occasion: string | null;
     season: string | null;
@@ -42,6 +43,7 @@ export interface OutfitItemRequestDto {
 /** Request body for POST /api/v1/outfits */
 export interface CreateOutfitRequestDto {
     name: string;
+    category?: string;
     items: OutfitItemRequestDto[];
     occasion?: string;
     season?: string;
@@ -55,6 +57,7 @@ export interface CreateOutfitRequestDto {
 /** Request body for PATCH /api/v1/outfits/:id */
 export interface UpdateOutfitRequestDto {
     name?: string;
+    category?: string;
     items?: OutfitItemRequestDto[];
     occasion?: string;
     season?: string;

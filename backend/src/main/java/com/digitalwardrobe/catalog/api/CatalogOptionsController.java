@@ -43,6 +43,12 @@ public class CatalogOptionsController {
         return catalogOptionsService.getAccessoryOptions(userId);
     }
 
+    @GetMapping("/outfits")
+    public CatalogOptionsResponse outfitOptions(Authentication authentication) {
+        String userId = userService.requireCurrentUserId(authentication);
+        return catalogOptionsService.getOutfitOptions(userId);
+    }
+
     @PostMapping("/{scope}/categories")
     @ResponseStatus(HttpStatus.CREATED)
     public CatalogCategoryOptionResponse addCategory(
@@ -53,6 +59,7 @@ public class CatalogOptionsController {
         return switch (scope) {
             case "wardrobe" -> catalogOptionsService.addWardrobeCategory(userId, request.label());
             case "accessories" -> catalogOptionsService.addAccessoryCategory(userId, request.label());
+            case "outfits" -> catalogOptionsService.addOutfitCategory(userId, request.label());
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported category scope");
         };
     }

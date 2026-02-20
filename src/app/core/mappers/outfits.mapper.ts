@@ -25,6 +25,7 @@ export function mapOutfitDtoToModel(dto: OutfitDto): Outfit {
     return {
         id: dto.id,
         name: dto.name,
+        category: dto.category ?? undefined,
         items: dto.items.map(mapOutfitItemDtoToModel),
         occasion: dto.occasion ?? undefined,
         season: dto.season ?? undefined,
@@ -60,6 +61,7 @@ export function mapOutfitToCreateDto(
 ): CreateOutfitRequestDto {
     return {
         name: outfit.name,
+        category: outfit.category,
         items: outfit.items.map(mapOutfitItemToRequestDto),
         occasion: outfit.occasion,
         season: outfit.season,
@@ -78,6 +80,7 @@ export function mapOutfitToUpdateDto(
 ): UpdateOutfitRequestDto {
     const dto: UpdateOutfitRequestDto = {};
     if (changes.name !== undefined) dto.name = changes.name;
+    if (changes.category !== undefined) dto.category = changes.category;
     if (changes.items !== undefined) dto.items = changes.items.map(mapOutfitItemToRequestDto);
     if (changes.occasion !== undefined) dto.occasion = changes.occasion;
     if (changes.season !== undefined) dto.season = changes.season;

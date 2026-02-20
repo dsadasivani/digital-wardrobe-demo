@@ -21,11 +21,13 @@ public class CatalogOptionsService {
 
     public static final String WARDROBE_CATEGORY_SCOPE = "wardrobe-category";
     public static final String ACCESSORY_CATEGORY_SCOPE = "accessory-category";
+    public static final String OUTFIT_CATEGORY_SCOPE = "outfit-category";
     public static final String OCCASION_SCOPE = "occasion";
     private static final String SYSTEM_USER_ID = "__system__";
     private static final int CUSTOM_SORT_ORDER = 10_000;
     private static final String DEFAULT_WARDROBE_ICON = "checkroom";
     private static final String DEFAULT_ACCESSORY_ICON = "watch";
+    private static final String DEFAULT_OUTFIT_ICON = "style";
 
     private static final List<CategorySeed> WARDROBE_CATEGORY_DEFAULTS = List.of(
             new CategorySeed("tops", "Tops", "checkroom"),
@@ -48,6 +50,13 @@ public class CatalogOptionsService {
             new CategorySeed("sunglasses", "Sunglasses", "visibility"),
             new CategorySeed("ties", "Ties", "style"),
             new CategorySeed("footwear", "Footwear", "hiking"));
+
+    private static final List<CategorySeed> OUTFIT_CATEGORY_DEFAULTS = List.of(
+            new CategorySeed("work", "Work", "work"),
+            new CategorySeed("casual", "Casual", "weekend"),
+            new CategorySeed("formal", "Formal", "style"),
+            new CategorySeed("party", "Party", "celebration"),
+            new CategorySeed("vacation", "Vacation", "flight_takeoff"));
 
     private static final List<String> OCCASION_DEFAULTS = List.of(
             "casual",
@@ -84,6 +93,13 @@ public class CatalogOptionsService {
                 listOccasions(userId));
     }
 
+    public CatalogOptionsResponse getOutfitOptions(String userId) {
+        ensureDefaultsSeeded();
+        return new CatalogOptionsResponse(
+                listCategories(OUTFIT_CATEGORY_SCOPE, userId),
+                listOccasions(userId));
+    }
+
     public CatalogCategoryOptionResponse addWardrobeCategory(String userId, String requestedLabel) {
         ensureDefaultsSeeded();
         return addCategory(WARDROBE_CATEGORY_SCOPE, userId, requestedLabel);
@@ -92,6 +108,11 @@ public class CatalogOptionsService {
     public CatalogCategoryOptionResponse addAccessoryCategory(String userId, String requestedLabel) {
         ensureDefaultsSeeded();
         return addCategory(ACCESSORY_CATEGORY_SCOPE, userId, requestedLabel);
+    }
+
+    public CatalogCategoryOptionResponse addOutfitCategory(String userId, String requestedLabel) {
+        ensureDefaultsSeeded();
+        return addCategory(OUTFIT_CATEGORY_SCOPE, userId, requestedLabel);
     }
 
     public String addOccasion(String userId, String requestedValue) {
@@ -239,6 +260,15 @@ public class CatalogOptionsService {
         if (containsAny(normalized, "formal", "suit", "blazer", "tie")) {
             return "style";
         }
+        if (containsAny(normalized, "work", "office", "business")) {
+            return "work";
+        }
+        if (containsAny(normalized, "party", "celebration", "night")) {
+            return "celebration";
+        }
+        if (containsAny(normalized, "vacation", "travel", "trip", "resort")) {
+            return "flight_takeoff";
+        }
         if (containsAny(normalized, "swim", "beach", "bikini")) {
             return "pool";
         }
@@ -267,7 +297,13 @@ public class CatalogOptionsService {
     }
 
     private String fallbackIcon(String scope) {
-        return ACCESSORY_CATEGORY_SCOPE.equals(scope) ? DEFAULT_ACCESSORY_ICON : DEFAULT_WARDROBE_ICON;
+        if (ACCESSORY_CATEGORY_SCOPE.equals(scope)) {
+            return DEFAULT_ACCESSORY_ICON;
+        }
+        if (OUTFIT_CATEGORY_SCOPE.equals(scope)) {
+            return DEFAULT_OUTFIT_ICON;
+        }
+        return DEFAULT_WARDROBE_ICON;
     }
 
     private boolean containsAny(String input, String... keywords) {
@@ -335,6 +371,7 @@ public class CatalogOptionsService {
             }
             seedCategoryDefaults(WARDROBE_CATEGORY_SCOPE, WARDROBE_CATEGORY_DEFAULTS);
             seedCategoryDefaults(ACCESSORY_CATEGORY_SCOPE, ACCESSORY_CATEGORY_DEFAULTS);
+            seedCategoryDefaults(OUTFIT_CATEGORY_SCOPE, OUTFIT_CATEGORY_DEFAULTS);
             seedOccasionDefaults(OCCASION_DEFAULTS);
             defaultsSeeded = true;
         }

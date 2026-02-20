@@ -6,6 +6,7 @@ import java.util.List;
 
 public record UpdateOutfitRequest(
         @Size(min = 1, max = 160, message = "name must be between 1 and 160 chars") String name,
+        String category,
         List<CreateOutfitRequest.OutfitItemRequest> items,
         String occasion,
         String season,
