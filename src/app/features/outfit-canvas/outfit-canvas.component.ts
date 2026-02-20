@@ -91,15 +91,29 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
 
       <main class="canvas-area">
         <header class="canvas-header">
+          <div class="canvas-fields">
             <mat-form-field appearance="outline" class="outfit-name-field">
               <mat-label>Outfit Name</mat-label>
-            <input
-              matInput
-              [ngModel]="outfitName()"
-              (ngModelChange)="outfitName.set($event)"
-              placeholder="My New Outfit"
-            />
-          </mat-form-field>
+              <input
+                matInput
+                [ngModel]="outfitName()"
+                (ngModelChange)="outfitName.set($event)"
+                placeholder="My New Outfit"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="outfit-notes-field">
+              <mat-label>Stylist Notes</mat-label>
+              <textarea
+                matInput
+                rows="2"
+                maxlength="220"
+                [ngModel]="outfitNotes()"
+                (ngModelChange)="outfitNotes.set($event)"
+                placeholder="Optional: styling tips, context, or reminders"
+              ></textarea>
+              <mat-hint align="end">{{ outfitNotes().length }}/220</mat-hint>
+            </mat-form-field>
+          </div>
           <div class="canvas-actions">
             @if (editingOutfitId()) {
               <button mat-stroked-button type="button" (click)="cancelEdit()">
@@ -370,7 +384,12 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     .panel-item:hover .add-overlay { opacity: 1; }
     .canvas-area { flex: 1; display: flex; flex-direction: column; padding: var(--dw-spacing-md); gap: var(--dw-spacing-md); }
     .canvas-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .outfit-name-field { flex: 1; min-width: 200px; max-width: 400px; }
+    .canvas-fields { flex: 1; min-width: 260px; display: grid; gap: 10px; }
+    .outfit-name-field,
+    .outfit-notes-field {
+      width: 100%;
+      margin: 0;
+    }
     .canvas-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
     .canvas-toolbar {
@@ -504,6 +523,10 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
       .items-panel { display: none; }
       .outfit-canvas-page { display: block; }
       .canvas-area { padding: 10px; gap: 10px; }
+      .canvas-header { align-items: stretch; gap: 10px; }
+      .canvas-fields { min-width: 0; width: 100%; }
+      .canvas-actions { width: 100%; }
+      .canvas-actions button { flex: 1 1 140px; }
       .canvas-toolbar { padding: 10px; }
       .toolbar-group { width: 100%; }
       .toolbar-group button { flex: 1 1 140px; }
@@ -582,6 +605,7 @@ export class OutfitCanvasComponent implements OnInit {
 
   canvasItems = signal<CanvasPlacedItem[]>([]);
   outfitName = signal('');
+  outfitNotes = signal('');
   dateInput = signal('');
   plannedDates = signal<string[]>([]);
   editingOutfitId = signal<string | null>(null);
@@ -653,6 +677,7 @@ export class OutfitCanvasComponent implements OnInit {
 
     this.editingOutfitId.set(id);
     this.outfitName.set(outfit.name);
+    this.outfitNotes.set(outfit.notes ?? '');
     this.plannedDates.set([...(outfit.plannedDates ?? [])].sort());
 
     const sourceById = new Map(this.availableItems().map(item => [item.id, item]));
@@ -879,6 +904,7 @@ export class OutfitCanvasComponent implements OnInit {
     }));
 
     const imageUrl = [...this.canvasItems()].sort((left, right) => right.zIndex - left.zIndex)[0]?.imageUrl;
+    const notes = this.outfitNotes().trim();
     const plannedDates = [...this.plannedDates()].sort();
     const editId = this.editingOutfitId();
 
@@ -888,6 +914,7 @@ export class OutfitCanvasComponent implements OnInit {
           name: outfitName,
           items,
           imageUrl,
+          notes,
           plannedDates,
         });
       } else {
@@ -896,6 +923,7 @@ export class OutfitCanvasComponent implements OnInit {
           items,
           favorite: false,
           imageUrl,
+          notes: notes || undefined,
           plannedDates,
         });
       }

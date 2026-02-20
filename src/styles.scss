@@ -1313,6 +1313,31 @@ img[dwImageReady].dw-image-loaded {
   border-radius: var(--dw-radius-md) !important;
 }
 
+.mat-mdc-snack-bar-container.error-snackbar {
+  --mdc-snackbar-container-color: color-mix(in srgb, var(--dw-error) 82%, #7f2f2d);
+  --mat-snack-bar-button-color: #fff;
+}
+
+.mat-mdc-snack-bar-container.network-error-snackbar {
+  --mdc-snackbar-container-color: transparent;
+  padding: 0 !important;
+  box-shadow: none !important;
+  max-width: min(540px, calc(100vw - 16px)) !important;
+
+  .mat-mdc-snackbar-surface,
+  .mdc-snackbar__surface {
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .mat-mdc-snack-bar-label,
+  .mdc-snackbar__label {
+    padding: 0 !important;
+  }
+}
+
 // Override Material chips
 .mat-mdc-chip {
   --mdc-chip-elevated-container-color: var(--dw-surface-card);
