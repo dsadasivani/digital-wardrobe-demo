@@ -16,7 +16,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { WARDROBE_CATEGORIES, WardrobeItem } from '../../../core/models';
+import { WardrobeItem } from '../../../core/models';
+import { CatalogOptionsService } from '../../../core/services';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { DetailSkeletonComponent } from '../../../shared/components/detail-skeleton/detail-skeleton.component';
 import { InlineActionLoaderComponent } from '../../../shared/components/inline-action-loader/inline-action-loader.component';
@@ -588,6 +589,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   private router = inject(Router);
   private location = inject(Location);
   private wardrobeService = inject(WardrobeService);
+  private catalogOptionsService = inject(CatalogOptionsService);
   private relatedRowRef = viewChild<ElementRef<HTMLElement>>('relatedRow');
 
   itemId = signal<string | null>(null);
@@ -659,11 +661,15 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   touchStartX = signal<number | null>(null);
   touchStartY = signal<number | null>(null);
   suppressPreviewOpenUntil = signal(0);
+  categoryOptions = this.catalogOptionsService.wardrobeCategories;
 
   categoryLabel = computed(() => {
     const category = this.item()?.category;
-    if (!category) return '';
-    return WARDROBE_CATEGORIES.find(c => c.id === category)?.label ?? category;
+    if (!category) {
+      return '';
+    }
+    return this.categoryOptions().find((option) => option.id === category)?.label
+      ?? this.formatCategoryLabel(category);
   });
 
   relatedItems = computed(() => {
@@ -681,6 +687,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   });
 
   ngOnInit(): void {
+    void this.loadCategoryOptions();
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       this.itemId.set(id);
@@ -871,5 +878,19 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     } finally {
       this.isDetailLoading.set(false);
     }
+  }
+
+  private async loadCategoryOptions(): Promise<void> {
+    try {
+      await this.catalogOptionsService.ensureWardrobeOptionsLoaded();
+    } catch {
+      // Keep detail page usable with fallback labels if metadata is unavailable.
+    }
+  }
+
+  private formatCategoryLabel(category: string): string {
+    return category
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (value) => value.toUpperCase());
   }
 }

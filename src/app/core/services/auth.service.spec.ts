@@ -7,6 +7,7 @@ import { AuthApi } from '../api/auth.api';
 import { AuthResponseDto, UserDto } from '../dto/auth.dto';
 import { AuthTokenService } from './auth-token.service';
 import { AuthService } from './auth.service';
+import { CatalogOptionsService } from './catalog-options.service';
 import { WardrobeService } from './wardrobe.service';
 
 class MockAuthApi {
@@ -32,6 +33,10 @@ class MockAuthTokenService {
 
 class MockWardrobeService {
   loadAll = vi.fn(() => Promise.resolve());
+  clearAll = vi.fn();
+}
+
+class MockCatalogOptionsService {
   clearAll = vi.fn();
 }
 
@@ -63,6 +68,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let authApi: MockAuthApi;
   let wardrobeService: MockWardrobeService;
+  let catalogOptionsService: MockCatalogOptionsService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -71,12 +77,16 @@ describe('AuthService', () => {
         { provide: AuthApi, useClass: MockAuthApi },
         { provide: AuthTokenService, useClass: MockAuthTokenService },
         { provide: WardrobeService, useClass: MockWardrobeService },
+        { provide: CatalogOptionsService, useClass: MockCatalogOptionsService },
       ],
     });
 
     service = TestBed.inject(AuthService);
     authApi = TestBed.inject(AuthApi) as unknown as MockAuthApi;
     wardrobeService = TestBed.inject(WardrobeService) as unknown as MockWardrobeService;
+    catalogOptionsService = TestBed.inject(
+      CatalogOptionsService
+    ) as unknown as MockCatalogOptionsService;
   });
 
   it('does not preload wardrobe data during login', async () => {
@@ -98,5 +108,21 @@ describe('AuthService', () => {
     expect(result.success).toBe(false);
     expect(service.authenticated()).toBe(false);
     expect(service.user()).toBeNull();
+    expect(wardrobeService.clearAll).toHaveBeenCalledTimes(1);
+    expect(catalogOptionsService.clearAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears user-scoped caches on logout', () => {
+    service.logout();
+
+    expect(wardrobeService.clearAll).toHaveBeenCalledTimes(1);
+    expect(catalogOptionsService.clearAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears user-scoped caches on unauthorized handling', () => {
+    service.handleUnauthorized();
+
+    expect(wardrobeService.clearAll).toHaveBeenCalledTimes(1);
+    expect(catalogOptionsService.clearAll).toHaveBeenCalledTimes(1);
   });
 });

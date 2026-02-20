@@ -17,6 +17,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Accessory } from '../../../core/models';
+import { CatalogOptionsService } from '../../../core/services';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { DetailSkeletonComponent } from '../../../shared/components/detail-skeleton/detail-skeleton.component';
 import { InlineActionLoaderComponent } from '../../../shared/components/inline-action-loader/inline-action-loader.component';
@@ -479,6 +480,7 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
   private router = inject(Router);
   private location = inject(Location);
   private wardrobeService = inject(WardrobeService);
+  private catalogOptionsService = inject(CatalogOptionsService);
   private relatedRowRef = viewChild<ElementRef<HTMLElement>>('relatedRow');
 
   accessoryId = signal<string | null>(null);
@@ -548,10 +550,15 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
   });
   touchStartX = signal<number | null>(null);
   touchStartY = signal<number | null>(null);
+  categoryOptions = this.catalogOptionsService.accessoryCategories;
 
   categoryLabel = computed(() => {
-    const category = this.accessory()?.category ?? '';
-    return category.charAt(0).toUpperCase() + category.slice(1);
+    const category = this.accessory()?.category;
+    if (!category) {
+      return '';
+    }
+    return this.categoryOptions().find((option) => option.id === category)?.label
+      ?? this.formatCategoryLabel(category);
   });
 
   relatedAccessories = computed(() => {
@@ -569,6 +576,7 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
   });
 
   ngOnInit(): void {
+    void this.loadCategoryOptions();
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       this.accessoryId.set(id);
@@ -735,5 +743,19 @@ export class AccessoryDetailComponent implements OnInit, AfterViewInit {
     } finally {
       this.isDetailLoading.set(false);
     }
+  }
+
+  private async loadCategoryOptions(): Promise<void> {
+    try {
+      await this.catalogOptionsService.ensureAccessoryOptionsLoaded();
+    } catch {
+      // Keep detail page usable with fallback labels if metadata is unavailable.
+    }
+  }
+
+  private formatCategoryLabel(category: string): string {
+    return category
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (value) => value.toUpperCase());
   }
 }

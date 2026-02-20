@@ -6,7 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
-import { ACCESSORY_CATEGORIES, Accessory, WardrobeItem } from '../../core/models';
+import { Accessory, WardrobeItem } from '../../core/models';
+import { CatalogOptionsService } from '../../core/services';
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { ItemCardComponent } from '../../shared/components/item-card/item-card.component';
 
@@ -71,7 +72,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
           (click)="selectedCategory.set('all')">
           All
         </button>
-        @for (entry of categories; track entry.id) {
+        @for (entry of categories(); track entry.id) {
           <button
             type="button"
             class="chip"
@@ -200,6 +201,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 })
 export class AccessoriesComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
+  private catalogOptionsService = inject(CatalogOptionsService);
   private router = inject(Router);
 
   accessories = this.wardrobeService.accessoryList;
@@ -211,7 +213,7 @@ export class AccessoriesComponent implements OnInit {
   );
   readonly loadingIcons = ACCESSORY_LOADING_ICONS;
   readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
-  categories = ACCESSORY_CATEGORIES;
+  categories = this.catalogOptionsService.accessoryCategories;
 
   searchQuery = signal('');
   selectedCategory = signal<'all' | Accessory['category']>('all');
@@ -220,6 +222,7 @@ export class AccessoriesComponent implements OnInit {
 
   ngOnInit(): void {
     void this.loadAccessories();
+    void this.loadCategoryOptions();
   }
 
   filteredAccessories = computed(() => {
@@ -265,7 +268,7 @@ export class AccessoriesComponent implements OnInit {
     return total > 0 ? total : this.accessories().length;
   });
 
-  getCategoryCount(category: Accessory['category']): number {
+  getCategoryCount(category: string): number {
     return this.accessories().filter(item => item.category === category).length;
   }
 
@@ -324,6 +327,14 @@ export class AccessoriesComponent implements OnInit {
       await this.wardrobeService.loadNextAccessoriesPage();
     } catch {
       // Keep local interactions responsive on intermittent paging failures.
+    }
+  }
+
+  private async loadCategoryOptions(): Promise<void> {
+    try {
+      await this.catalogOptionsService.ensureAccessoryOptionsLoaded();
+    } catch {
+      // Keep list interactive with fallback options when metadata loading fails.
     }
   }
 }

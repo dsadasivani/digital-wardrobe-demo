@@ -11,9 +11,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { CatalogOptionsService } from '../../../core/services';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { ItemCardComponent } from '../../../shared/components/item-card/item-card.component';
-import { WardrobeItem, Accessory, WardrobeCategory, WARDROBE_CATEGORIES } from '../../../core/models';
+import { WardrobeItem, Accessory, WardrobeCategory } from '../../../core/models';
 
 const WARDROBE_LOADING_ICONS = [
   'checkroom',
@@ -123,7 +124,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         [selectedIndex]="selectedTabIndex()"
         (selectedIndexChange)="onTabChange($event)">
         <mat-tab label="All ({{ allItems().length }})"></mat-tab>
-        @for (cat of categories; track cat.id) {
+        @for (cat of categories(); track cat.id) {
           <mat-tab>
             <ng-template mat-tab-label>
               <mat-icon class="tab-icon">{{ cat.icon }}</mat-icon>
@@ -500,10 +501,11 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 })
 export class WardrobeComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
+  private catalogOptionsService = inject(CatalogOptionsService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  categories = WARDROBE_CATEGORIES;
+  categories = this.catalogOptionsService.wardrobeCategories;
   allItems = this.wardrobeService.items;
   totalItems = this.wardrobeService.wardrobeTotalElements;
   hasMoreItems = this.wardrobeService.hasMoreWardrobePages;
@@ -519,6 +521,7 @@ export class WardrobeComponent implements OnInit {
   viewMode = signal<'grid' | 'list'>('grid');
   selectedTabIndex = signal(0);
   activeFilter = signal<'all' | 'favorites' | 'unused'>('all');
+  private routeCategoryParam = signal<string | null>(null);
 
   colorOptions = [
     { name: 'Black', hex: '#1a1a1a' },
@@ -595,18 +598,12 @@ export class WardrobeComponent implements OnInit {
 
   ngOnInit(): void {
     void this.loadWardrobeItems();
+    void this.loadCategoryOptions();
 
     this.route.paramMap.subscribe(params => {
       const categoryParam = params.get('category');
-      const matchIndex = this.categories.findIndex(cat => cat.id === categoryParam);
-
-      if (matchIndex >= 0) {
-        this.selectedCategory.set(this.categories[matchIndex].id);
-        this.selectedTabIndex.set(matchIndex + 1);
-      } else {
-        this.selectedCategory.set(null);
-        this.selectedTabIndex.set(0);
-      }
+      this.routeCategoryParam.set(categoryParam);
+      this.syncSelectedCategoryFromRoute();
     });
 
     this.route.queryParamMap.subscribe(query => {
@@ -619,7 +616,7 @@ export class WardrobeComponent implements OnInit {
     });
   }
 
-  getCategoryCount(category: WardrobeCategory): number {
+  getCategoryCount(category: string): number {
     return this.allItems().filter(item => item.category === category).length;
   }
 
@@ -628,7 +625,7 @@ export class WardrobeComponent implements OnInit {
     if (index === 0) {
       this.selectedCategory.set(null);
     } else {
-      this.selectedCategory.set(this.categories[index - 1].id);
+      this.selectedCategory.set(this.categories()[index - 1]?.id ?? null);
     }
   }
 
@@ -715,5 +712,28 @@ export class WardrobeComponent implements OnInit {
     } catch {
       // Keep filtering controls usable if incremental loading fails.
     }
+  }
+
+  private async loadCategoryOptions(): Promise<void> {
+    try {
+      await this.catalogOptionsService.ensureWardrobeOptionsLoaded();
+    } finally {
+      this.syncSelectedCategoryFromRoute();
+    }
+  }
+
+  private syncSelectedCategoryFromRoute(): void {
+    const categoryParam = this.routeCategoryParam();
+    const categories = this.categories();
+    const matchIndex = categories.findIndex((cat) => cat.id === categoryParam);
+
+    if (matchIndex >= 0) {
+      this.selectedCategory.set(categories[matchIndex].id);
+      this.selectedTabIndex.set(matchIndex + 1);
+      return;
+    }
+
+    this.selectedCategory.set(null);
+    this.selectedTabIndex.set(0);
   }
 }

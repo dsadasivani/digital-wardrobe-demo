@@ -7,6 +7,7 @@ import { ApiErrorDto } from '../dto/auth.dto';
 import { mapUserDtoToModel, mapUserUpdatesToUpdateRequestDto } from '../mappers/auth.mapper';
 import { User, UserPreferences } from '../models';
 import { AuthTokenService } from './auth-token.service';
+import { CatalogOptionsService } from './catalog-options.service';
 import { ThemeService } from './theme.service';
 import { WardrobeService } from './wardrobe.service';
 
@@ -28,6 +29,7 @@ export class AuthService {
   private readonly authApi = inject(AuthApi);
   private readonly authTokenService = inject(AuthTokenService);
   private readonly wardrobeService = inject(WardrobeService);
+  private readonly catalogOptionsService = inject(CatalogOptionsService);
   private readonly themeService = inject(ThemeService);
 
   private readonly initialState = this.hydrateFromSession();
@@ -89,13 +91,11 @@ export class AuthService {
 
   logout(): void {
     this.clearLocalSession();
-    this.wardrobeService.clearAll();
     void firstValueFrom(this.authApi.logout()).catch(() => undefined);
   }
 
   handleUnauthorized(): void {
     this.clearLocalSession();
-    this.wardrobeService.clearAll();
   }
 
   updateProfile(updates: Partial<User>): void {
@@ -222,6 +222,8 @@ export class AuthService {
     this.authTokenService.clearToken();
     this.isAuthenticated.set(false);
     this.currentUser.set(null);
+    this.wardrobeService.clearAll();
+    this.catalogOptionsService.clearAll();
     this.persistSnapshot();
   }
 

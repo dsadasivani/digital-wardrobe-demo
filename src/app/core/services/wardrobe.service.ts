@@ -112,22 +112,12 @@ export class WardrobeService {
 
   readonly categoryBreakdown = computed(() => {
     const items = this.wardrobeItems();
-    const breakdown: Record<WardrobeCategory, number> = {
-      tops: 0,
-      bottoms: 0,
-      dresses: 0,
-      outerwear: 0,
-      shoes: 0,
-      accessories: 0,
-      activewear: 0,
-      formal: 0,
-      swimwear: 0,
-    };
+    const breakdown = new Map<WardrobeCategory, number>();
     items.forEach((item) => {
-      breakdown[item.category]++;
+      breakdown.set(item.category, (breakdown.get(item.category) ?? 0) + 1);
     });
-    return Object.entries(breakdown)
-      .map(([category, count]) => ({ category: category as WardrobeCategory, count }))
+    return Array.from(breakdown.entries())
+      .map(([category, count]) => ({ category, count }))
       .filter((item) => item.count > 0)
       .sort((a, b) => b.count - a.count);
   });

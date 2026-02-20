@@ -24,19 +24,10 @@ export interface WardrobeItem {
   createdAt: Date;
 }
 
-export type WardrobeCategory =
-  | 'tops'
-  | 'bottoms'
-  | 'dresses'
-  | 'outerwear'
-  | 'shoes'
-  | 'accessories'
-  | 'activewear'
-  | 'formal'
-  | 'swimwear';
+export type WardrobeCategory = string;
 
 export interface CategoryInfo {
-  id: WardrobeCategory;
+  id: string;
   label: string;
   icon: string;
   count?: number;
@@ -78,19 +69,10 @@ export interface Accessory {
   createdAt: Date;
 }
 
-export type AccessoryCategory =
-  | 'bags'
-  | 'jewelry'
-  | 'watches'
-  | 'scarves'
-  | 'belts'
-  | 'hats'
-  | 'sunglasses'
-  | 'ties'
-  | 'footwear';
+export type AccessoryCategory = string;
 
 export interface AccessoryCategoryInfo {
-  id: AccessoryCategory;
+  id: string;
   label: string;
   icon: string;
 }

@@ -6,3 +6,4 @@ export * from './theme.service';
 export * from './app-ui-state.service';
 export * from './image-cropper.service';
 export * from './media-upload.service';
+export * from './catalog-options.service';
