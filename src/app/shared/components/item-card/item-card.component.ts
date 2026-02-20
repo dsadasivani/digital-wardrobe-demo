@@ -8,6 +8,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { WardrobeItem, Accessory } from '../../../core/models';
 import { ImageReadyDirective } from '../../directives/image-ready.directive';
+import { InlineActionLoaderComponent } from '../inline-action-loader/inline-action-loader.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,6 +22,7 @@ import { ImageReadyDirective } from '../../directives/image-ready.directive';
     MatMenuModule,
     MatDividerModule,
     ImageReadyDirective,
+    InlineActionLoaderComponent,
   ],
   template: `
     <div
@@ -46,6 +48,7 @@ import { ImageReadyDirective } from '../../directives/image-ready.directive';
           <button 
             class="overlay-btn favorite-btn"
             [class.active]="item().favorite"
+            [disabled]="isActionPending()"
             (click)="onFavoriteClick($event)"
             matTooltip="Toggle favorite">
             <mat-icon>{{ item().favorite ? 'favorite' : 'favorite_border' }}</mat-icon>
@@ -53,6 +56,7 @@ import { ImageReadyDirective } from '../../directives/image-ready.directive';
           
           <button 
             class="overlay-btn menu-btn"
+            [disabled]="isActionPending()"
             [matMenuTriggerFor]="cardMenu"
             (click)="$event.stopPropagation()"
             matTooltip="More options">
@@ -78,6 +82,15 @@ import { ImageReadyDirective } from '../../directives/image-ready.directive';
       </div>
 
       <div class="card-content">
+        @if (isActionPending()) {
+          <div class="action-loader-row">
+            <dw-inline-action-loader
+              [label]="pendingActionLabel()"
+              [tone]="pendingActionTone()"
+              [icon]="pendingActionIcon()"
+            ></dw-inline-action-loader>
+          </div>
+        }
         <h4 class="item-name">{{ item().name }}</h4>
         <div class="item-meta">
           <span class="item-category">{{ getCategoryLabel() }}</span>
@@ -97,20 +110,20 @@ import { ImageReadyDirective } from '../../directives/image-ready.directive';
       </div>
 
       <mat-menu #cardMenu="matMenu">
-        <button mat-menu-item (click)="viewItem.emit(item())">
+        <button mat-menu-item [disabled]="isActionPending()" (click)="viewItem.emit(item())">
           <mat-icon>visibility</mat-icon>
           <span>View Details</span>
         </button>
-        <button mat-menu-item (click)="editItem.emit(item())">
+        <button mat-menu-item [disabled]="isActionPending()" (click)="editItem.emit(item())">
           <mat-icon>edit</mat-icon>
           <span>Edit</span>
         </button>
-        <button mat-menu-item (click)="addToOutfit.emit(item())">
+        <button mat-menu-item [disabled]="isActionPending()" (click)="addToOutfit.emit(item())">
           <mat-icon>add_to_photos</mat-icon>
           <span>Add to Outfit</span>
         </button>
         <mat-divider></mat-divider>
-        <button mat-menu-item class="delete-option" (click)="deleteItem.emit(item())">
+        <button mat-menu-item class="delete-option" [disabled]="deletePending()" (click)="deleteItem.emit(item())">
           <mat-icon color="warn">delete</mat-icon>
           <span>Delete</span>
         </button>
@@ -272,6 +285,11 @@ import { ImageReadyDirective } from '../../directives/image-ready.directive';
       padding: var(--dw-spacing-md);
     }
 
+    .action-loader-row {
+      margin-bottom: var(--dw-spacing-sm);
+      min-height: 26px;
+    }
+
     .item-name {
       font-family: 'Outfit', sans-serif;
       font-size: 1rem;
@@ -404,6 +422,8 @@ export class ItemCardComponent implements OnDestroy {
   private static readonly SWIPE_THRESHOLD_PX = 36;
 
   item = input.required<WardrobeItem | Accessory>();
+  favoritePending = input(false);
+  deletePending = input(false);
   selectedImageIndex = linkedSignal(() => this.item().id ? 0 : 0);
   imageAnimationKey = signal(0);
   hoverCycleTimerId = signal<number | null>(null);
@@ -439,6 +459,34 @@ export class ItemCardComponent implements OnDestroy {
       url: this.currentImageUrl(),
     },
   ]);
+  isActionPending = computed(() => this.favoritePending() || this.deletePending());
+  pendingActionLabel = computed(() => {
+    if (this.deletePending()) {
+      return 'Deleting...';
+    }
+    if (this.favoritePending()) {
+      return 'Updating...';
+    }
+    return 'Updating...';
+  });
+  pendingActionTone = computed<'neutral' | 'destructive' | 'positive'>(() => {
+    if (this.deletePending()) {
+      return 'destructive';
+    }
+    if (this.favoritePending()) {
+      return 'positive';
+    }
+    return 'neutral';
+  });
+  pendingActionIcon = computed(() => {
+    if (this.deletePending()) {
+      return 'delete';
+    }
+    if (this.favoritePending()) {
+      return 'favorite';
+    }
+    return 'sync';
+  });
 
   ngOnDestroy(): void {
     this.stopHoverCycle();
@@ -453,6 +501,9 @@ export class ItemCardComponent implements OnDestroy {
   }
 
   onCardClick(): void {
+    if (this.isActionPending()) {
+      return;
+    }
     if (Date.now() < this.suppressClickUntil()) {
       return;
     }
@@ -525,6 +576,9 @@ export class ItemCardComponent implements OnDestroy {
 
   onFavoriteClick(event: Event): void {
     event.stopPropagation();
+    if (this.isActionPending()) {
+      return;
+    }
     this.toggleFavorite.emit(this.item());
   }
 

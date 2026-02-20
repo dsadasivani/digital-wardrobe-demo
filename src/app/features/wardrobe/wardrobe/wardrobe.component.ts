@@ -158,6 +158,8 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
             @for (item of filteredItems(); track item.id) {
               <dw-item-card 
                 [item]="item"
+                [favoritePending]="isFavoritePending(item.id)"
+                [deletePending]="isDeletePending(item.id)"
                 (viewItem)="onViewItem($event)"
                 (editItem)="onEditItem($event)"
                 (deleteItem)="onDeleteItem($event)"
@@ -659,8 +661,12 @@ export class WardrobeComponent implements OnInit {
     }
   }
 
-  onDeleteItem(item: WardrobeItem | Accessory): void {
-    this.wardrobeService.deleteItem(item.id);
+  async onDeleteItem(item: WardrobeItem | Accessory): Promise<void> {
+    try {
+      await this.wardrobeService.deleteItem(item.id);
+    } catch {
+      // Keep collection interactions responsive if delete fails.
+    }
   }
 
   async onToggleFavorite(item: WardrobeItem | Accessory): Promise<void> {
@@ -681,6 +687,14 @@ export class WardrobeComponent implements OnInit {
 
   private isWardrobeItem(item: WardrobeItem | Accessory): item is WardrobeItem {
     return 'purchaseDate' in item;
+  }
+
+  isFavoritePending(itemId: string): boolean {
+    return this.wardrobeService.isFavoriteMutationPending(itemId);
+  }
+
+  isDeletePending(itemId: string): boolean {
+    return this.wardrobeService.isDeleteMutationPending(itemId);
   }
 
   private async loadWardrobeItems(): Promise<void> {

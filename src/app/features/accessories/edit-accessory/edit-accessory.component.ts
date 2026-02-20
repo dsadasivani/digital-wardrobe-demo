@@ -11,6 +11,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ACCESSORY_CATEGORIES, Accessory, AccessoryCategory, OCCASION_OPTIONS } from '../../../core/models';
 import { ImageCropperService, MediaUploadService } from '../../../core/services';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
+import { FormSaveLoaderComponent } from '../../../shared/components/form-save-loader/form-save-loader.component';
 import { ImageReadyDirective } from '../../../shared/directives/image-ready.directive';
 
 @Component({
@@ -26,6 +27,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
     MatInputModule,
     MatSelectModule,
     ImageReadyDirective,
+    FormSaveLoaderComponent,
   ],
   template: `
     @if (accessoryId()) {
@@ -132,6 +134,16 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
           @if (errorMessage()) {
             <p class="form-error">{{ errorMessage() }}</p>
           }
+          @if (isSaving()) {
+            <div class="save-loader-row">
+              <dw-form-save-loader
+                title="Saving accessory..."
+                message="Applying your accessory updates."
+                variant="update"
+                icon="edit"
+              ></dw-form-save-loader>
+            </div>
+          }
 
           <div class="actions">
             <button mat-stroked-button type="button" (click)="goBack()">Cancel</button>
@@ -170,6 +182,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     mat-form-field { width: 100%; }
     .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
+    .save-loader-row { margin-top: 2px; }
     .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
     .save-btn {
       --mdc-filled-button-container-color: transparent !important;

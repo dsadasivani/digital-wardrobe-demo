@@ -118,6 +118,8 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
           @for (item of filteredAccessories(); track item.id) {
             <dw-item-card
               [item]="item"
+              [favoritePending]="isFavoritePending(item.id)"
+              [deletePending]="isDeletePending(item.id)"
               (viewItem)="onViewItem($event)"
               (editItem)="onEditItem($event)"
               (deleteItem)="onDeleteItem($event)"
@@ -275,9 +277,13 @@ export class AccessoriesComponent implements OnInit {
     this.router.navigate(['/accessories', item.id, 'edit']);
   }
 
-  onDeleteItem(item: WardrobeItem | Accessory): void {
+  async onDeleteItem(item: WardrobeItem | Accessory): Promise<void> {
     if (confirm(`Delete "${item.name}" from accessories?`)) {
-      this.wardrobeService.deleteAccessory(item.id);
+      try {
+        await this.wardrobeService.deleteAccessory(item.id);
+      } catch {
+        // Keep collection interactions responsive if delete fails.
+      }
     }
   }
 
@@ -291,6 +297,14 @@ export class AccessoriesComponent implements OnInit {
 
   onAddToOutfit(_item: WardrobeItem | Accessory): void {
     this.router.navigate(['/outfit-canvas']);
+  }
+
+  isFavoritePending(itemId: string): boolean {
+    return this.wardrobeService.isFavoriteMutationPending(itemId);
+  }
+
+  isDeletePending(itemId: string): boolean {
+    return this.wardrobeService.isDeleteMutationPending(itemId);
   }
 
   private async loadAccessories(): Promise<void> {

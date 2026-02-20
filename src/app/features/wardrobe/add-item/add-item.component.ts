@@ -10,11 +10,28 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ImageCropperService, MediaUploadService, WardrobeService } from '../../../core/services';
 import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory } from '../../../core/models';
+import { FormSaveLoaderComponent } from '../../../shared/components/form-save-loader/form-save-loader.component';
+import {
+  ColorOption,
+  createColorOption,
+  extractDominantColors,
+  normalizeHex,
+  resolveColorName,
+} from '../../../shared/utils/color-extractor';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
     selector: 'dw-add-item',
-    imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatIconModule],
+    imports: [
+      CommonModule,
+      FormsModule,
+      MatFormFieldModule,
+      MatInputModule,
+      MatSelectModule,
+      MatButtonModule,
+      MatIconModule,
+      FormSaveLoaderComponent,
+    ],
     template: `
     <div class="add-item-page animate-fade-in">
       <header class="page-header">
@@ -72,9 +89,55 @@ import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory } from '../../.
 
           <mat-form-field appearance="outline">
             <mat-label>Color</mat-label>
-            <input matInput [(ngModel)]="color" name="color" required placeholder="e.g., Navy Blue">
+            <mat-icon matPrefix>palette</mat-icon>
+            <input matInput [value]="color" readonly>
+            <span matSuffix class="color-option-swatch input-swatch" [style.background-color]="selectedColorHex()"></span>
           </mat-form-field>
         </div>
+
+        <section class="color-intelligence glass">
+          <div class="color-intelligence-header">
+            <h3>Color Suggestions</h3>
+            @if (isAnalyzingColors()) {
+              <span class="analyzing-label">Analyzing image...</span>
+            }
+          </div>
+
+          @if (detectedColorOptions().length > 0) {
+            <div class="suggested-colors">
+              @for (option of detectedColorOptions(); track option.hex) {
+                <button
+                  type="button"
+                  class="suggested-color-btn"
+                  [class.active]="selectedColorHex() === option.hex"
+                  (click)="applyColorOption(option)">
+                  <small class="dominant-rank">Dominant {{ $index + 1 }}</small>
+                  <span class="color-option-swatch" [style.background-color]="option.hex"></span>
+                  <span>{{ option.name }}</span>
+                  <small>{{ option.hex }}</small>
+                </button>
+              }
+            </div>
+          } @else {
+            <p class="color-tip">Upload a photo to auto-detect dominant colors.</p>
+          }
+
+          <div class="custom-color-row">
+            <label for="item-custom-color">Custom Color</label>
+            <input
+              id="item-custom-color"
+              type="color"
+              [value]="customColorHex()"
+              (input)="onCustomColorInput($event)">
+            <button type="button" class="custom-color-apply" (click)="applyCustomColor()">
+              Use Custom
+            </button>
+            <span class="selected-color-preview">
+              <span class="color-option-swatch" [style.background-color]="selectedColorHex()"></span>
+              {{ color }}
+            </span>
+          </div>
+        </section>
 
         <div class="form-row">
           <mat-form-field appearance="outline">
@@ -116,6 +179,16 @@ import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory } from '../../.
         @if (errorMessage()) {
           <p class="form-error">{{ errorMessage() }}</p>
         }
+        @if (isSaving()) {
+          <div class="save-loader-row">
+            <dw-form-save-loader
+              title="Creating item..."
+              message="Adding this piece to your wardrobe."
+              variant="create"
+              icon="checkroom"
+            ></dw-form-save-loader>
+          </div>
+        }
 
         <div class="form-actions">
           <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
@@ -149,7 +222,106 @@ import { OCCASION_OPTIONS, WARDROBE_CATEGORIES, WardrobeCategory } from '../../.
     .item-form { display: flex; flex-direction: column; gap: 16px; }
     .form-row { display: flex; gap: 16px; }
     .form-row mat-form-field { flex: 1; }
+    .color-option-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid color-mix(in srgb, var(--dw-text-primary) 28%, transparent);
+      flex-shrink: 0;
+    }
+    .input-swatch { margin-right: 6px; }
+    .color-intelligence {
+      border-radius: var(--dw-radius-lg);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--dw-border-subtle);
+      background: color-mix(in srgb, var(--dw-surface-card) 76%, var(--dw-surface-elevated) 24%);
+    }
+    .color-intelligence-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .color-intelligence-header h3 { margin: 0; font-size: 0.9rem; }
+    .analyzing-label {
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+    }
+    .suggested-colors {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .suggested-color-btn {
+      border: 1px solid var(--dw-border-subtle);
+      border-radius: var(--dw-radius-md);
+      background: var(--dw-surface-elevated);
+      color: var(--dw-text-primary);
+      padding: 8px;
+      display: grid;
+      gap: 4px;
+      justify-items: start;
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--dw-transition-fast);
+    }
+    .suggested-color-btn .dominant-rank {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--dw-text-muted);
+    }
+    .suggested-color-btn small { color: var(--dw-text-secondary); font-size: 11px; }
+    .suggested-color-btn.active {
+      border-color: color-mix(in srgb, var(--dw-primary) 52%, transparent);
+      box-shadow: var(--dw-shadow-sm);
+      background: color-mix(in srgb, var(--dw-surface-elevated) 82%, var(--dw-primary) 18%);
+    }
+    .color-tip {
+      margin: 0;
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+    }
+    .custom-color-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .custom-color-row label {
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+      min-width: 86px;
+    }
+    .custom-color-row input[type='color'] {
+      width: 40px;
+      height: 30px;
+      border: none;
+      padding: 0;
+      border-radius: var(--dw-radius-sm);
+      background: transparent;
+    }
+    .custom-color-apply {
+      border: 1px solid var(--dw-border-subtle);
+      border-radius: var(--dw-radius-full);
+      background: var(--dw-surface-elevated);
+      color: var(--dw-text-primary);
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .selected-color-preview {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+      margin-left: auto;
+    }
     .form-error { margin: 0; color: var(--dw-error); font-size: 13px; }
+    .save-loader-row { margin-top: 4px; }
     .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
     .submit-btn {
       --mdc-protected-button-container-color: transparent !important;
@@ -234,7 +406,8 @@ export class AddItemComponent {
     occasionOptions = OCCASION_OPTIONS;
     itemName = '';
     category = '';
-    color = '';
+    color = 'Black';
+    colorHex = '#1A1A1A';
     brand = '';
     size = '';
     purchaseDate = '';
@@ -245,8 +418,13 @@ export class AddItemComponent {
     imagePaths = signal<string[]>([]);
     selectedImageIndex = signal(0);
     primaryPreviewUrl = computed(() => this.previewUrls()[this.selectedImageIndex()] ?? this.previewUrls()[0] ?? '');
+    selectedColorHex = signal('#1A1A1A');
+    customColorHex = signal('#7D624A');
+    detectedColorOptions = signal<ColorOption[]>([]);
+    isAnalyzingColors = signal(false);
     isSaving = signal(false);
     errorMessage = signal<string | null>(null);
+    private colorAnalysisRequestId = 0;
 
     async onFileSelected(event: Event): Promise<void> {
         const input = event.target as HTMLInputElement;
@@ -274,6 +452,7 @@ export class AddItemComponent {
           if (croppedUrls.length) {
             this.previewUrls.update(existing => [...existing, ...croppedUrls]);
             this.imagePaths.update(existing => [...existing, ...croppedUrls.map(() => '')]);
+            await this.refreshDominantColorSuggestions(this.primaryPreviewUrl());
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to open image cropper.';
@@ -294,6 +473,7 @@ export class AddItemComponent {
           }
           return current;
         });
+        void this.refreshDominantColorSuggestions(this.primaryPreviewUrl());
     }
 
     clearImages(event: Event): void {
@@ -301,15 +481,34 @@ export class AddItemComponent {
         this.previewUrls.set([]);
         this.imagePaths.set([]);
         this.selectedImageIndex.set(0);
+        this.detectedColorOptions.set([]);
+        this.isAnalyzingColors.set(false);
     }
 
     setPrimaryImage(index: number, event: Event): void {
         event.stopPropagation();
         this.selectedImageIndex.set(index);
+        void this.refreshDominantColorSuggestions(this.previewUrls()[index] ?? '');
+    }
+
+    onCustomColorInput(event: Event): void {
+      const target = event.target as HTMLInputElement;
+      this.customColorHex.set(normalizeHex(target.value));
+    }
+
+    applyCustomColor(): void {
+      const option = createColorOption(this.customColorHex(), 'custom');
+      this.applyColorOption(option);
+    }
+
+    applyColorOption(option: ColorOption): void {
+      this.selectedColorHex.set(option.hex);
+      this.colorHex = option.hex;
+      this.color = option.name;
     }
 
     async onSubmit(): Promise<void> {
-        if (!this.itemName || !this.category || !this.color) {
+        if (!this.itemName || !this.category || !this.color || !this.colorHex) {
             this.errorMessage.set('Please fill all required fields.');
             return;
         }
@@ -332,7 +531,7 @@ export class AddItemComponent {
                 name: this.itemName,
                 category: this.category as WardrobeCategory,
                 color: this.color,
-                colorHex: '#7c3aed',
+                colorHex: this.colorHex,
                 brand: this.brand || undefined,
                 size: this.size || undefined,
                 purchaseDate: this.purchaseDate ? new Date(this.purchaseDate) : undefined,
@@ -421,5 +620,40 @@ export class AddItemComponent {
 
       this.previewUrls.set(nextUrls);
       this.imagePaths.set(nextPaths);
+    }
+
+    private async refreshDominantColorSuggestions(imageUrl: string): Promise<void> {
+      if (!imageUrl) {
+        this.detectedColorOptions.set([]);
+        return;
+      }
+
+      const requestId = ++this.colorAnalysisRequestId;
+      this.isAnalyzingColors.set(true);
+      try {
+        const dominantHexes = await extractDominantColors(imageUrl, 3);
+        if (requestId !== this.colorAnalysisRequestId) {
+          return;
+        }
+
+        const detectedOptions = dominantHexes.map((hex) =>
+          createColorOption(hex, 'detected', resolveColorName(hex)),
+        );
+        this.detectedColorOptions.set(detectedOptions);
+
+        if (detectedOptions.length > 0) {
+          this.applyColorOption(detectedOptions[0]);
+          this.customColorHex.set(detectedOptions[0].hex);
+        }
+      } catch {
+        if (requestId !== this.colorAnalysisRequestId) {
+          return;
+        }
+        this.detectedColorOptions.set([]);
+      } finally {
+        if (requestId === this.colorAnalysisRequestId) {
+          this.isAnalyzingColors.set(false);
+        }
+      }
     }
 }

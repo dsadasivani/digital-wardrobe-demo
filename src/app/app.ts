@@ -165,23 +165,29 @@ import { SidebarComponent } from './shared/components/sidebar/sidebar.component'
         background:
           radial-gradient(
             circle at 14% 18%,
-            color-mix(in srgb, var(--dw-accent) 20%, transparent) 0%,
-            transparent 34%
+            color-mix(in srgb, var(--dw-accent) 22%, transparent) 0%,
+            transparent 36%
           ),
           radial-gradient(
-            circle at 84% 20%,
-            color-mix(in srgb, var(--dw-primary) 22%, transparent) 0%,
-            transparent 38%
+            circle at 84% 22%,
+            color-mix(in srgb, var(--dw-primary) 24%, transparent) 0%,
+            transparent 40%
           ),
           radial-gradient(
             circle at 62% 78%,
-            color-mix(in srgb, var(--dw-info) 18%, transparent) 0%,
+            color-mix(in srgb, var(--dw-warning) 18%, transparent) 0%,
             transparent 42%
           ),
+          radial-gradient(
+            circle at 36% 58%,
+            color-mix(in srgb, var(--dw-primary-light) 14%, transparent) 0%,
+            transparent 46%
+          ),
           linear-gradient(
-            168deg,
-            color-mix(in srgb, var(--dw-surface-base) 38%, #030611 62%),
-            color-mix(in srgb, var(--dw-surface-base) 22%, #080f24 78%)
+            164deg,
+            color-mix(in srgb, var(--dw-surface-base) 24%, #090705 76%) 0%,
+            color-mix(in srgb, var(--dw-surface-base) 20%, #130d08 80%) 48%,
+            color-mix(in srgb, var(--dw-surface-base) 16%, #1c130d 84%) 100%
           );
         backdrop-filter: blur(10px) saturate(120%);
         -webkit-backdrop-filter: blur(10px) saturate(120%);
@@ -633,8 +639,8 @@ export class App implements OnInit, OnDestroy {
   sidebarCollapsed = this.uiState.sidebarCollapsed;
   mobileMenuOpen = this.uiState.mobileMenuOpen;
   isMobile = this.uiState.isMobile;
-  isRouteLoading = this.uiState.isRouteLoading;
-  showLoader = computed(() => this.loadingService.isLoading() || this.isRouteLoading());
+  initialRouteLoading = this.uiState.initialRouteLoading;
+  showLoader = computed(() => this.loadingService.isLoading() || this.initialRouteLoading());
   showLayout = this.uiState.showLayout;
   createMenuOpen = this.uiState.createMenuOpen;
   mobileNavItems = this.uiState.mobileNavItems;

@@ -36,6 +36,7 @@ import {
 } from '../mappers/dashboard.mapper';
 
 type DataLoadState = 'idle' | 'loading' | 'loaded' | 'error';
+type MutationAction = 'favorite' | 'delete' | 'mark-worn';
 const DEFAULT_COLLECTION_PAGE_SIZE = 10;
 const DASHBOARD_DEBUG_LOADER_DELAY_MS_STORAGE_KEY = 'dw-debug-dashboard-loader-ms';
 
@@ -87,6 +88,7 @@ export class WardrobeService {
   private wardrobePageLoadPromise: Promise<void> | null = null;
   private accessoriesPageLoadPromise: Promise<void> | null = null;
   private outfitsPageLoadPromise: Promise<void> | null = null;
+  private mutationStateByKey = signal<Record<string, true>>({});
 
   // ── Public readonly signals (consumed by components) ─────────
   readonly items = this.wardrobeItems.asReadonly();
@@ -181,6 +183,7 @@ export class WardrobeService {
   readonly dashboardCategoryBreakdownLoading = computed(
     () => this.dashboardCategoryBreakdownLoadState() === 'loading',
   );
+  readonly hasPendingMutation = computed(() => Object.keys(this.mutationStateByKey()).length > 0);
 
   // ── Data loading from backend ────────────────────────────────
 
@@ -387,37 +390,41 @@ export class WardrobeService {
   }
 
   async deleteItem(id: string): Promise<void> {
-    await firstValueFrom(this.wardrobeApi.delete(id));
-    this.wardrobeItems.update((items) => items.filter((item) => item.id !== id));
-    this.invalidateDashboardSections();
+    await this.runWithMutationState('delete', id, async () => {
+      await firstValueFrom(this.wardrobeApi.delete(id));
+      this.wardrobeItems.update((items) => items.filter((item) => item.id !== id));
+      this.invalidateDashboardSections();
+    });
   }
 
   async toggleFavorite(id: string): Promise<void> {
-    const item = this.wardrobeItems().find((i) => i.id === id);
-    if (item) {
-      await this.updateItem(id, { favorite: !item.favorite });
-      return;
-    }
-    const accessory = this.accessories().find((a) => a.id === id);
-    if (accessory) {
-      await this.toggleAccessoryFavorite(id);
-      return;
-    }
+    await this.runWithMutationState('favorite', id, async () => {
+      const item = this.wardrobeItems().find((i) => i.id === id);
+      if (item) {
+        await this.updateItem(id, { favorite: !item.favorite });
+        return;
+      }
+      const accessory = this.accessories().find((a) => a.id === id);
+      if (accessory) {
+        await this.toggleAccessoryFavoriteInternal(id, accessory.favorite);
+        return;
+      }
 
-    try {
-      const wardrobeItem = await firstValueFrom(this.wardrobeApi.getById(id));
-      await this.updateItem(id, { favorite: !wardrobeItem.favorite });
-      return;
-    } catch {
-      // Continue to accessory lookup fallback.
-    }
+      try {
+        const wardrobeItem = await firstValueFrom(this.wardrobeApi.getById(id));
+        await this.updateItem(id, { favorite: !wardrobeItem.favorite });
+        return;
+      } catch {
+        // Continue to accessory lookup fallback.
+      }
 
-    try {
-      const accessoryItem = await firstValueFrom(this.accessoriesApi.getById(id));
-      await this.updateAccessory(id, { favorite: !accessoryItem.favorite });
-    } catch {
-      // No matching item found in known collections.
-    }
+      try {
+        const accessoryItem = await firstValueFrom(this.accessoriesApi.getById(id));
+        await this.toggleAccessoryFavoriteInternal(id, accessoryItem.favorite);
+      } catch {
+        // No matching item found in known collections.
+      }
+    });
   }
 
   // ── Accessory CRUD ───────────────────────────────────────────
@@ -457,23 +464,30 @@ export class WardrobeService {
   }
 
   async deleteAccessory(id: string): Promise<void> {
-    await firstValueFrom(this.accessoriesApi.delete(id));
-    this.accessories.update((items) => items.filter((item) => item.id !== id));
-    this.invalidateDashboardSections();
+    await this.runWithMutationState('delete', id, async () => {
+      await firstValueFrom(this.accessoriesApi.delete(id));
+      this.accessories.update((items) => items.filter((item) => item.id !== id));
+      this.invalidateDashboardSections();
+    });
   }
 
   async toggleAccessoryFavorite(id: string): Promise<void> {
-    const accessory = this.accessories().find((a) => a.id === id);
-    if (accessory) {
-      await this.updateAccessory(id, { favorite: !accessory.favorite });
-    }
+    await this.runWithMutationState('favorite', id, async () => {
+      const accessory = this.accessories().find((a) => a.id === id);
+      if (!accessory) {
+        return;
+      }
+      await this.toggleAccessoryFavoriteInternal(id, accessory.favorite);
+    });
   }
 
   async markAccessoryAsWorn(id: string): Promise<void> {
-    const response = await firstValueFrom(this.accessoriesApi.markAsWorn(id));
-    const updated = mapAccessoryDtoToModel(response);
-    this.accessories.update((items) => items.map((item) => (item.id === id ? updated : item)));
-    this.invalidateDashboardSections();
+    await this.runWithMutationState('mark-worn', id, async () => {
+      const response = await firstValueFrom(this.accessoriesApi.markAsWorn(id));
+      const updated = mapAccessoryDtoToModel(response);
+      this.accessories.update((items) => items.map((item) => (item.id === id ? updated : item)));
+      this.invalidateDashboardSections();
+    });
   }
 
   // ── Outfit CRUD ──────────────────────────────────────────────
@@ -538,31 +552,49 @@ export class WardrobeService {
   }
 
   async deleteOutfit(id: string): Promise<void> {
-    await firstValueFrom(this.outfitsApi.delete(id));
-    this.outfits.update((outfits) => outfits.filter((outfit) => outfit.id !== id));
-    this.invalidateDashboardSections();
+    await this.runWithMutationState('delete', id, async () => {
+      await firstValueFrom(this.outfitsApi.delete(id));
+      this.outfits.update((outfits) => outfits.filter((outfit) => outfit.id !== id));
+      this.invalidateDashboardSections();
+    });
   }
 
   async markItemAsWorn(id: string): Promise<void> {
-    const response = await firstValueFrom(this.wardrobeApi.markAsWorn(id));
-    const updated = mapWardrobeItemDtoToModel(response);
-    this.wardrobeItems.update((items) => items.map((item) => (item.id === id ? updated : item)));
-    this.invalidateDashboardSections();
+    await this.runWithMutationState('mark-worn', id, async () => {
+      const response = await firstValueFrom(this.wardrobeApi.markAsWorn(id));
+      const updated = mapWardrobeItemDtoToModel(response);
+      this.wardrobeItems.update((items) => items.map((item) => (item.id === id ? updated : item)));
+      this.invalidateDashboardSections();
+    });
   }
 
   async markOutfitAsWorn(id: string): Promise<void> {
-    const response = await firstValueFrom(this.outfitsApi.markAsWorn(id));
-    const updated = mapOutfitDtoToModel(response);
-    this.outfits.update((outfits) =>
-      outfits.map((outfit) => (outfit.id === id ? updated : outfit)),
-    );
-    const dependencyRefreshes = updated.items.map((item) =>
-      item.type === 'wardrobe'
-        ? this.fetchWardrobeItemById(item.itemId, true)
-        : this.fetchAccessoryById(item.itemId, true),
-    );
-    await Promise.allSettled(dependencyRefreshes);
-    this.invalidateDashboardSections();
+    await this.runWithMutationState('mark-worn', id, async () => {
+      const response = await firstValueFrom(this.outfitsApi.markAsWorn(id));
+      const updated = mapOutfitDtoToModel(response);
+      this.outfits.update((outfits) =>
+        outfits.map((outfit) => (outfit.id === id ? updated : outfit)),
+      );
+      const dependencyRefreshes = updated.items.map((item) =>
+        item.type === 'wardrobe'
+          ? this.fetchWardrobeItemById(item.itemId, true)
+          : this.fetchAccessoryById(item.itemId, true),
+      );
+      await Promise.allSettled(dependencyRefreshes);
+      this.invalidateDashboardSections();
+    });
+  }
+
+  isFavoriteMutationPending(id: string): boolean {
+    return this.isMutationPending('favorite', id);
+  }
+
+  isDeleteMutationPending(id: string): boolean {
+    return this.isMutationPending('delete', id);
+  }
+
+  isMarkWornMutationPending(id: string): boolean {
+    return this.isMutationPending('mark-worn', id);
   }
 
   getOutfitsByDate(date: string): Outfit[] {
@@ -599,6 +631,50 @@ export class WardrobeService {
     this.dashboardRecentlyAddedLoadPromise = null;
     this.dashboardCategoryBreakdownLoadPromise = null;
     this.dashboardSummaryLoadPromise = null;
+  }
+
+  private async toggleAccessoryFavoriteInternal(id: string, currentFavorite: boolean): Promise<void> {
+    await this.updateAccessory(id, { favorite: !currentFavorite });
+  }
+
+  private mutationStateKey(action: MutationAction, id: string): string {
+    return `${action}:${id}`;
+  }
+
+  private isMutationPending(action: MutationAction, id: string): boolean {
+    return this.mutationStateByKey()[this.mutationStateKey(action, id)] === true;
+  }
+
+  private setMutationPending(action: MutationAction, id: string, pending: boolean): void {
+    const mutationKey = this.mutationStateKey(action, id);
+    this.mutationStateByKey.update((state) => {
+      if (pending) {
+        return {
+          ...state,
+          [mutationKey]: true,
+        };
+      }
+
+      if (!state[mutationKey]) {
+        return state;
+      }
+
+      const { [mutationKey]: _, ...rest } = state;
+      return rest;
+    });
+  }
+
+  private async runWithMutationState<T>(
+    action: MutationAction,
+    id: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    this.setMutationPending(action, id, true);
+    try {
+      return await operation();
+    } finally {
+      this.setMutationPending(action, id, false);
+    }
   }
 
   private async loadWardrobeData(force: boolean): Promise<void> {

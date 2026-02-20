@@ -6,6 +6,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../../core/models';
+import { DetailSkeletonComponent } from '../../../shared/components/detail-skeleton/detail-skeleton.component';
+import { InlineActionLoaderComponent } from '../../../shared/components/inline-action-loader/inline-action-loader.component';
 import { ImageReadyDirective } from '../../../shared/directives/image-ready.directive';
 
 interface OutfitResolvedItem {
@@ -17,9 +19,20 @@ interface OutfitResolvedItem {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
     selector: 'dw-outfit-detail',
-    imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatChipsModule, ImageReadyDirective],
+    imports: [
+      CommonModule,
+      RouterLink,
+      MatButtonModule,
+      MatIconModule,
+      MatChipsModule,
+      ImageReadyDirective,
+      DetailSkeletonComponent,
+      InlineActionLoaderComponent,
+    ],
     template: `
-    @if (outfit(); as selectedOutfit) {
+    @if (isDetailLoading()) {
+    <dw-detail-skeleton icon="style"></dw-detail-skeleton>
+    } @else if (outfit(); as selectedOutfit) {
     <div class="outfit-detail-container animate-fade-in">
       <header class="detail-header">
         <button mat-icon-button (click)="goBack()">
@@ -27,10 +40,10 @@ interface OutfitResolvedItem {
         </button>
         <h1>{{ selectedOutfit.name }}</h1>
         <div class="actions">
-          <button mat-stroked-button color="primary" (click)="markAsWorn()">
+          <button mat-stroked-button color="primary" (click)="markAsWorn()" [disabled]="isMarkWornPending() || isDeletePending()">
             <mat-icon>check_circle</mat-icon> Mark as Worn
           </button>
-          <button mat-stroked-button color="warn" (click)="deleteOutfit()">
+          <button mat-stroked-button color="warn" (click)="deleteOutfit()" [disabled]="isDeletePending() || isMarkWornPending()">
             <mat-icon>delete</mat-icon> Delete
           </button>
           <button mat-flat-button color="primary" class="edit-btn" [routerLink]="['/outfit-canvas', selectedOutfit.id]">
@@ -38,6 +51,24 @@ interface OutfitResolvedItem {
           </button>
         </div>
       </header>
+      @if (isDeletePending()) {
+      <div class="action-status-row">
+        <dw-inline-action-loader
+          label="Deleting outfit..."
+          tone="destructive"
+          icon="delete_forever"
+        ></dw-inline-action-loader>
+      </div>
+      }
+      @if (isMarkWornPending()) {
+      <div class="action-status-row">
+        <dw-inline-action-loader
+          label="Updating wear count..."
+          tone="positive"
+          icon="check_circle"
+        ></dw-inline-action-loader>
+      </div>
+      }
 
       <div class="detail-content">
         <div class="image-section glass">
@@ -133,6 +164,12 @@ interface OutfitResolvedItem {
         </div>
       </div>
     </div>
+    } @else {
+    <div class="not-found animate-fade-in">
+      <mat-icon>search_off</mat-icon>
+      <h2>Outfit not found</h2>
+      <button mat-flat-button color="primary" routerLink="/outfits">Back to outfits</button>
+    </div>
     }
   `,
     styles: [`
@@ -164,6 +201,10 @@ interface OutfitResolvedItem {
       @media (max-width: 768px) {
         grid-template-columns: 1fr;
       }
+    }
+
+    .action-status-row {
+      margin-bottom: var(--dw-spacing-sm);
     }
 
     .info-section {
@@ -352,6 +393,9 @@ interface OutfitResolvedItem {
       color: var(--dw-text-primary);
     }
 
+    .not-found { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 12px; }
+    .not-found mat-icon { font-size: 56px; width: 56px; height: 56px; color: var(--dw-text-muted); }
+
     @media (max-width: 768px) {
       .outfit-detail-container {
         padding: 12px;
@@ -438,7 +482,16 @@ export class OutfitDetailComponent implements OnInit {
     private location = inject(Location);
     private wardrobeService = inject(WardrobeService);
 
+    isDetailLoading = signal(true);
     outfit = signal<Outfit | undefined>(undefined);
+    isDeletePending = computed(() => {
+      const id = this.outfit()?.id;
+      return !!id && this.wardrobeService.isDeleteMutationPending(id);
+    });
+    isMarkWornPending = computed(() => {
+      const id = this.outfit()?.id;
+      return !!id && this.wardrobeService.isMarkWornMutationPending(id);
+    });
     resolvedItems = computed<OutfitResolvedItem[]>(() => {
       const selectedOutfit = this.outfit();
       if (!selectedOutfit) {
@@ -493,6 +546,7 @@ export class OutfitDetailComponent implements OnInit {
     ngOnInit() {
         this.route.paramMap.subscribe(params => {
             const id = params.get('id');
+            this.isDetailLoading.set(true);
             void this.loadOutfitDetails(id);
         });
     }
@@ -501,28 +555,38 @@ export class OutfitDetailComponent implements OnInit {
         this.location.back();
     }
 
-    deleteOutfit() {
+    async deleteOutfit(): Promise<void> {
+        const id = this.outfit()?.id;
+        if (!id || this.isDeletePending() || this.isMarkWornPending()) {
+          return;
+        }
         if (confirm('Are you sure you want to delete this outfit?')) {
-            const id = this.outfit()?.id;
-            if (id) {
-                this.wardrobeService.deleteOutfit(id);
-                this.router.navigate(['/outfits']);
-            }
+          try {
+            await this.wardrobeService.deleteOutfit(id);
+            await this.router.navigate(['/outfits']);
+          } catch {
+            // Keep page interactive if delete fails.
+          }
         }
     }
 
     async markAsWorn(): Promise<void> {
         const id = this.outfit()?.id;
-        if (!id) {
+        if (!id || this.isMarkWornPending() || this.isDeletePending()) {
           return;
         }
-        await this.wardrobeService.markOutfitAsWorn(id);
-        this.outfit.set(this.wardrobeService.getOutfitById(id));
+        try {
+          await this.wardrobeService.markOutfitAsWorn(id);
+          this.outfit.set(this.wardrobeService.getOutfitById(id));
+        } catch {
+          // Keep detail page interactive if update fails.
+        }
     }
 
     private async loadOutfitDetails(id: string | null): Promise<void> {
         if (!id) {
             this.outfit.set(undefined);
+            this.isDetailLoading.set(false);
             return;
         }
         try {
@@ -533,6 +597,8 @@ export class OutfitDetailComponent implements OnInit {
             }
         } catch {
             this.outfit.set(undefined);
+        } finally {
+            this.isDetailLoading.set(false);
         }
     }
 }

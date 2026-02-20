@@ -64,14 +64,18 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
       <!-- Stats Cards -->
       <section class="stats-section">
         @if (isCountersLoading()) {
-          <div class="fashion-loader stats-fashion-loader" role="status" aria-live="polite">
-            <div class="loader-icons">
-              <span class="loader-icon-chip"><mat-icon>checkroom</mat-icon></span>
-              <span class="loader-icon-chip"><mat-icon>dry_cleaning</mat-icon></span>
-              <span class="loader-icon-chip"><mat-icon>watch</mat-icon></span>
-              <span class="loader-icon-chip"><mat-icon>style</mat-icon></span>
-            </div>
-            <span class="loader-caption">Tailoring your style stats...</span>
+          <div class="stats-row" aria-hidden="true">
+            @for (placeholder of statsLoadingPlaceholders; track placeholder; let i = $index) {
+              <div class="stat-card skeleton-card">
+                <div class="stat-icon wardrobe skeleton-block">
+                  <mat-icon>{{ getLoadingIcon(i) }}</mat-icon>
+                </div>
+                <div class="stat-content">
+                  <span class="skeleton-line short"></span>
+                  <span class="skeleton-line medium"></span>
+                </div>
+              </div>
+            }
           </div>
         } @else {
           <button
@@ -157,14 +161,6 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
         </div>
 
         @if (isCategoryBreakdownLoading()) {
-          <div class="fashion-loader category-fashion-loader" role="status" aria-live="polite">
-            <div class="loader-icons">
-              <span class="loader-icon-chip"><mat-icon>checkroom</mat-icon></span>
-              <span class="loader-icon-chip"><mat-icon>hiking</mat-icon></span>
-              <span class="loader-icon-chip"><mat-icon>watch</mat-icon></span>
-            </div>
-            <span class="loader-caption">Sorting pieces by category...</span>
-          </div>
           <div class="category-grid">
             @for (placeholder of loadingPlaceholders; track placeholder; let i = $index) {
               <div class="category-card skeleton-card">
@@ -210,14 +206,6 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
           </div>
 
           @if (isRecentlyAddedLoading()) {
-            <div class="runway-loader" role="status" aria-live="polite">
-              <div class="runway-track">
-                <span class="runway-item"><mat-icon>checkroom</mat-icon></span>
-                <span class="runway-item"><mat-icon>style</mat-icon></span>
-                <span class="runway-item"><mat-icon>dry_cleaning</mat-icon></span>
-              </div>
-              <span class="loader-caption">Fetching the latest additions...</span>
-            </div>
             <div class="items-grid">
               @for (placeholder of loadingPlaceholders; track placeholder; let i = $index) {
                 <div class="item-skeleton-card skeleton-card">
@@ -240,6 +228,7 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
               @for (item of recentItems(); track item.id) {
                 <dw-item-card
                   [item]="item"
+                  [favoritePending]="isFavoritePending(item.id)"
                   (viewItem)="onViewItem($event)"
                   (toggleFavorite)="onToggleFavorite($event)"
                 >
@@ -257,14 +246,6 @@ const LOADING_CLOSET_ICONS = ['checkroom', 'dry_cleaning', 'hiking', 'watch', 's
             <h2>Your Most Worn Item</h2>
           </div>
 
-          <div class="spotlight-loader" role="status" aria-live="polite">
-            <div class="loader-icons">
-              <span class="loader-icon-chip"><mat-icon>emoji_events</mat-icon></span>
-              <span class="loader-icon-chip"><mat-icon>auto_awesome</mat-icon></span>
-              <span class="loader-icon-chip"><mat-icon>checkroom</mat-icon></span>
-            </div>
-            <span class="loader-caption">Finding your star outfit...</span>
-          </div>
           <div class="highlight-card glass skeleton-card">
             <div class="highlight-image skeleton-block highlight-skeleton-image">
               <mat-icon>checkroom</mat-icon>
@@ -878,6 +859,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   canScrollStatsLeft = signal(false);
   canScrollStatsRight = signal(false);
   loadingPlaceholders = [1, 2, 3, 4, 5, 6];
+  statsLoadingPlaceholders = [0, 1, 2, 3, 4];
 
   ngOnInit(): void {
     void this.loadDashboardData();
@@ -940,6 +922,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     } catch {
       // Keep dashboard interactive if favorite update fails.
     }
+  }
+
+  isFavoritePending(itemId: string): boolean {
+    return this.wardrobeService.isFavoriteMutationPending(itemId);
   }
 
   onStatsScroll(): void {

@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   NavigationCancel,
   NavigationEnd,
@@ -28,6 +28,10 @@ export class AppUiStateService {
   readonly mobileMenuOpen = signal(false);
   readonly isMobile = signal(false);
   readonly isRouteLoading = signal(false);
+  readonly hasCompletedInitialNavigation = signal(false);
+  readonly initialRouteLoading = computed(
+    () => this.isRouteLoading() && !this.hasCompletedInitialNavigation(),
+  );
   readonly showLayout = signal(true);
   readonly currentUrl = signal('/');
   readonly createMenuOpen = signal(false);
@@ -71,6 +75,7 @@ export class AppUiStateService {
       }
 
       if (event instanceof NavigationEnd) {
+        this.hasCompletedInitialNavigation.set(true);
         this.showLayout.set(!this.noLayoutRoutes.includes(event.urlAfterRedirects));
         this.mobileMenuOpen.set(false);
         this.createMenuOpen.set(false);
@@ -82,6 +87,7 @@ export class AppUiStateService {
       }
 
       if (event instanceof NavigationCancel || event instanceof NavigationError) {
+        this.hasCompletedInitialNavigation.set(true);
         this.finishLoading();
       }
     });

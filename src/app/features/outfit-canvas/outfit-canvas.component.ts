@@ -21,6 +21,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Accessory, Outfit, OutfitItem, WardrobeItem } from '../../core/models';
 import { WardrobeService } from '../../core/services';
+import { FormSaveLoaderComponent } from '../../shared/components/form-save-loader/form-save-loader.component';
 import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
 interface CanvasSourceItem {
@@ -53,6 +54,7 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
     MatFormFieldModule,
     MatInputModule,
     ImageReadyDirective,
+    FormSaveLoaderComponent,
   ],
   template: `
     <div class="outfit-canvas-page">
@@ -116,6 +118,14 @@ type CanvasSourceFilter = 'wardrobe' | 'accessory';
         }
         @if (loadError()) {
           <p class="form-error">{{ loadError() }}</p>
+        }
+        @if (isSaving()) {
+          <dw-form-save-loader
+            [title]="editingOutfitId() ? 'Updating outfit...' : 'Creating outfit...'"
+            message="Preparing your look and syncing details."
+            [variant]="editingOutfitId() ? 'update' : 'create'"
+            [icon]="editingOutfitId() ? 'edit' : 'auto_awesome'">
+          </dw-form-save-loader>
         }
 
         <section class="canvas-toolbar glass">

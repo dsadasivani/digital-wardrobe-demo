@@ -18,14 +18,27 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { WARDROBE_CATEGORIES, WardrobeItem } from '../../../core/models';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
+import { DetailSkeletonComponent } from '../../../shared/components/detail-skeleton/detail-skeleton.component';
+import { InlineActionLoaderComponent } from '../../../shared/components/inline-action-loader/inline-action-loader.component';
 import { ImageReadyDirective } from '../../../shared/directives/image-ready.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-item-detail',
-  imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatChipsModule, ImageReadyDirective],
+  imports: [
+    CommonModule,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatChipsModule,
+    ImageReadyDirective,
+    DetailSkeletonComponent,
+    InlineActionLoaderComponent,
+  ],
   template: `
-    @if (item()) {
+    @if (isDetailLoading()) {
+      <dw-detail-skeleton icon="checkroom"></dw-detail-skeleton>
+    } @else if (item()) {
       <div class="item-detail-page animate-fade-in">
         <header class="detail-header">
           <button mat-icon-button (click)="goBack()">
@@ -33,7 +46,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
           </button>
           <h1>{{ item()!.name }}</h1>
           <div class="actions">
-            <button mat-stroked-button color="warn" (click)="deleteItem()">
+            <button mat-stroked-button color="warn" (click)="deleteItem()" [disabled]="isDeletePending() || isMarkWornPending()">
               <mat-icon>delete</mat-icon>
               Delete
             </button>
@@ -43,6 +56,15 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
             </button>
           </div>
         </header>
+        @if (isDeletePending()) {
+          <div class="action-status-row">
+            <dw-inline-action-loader
+              label="Deleting item..."
+              tone="destructive"
+              icon="delete_forever"
+            ></dw-inline-action-loader>
+          </div>
+        }
 
         <div class="content-grid">
           <div class="image-column">
@@ -124,10 +146,17 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
               <div><span class="label">Purchased</span><strong>{{ item()!.purchaseDate ? (item()!.purchaseDate | date) : 'N/A' }}</strong></div>
             </div>
 
-            <button mat-stroked-button color="primary" (click)="markAsWorn()">
+            <button mat-stroked-button color="primary" (click)="markAsWorn()" [disabled]="isMarkWornPending() || isDeletePending()">
               <mat-icon>check_circle</mat-icon>
               Mark as Worn
             </button>
+            @if (isMarkWornPending()) {
+              <dw-inline-action-loader
+                label="Updating wear count..."
+                tone="positive"
+                icon="check_circle"
+              ></dw-inline-action-loader>
+            }
 
             @if (item()!.tags.length) {
               <div class="tags">
@@ -229,6 +258,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
     .detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: var(--dw-spacing-xl); }
     .detail-header h1 { margin: 0; flex: 1; }
     .actions { display: flex; gap: 8px; }
+    .action-status-row { margin-bottom: var(--dw-spacing-sm); }
     .edit-btn {
       --mdc-filled-button-container-color: transparent !important;
       --mdc-filled-button-label-text-color: var(--dw-primary) !important;
@@ -469,6 +499,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   private relatedRowRef = viewChild<ElementRef<HTMLElement>>('relatedRow');
 
   itemId = signal<string | null>(null);
+  isDetailLoading = signal(true);
   selectedImageIndex = signal(0);
   imageAnimationKey = signal(0);
   imageSlideOffsetPx = signal(10);
@@ -521,6 +552,14 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   isImageExpanded = signal(false);
   canScrollLeft = signal(false);
   canScrollRight = signal(true);
+  isDeletePending = computed(() => {
+    const id = this.itemId();
+    return !!id && this.wardrobeService.isDeleteMutationPending(id);
+  });
+  isMarkWornPending = computed(() => {
+    const id = this.itemId();
+    return !!id && this.wardrobeService.isMarkWornMutationPending(id);
+  });
   touchStartX = signal<number | null>(null);
   touchStartY = signal<number | null>(null);
   suppressPreviewOpenUntil = signal(0);
@@ -549,6 +588,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       this.itemId.set(id);
+      this.isDetailLoading.set(true);
       this.selectedImageIndex.set(0);
       void this.loadItemForRoute(id);
       queueMicrotask(() => this.refreshRelatedScrollState());
@@ -563,23 +603,31 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     this.location.back();
   }
 
-  deleteItem(): void {
+  async deleteItem(): Promise<void> {
     const current = this.item();
-    if (!current) {
+    if (!current || this.isDeletePending() || this.isMarkWornPending()) {
       return;
     }
     if (confirm(`Delete "${current.name}" from your wardrobe?`)) {
-      this.wardrobeService.deleteItem(current.id);
-      this.router.navigate(['/wardrobe']);
+      try {
+        await this.wardrobeService.deleteItem(current.id);
+        await this.router.navigate(['/wardrobe']);
+      } catch {
+        // Keep page interactive if delete fails.
+      }
     }
   }
 
   async markAsWorn(): Promise<void> {
     const current = this.item();
-    if (!current) {
+    if (!current || this.isMarkWornPending() || this.isDeletePending()) {
       return;
     }
-    await this.wardrobeService.markItemAsWorn(current.id);
+    try {
+      await this.wardrobeService.markItemAsWorn(current.id);
+    } catch {
+      // Keep detail page interactive if update fails.
+    }
   }
 
   onRelatedScroll(container: HTMLElement): void {
@@ -705,12 +753,15 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
 
   private async loadItemForRoute(id: string | null): Promise<void> {
     if (!id) {
+      this.isDetailLoading.set(false);
       return;
     }
     try {
       await this.wardrobeService.fetchWardrobeItemById(id);
     } catch {
       // Keep page shell visible and let navigation recover naturally.
+    } finally {
+      this.isDetailLoading.set(false);
     }
   }
 }
