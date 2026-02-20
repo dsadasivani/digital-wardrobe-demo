@@ -40,31 +40,80 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
       <dw-detail-skeleton icon="checkroom"></dw-detail-skeleton>
     } @else if (item()) {
       <div class="item-detail-page animate-fade-in">
-        <header class="detail-header">
-          <button mat-icon-button (click)="goBack()">
-            <mat-icon>arrow_back</mat-icon>
-          </button>
-          <h1>{{ item()!.name }}</h1>
-          <div class="actions">
-            <button mat-stroked-button color="warn" (click)="deleteItem()" [disabled]="isDeletePending() || isMarkWornPending()">
-              <mat-icon>delete</mat-icon>
-              Delete
+        <section class="hero glass">
+          <header class="hero-header">
+            <button mat-icon-button (click)="goBack()" aria-label="Go back">
+              <mat-icon>arrow_back</mat-icon>
             </button>
-            <button mat-flat-button color="primary" class="edit-btn" [routerLink]="['/wardrobe', item()!.id, 'edit']">
+            <div class="title">
+              <p>Wardrobe Detail</p>
+              <h1>{{ item()!.name }}</h1>
+              <span>Added {{ item()!.createdAt | date: 'mediumDate' }}</span>
+            </div>
+            <button
+              mat-icon-button
+              class="favorite-btn"
+              [class.active]="item()!.favorite"
+              [disabled]="isFavoritePending() || isDeletePending() || isMarkWornPending()"
+              (click)="toggleFavorite()"
+              [attr.aria-label]="item()!.favorite ? 'Remove favorite' : 'Add favorite'"
+            >
+              <mat-icon>{{ item()!.favorite ? 'favorite' : 'favorite_border' }}</mat-icon>
+            </button>
+          </header>
+
+          <div class="hero-stats">
+            <article>
+              <label>Worn</label>
+              <strong>{{ item()!.worn }}x</strong>
+              <small>{{ item()!.lastWorn ? ('Last ' + (item()!.lastWorn | date: 'MMM d')) : 'Never worn' }}</small>
+            </article>
+            <article>
+              <label>Category</label>
+              <strong>{{ categoryLabel() }}</strong>
+              <small>{{ item()!.occasion || 'Any occasion' }}</small>
+            </article>
+            <article>
+              <label>Color</label>
+              <strong>{{ item()!.color }}</strong>
+              <small>{{ item()!.brand || 'Brand unspecified' }}</small>
+            </article>
+          </div>
+
+          <div class="hero-actions">
+            <button mat-flat-button color="primary" class="mark-worn-btn" (click)="markAsWorn()" [disabled]="isMarkWornPending() || isDeletePending() || isFavoritePending()">
+              <mat-icon>check_circle</mat-icon>
+              Mark as Worn
+            </button>
+            <button mat-stroked-button [routerLink]="['/wardrobe', item()!.id, 'edit']">
               <mat-icon>edit</mat-icon>
               Edit
             </button>
+            <button mat-stroked-button color="warn" (click)="deleteItem()" [disabled]="isDeletePending() || isMarkWornPending() || isFavoritePending()">
+              <mat-icon>delete</mat-icon>
+              Delete
+            </button>
           </div>
-        </header>
-        @if (isDeletePending()) {
-          <div class="action-status-row">
-            <dw-inline-action-loader
-              label="Deleting item..."
-              tone="destructive"
-              icon="delete_forever"
-            ></dw-inline-action-loader>
-          </div>
-        }
+
+          @if (isDeletePending() || isMarkWornPending() || isFavoritePending()) {
+            <div class="pending">
+              @if (isDeletePending()) {
+                <dw-inline-action-loader
+                  label="Deleting item..."
+                  tone="destructive"
+                  icon="delete_forever"
+                ></dw-inline-action-loader>
+              }
+              @if (isMarkWornPending()) {
+                <dw-inline-action-loader
+                  label="Updating wear count..."
+                  tone="positive"
+                  icon="check_circle"
+                ></dw-inline-action-loader>
+              }
+            </div>
+          }
+        </section>
 
         <div class="content-grid">
           <div class="image-column">
@@ -119,6 +168,12 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
           </div>
 
           <section class="info-panel glass">
+            <header class="panel-head">
+              <div>
+                <p>Overview</p>
+                <h2>Item Details</h2>
+              </div>
+            </header>
             <div class="top-meta">
               <span class="badge">
                 <mat-icon>category</mat-icon>
@@ -137,42 +192,34 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
             </div>
 
             <div class="stats">
-              <div><span class="label">Worn</span><strong>{{ item()!.worn }} times</strong></div>
-              <div><span class="label">Last Worn</span><strong>{{ item()!.lastWorn ? (item()!.lastWorn | date) : 'Never' }}</strong></div>
-              <div><span class="label">Occasion</span><strong>{{ item()!.occasion || 'N/A' }}</strong></div>
-              <div><span class="label">Brand</span><strong>{{ item()!.brand || 'N/A' }}</strong></div>
-              <div><span class="label">Size</span><strong>{{ item()!.size || 'N/A' }}</strong></div>
-              <div><span class="label">Price</span><strong>{{ item()!.price ? ('$' + item()!.price) : 'N/A' }}</strong></div>
-              <div><span class="label">Purchased</span><strong>{{ item()!.purchaseDate ? (item()!.purchaseDate | date) : 'N/A' }}</strong></div>
+              <div><span class="label">Occasion</span><strong>{{ item()!.occasion || 'Unspecified' }}</strong></div>
+              <div><span class="label">Brand</span><strong>{{ item()!.brand || 'Unspecified' }}</strong></div>
+              <div><span class="label">Size</span><strong>{{ item()!.size || 'Unspecified' }}</strong></div>
+              <div><span class="label">Price</span><strong>{{ item()!.price ? ('$' + item()!.price) : 'Not listed' }}</strong></div>
+              <div><span class="label">Purchased</span><strong>{{ item()!.purchaseDate ? (item()!.purchaseDate | date: 'mediumDate') : 'Unknown' }}</strong></div>
+              <div><span class="label">Created</span><strong>{{ item()!.createdAt | date: 'mediumDate' }}</strong></div>
             </div>
 
-            <button mat-stroked-button color="primary" (click)="markAsWorn()" [disabled]="isMarkWornPending() || isDeletePending()">
-              <mat-icon>check_circle</mat-icon>
-              Mark as Worn
-            </button>
-            @if (isMarkWornPending()) {
-              <dw-inline-action-loader
-                label="Updating wear count..."
-                tone="positive"
-                icon="check_circle"
-              ></dw-inline-action-loader>
-            }
-
             @if (item()!.tags.length) {
-              <div class="tags">
+              <div class="tags-group">
+                <h3>Style Tags</h3>
+                <div class="tags">
                 @for (tag of item()!.tags; track tag) {
                   <mat-chip>{{ tag }}</mat-chip>
                 }
+                </div>
               </div>
             }
 
-            @if (item()!.notes) {
-              <div class="notes">
-                <h3>Notes</h3>
+            <div class="notes">
+              <h3>Notes</h3>
+              @if (item()!.notes) {
                 <p>{{ item()!.notes }}</p>
-              </div>
-            }
-          </section>
+              } @else {
+                <p>No notes added yet.</p>
+              }
+            </div>
+        </section>
         </div>
 
         @if (isImageExpanded()) {
@@ -254,24 +301,34 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
     }
   `,
   styles: [`
-    .item-detail-page { padding: var(--dw-spacing-xl); max-width: 1200px; margin: 0 auto; }
-    .detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: var(--dw-spacing-xl); }
-    .detail-header h1 { margin: 0; flex: 1; }
-    .actions { display: flex; gap: 8px; }
-    .action-status-row { margin-bottom: var(--dw-spacing-sm); }
-    .edit-btn {
-      --mdc-filled-button-container-color: transparent !important;
-      --mdc-filled-button-label-text-color: var(--dw-primary) !important;
-      background: transparent !important;
-      color: var(--dw-primary) !important;
-      border: none !important;
-      box-shadow: none !important;
+    .item-detail-page { max-width: 1200px; margin: 0 auto; padding: var(--dw-spacing-xl); display: grid; gap: var(--dw-spacing-lg); }
+    .hero { border-radius: var(--dw-radius-xl); border: 1px solid var(--dw-border-subtle); padding: 14px; display: grid; gap: 10px; }
+    .hero-header { display: flex; gap: 10px; align-items: center; }
+    .title { flex: 1; min-width: 0; }
+    .title p { margin: 0; text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px; color: var(--dw-text-muted); font-weight: 600; }
+    .title h1 { margin: 2px 0 0; font-size: clamp(1.35rem, 2.8vw, 2rem); line-height: 1.15; }
+    .title span { color: var(--dw-text-secondary); font-size: 13px; }
+    .favorite-btn { border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-elevated); }
+    .favorite-btn mat-icon { color: var(--dw-text-secondary); }
+    .favorite-btn.active mat-icon { color: var(--dw-accent); }
+    .hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .hero-stats article { border: 1px solid var(--dw-border-subtle); border-radius: var(--dw-radius-md); padding: 10px; background: color-mix(in srgb, var(--dw-surface-elevated) 90%, transparent); display: grid; gap: 2px; }
+    .hero-stats label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; color: var(--dw-text-muted); font-weight: 600; }
+    .hero-stats strong { font-size: 1.1rem; line-height: 1.05; }
+    .hero-stats small { color: var(--dw-text-secondary); font-size: 12px; }
+    .hero-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .hero-actions button { width: 100%; }
+    .mark-worn-btn {
+      --mdc-filled-button-container-color: var(--dw-primary-dark) !important;
+      --mdc-filled-button-label-text-color: var(--dw-primary-light) !important;
+      color: var(--dw-primary-light) !important;
+      border: 1px solid color-mix(in srgb, var(--dw-primary-light) 24%, transparent);
       font-weight: 600;
     }
-    .edit-btn:hover {
-      background: color-mix(in srgb, var(--dw-primary) 10%, transparent) !important;
-    }
-    .content-grid { display: grid; gap: var(--dw-spacing-xl); grid-template-columns: minmax(280px, 420px) 1fr; }
+    .mark-worn-btn:hover:not(:disabled) { filter: brightness(1.04); }
+    .mark-worn-btn:disabled { opacity: 0.62; }
+    .pending { display: flex; gap: 8px; flex-wrap: wrap; }
+    .content-grid { display: grid; gap: var(--dw-spacing-lg); grid-template-columns: minmax(280px, 420px) 1fr; }
     .image-column { display: grid; gap: 10px; align-content: start; }
     .image-panel { position: relative; border-radius: var(--dw-radius-xl); overflow: hidden; aspect-ratio: 3/4; }
     .image-panel img { width: 100%; height: 100%; object-fit: cover; }
@@ -428,16 +485,22 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
         transform: translateX(0) scale(1);
       }
     }
-    .info-panel { border-radius: var(--dw-radius-xl); padding: var(--dw-spacing-lg); display: flex; flex-direction: column; gap: var(--dw-spacing-lg); }
+    .info-panel { border-radius: var(--dw-radius-xl); border: 1px solid var(--dw-border-subtle); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+    .panel-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; margin-bottom: 2px; }
+    .panel-head p { margin: 0; text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px; color: var(--dw-text-muted); font-weight: 600; }
+    .panel-head h2 { margin: 2px 0 0; font-size: 1.1rem; }
     .top-meta { display: flex; flex-wrap: wrap; gap: 8px; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--dw-surface-card); font-size: 12px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--dw-surface-card); border: 1px solid var(--dw-border-subtle); font-size: 12px; }
     .badge.favorite { color: var(--dw-accent); }
     .color-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .stats { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-    .label { display: block; color: var(--dw-text-secondary); font-size: 12px; margin-bottom: 4px; }
-    .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    .stats div { border: 1px solid var(--dw-border-subtle); border-radius: var(--dw-radius-md); padding: 10px; background: color-mix(in srgb, var(--dw-surface-elevated) 90%, transparent); }
+    .label { display: block; color: var(--dw-text-secondary); font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .stats strong { line-height: 1.3; }
+    .tags-group h3,
     .notes h3 { margin: 0 0 8px; font-size: 1rem; }
-    .notes p { margin: 0; color: var(--dw-text-secondary); }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .notes p { margin: 0; color: var(--dw-text-secondary); line-height: 1.45; }
     .related-section { margin-top: var(--dw-spacing-2xl); }
     .related-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     .related-header h2 { font-size: 1.2rem; margin: 0; }
@@ -459,14 +522,43 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
     @media (max-width: 900px) {
       .item-detail-page { padding: var(--dw-spacing-md); }
       .content-grid { grid-template-columns: 1fr; }
-      .detail-header { flex-wrap: wrap; }
     }
     @media (max-width: 768px) {
-      .item-detail-page { padding: 12px; }
-      .detail-header { gap: 10px; margin-bottom: 12px; }
-      .detail-header h1 { font-size: 1.15rem; line-height: 1.25; }
-      .actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .actions button { width: 100%; min-height: 40px; }
+      .item-detail-page { padding: 10px; gap: 10px; }
+      .hero,
+      .info-panel { border-radius: 14px; padding: 10px; box-shadow: var(--dw-shadow-sm); }
+      .hero {
+        background:
+          radial-gradient(
+            circle at 14% 0%,
+            color-mix(in srgb, var(--dw-primary) 16%, transparent),
+            transparent 44%
+          ),
+          var(--dw-surface-overlay);
+      }
+      .hero-header { align-items: flex-start; gap: 8px; }
+      .title p { font-size: 10.5px; }
+      .title h1 { font-size: 1.28rem; }
+      .title span { font-size: 12px; }
+      .favorite-btn { width: 40px; height: 40px; margin-top: 2px; border-radius: 12px; }
+      .hero-stats {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(146px, 1fr);
+        overflow-x: auto;
+        gap: 8px;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .hero-stats::-webkit-scrollbar { display: none; }
+      .hero-stats article { padding: 9px; min-height: 86px; align-content: start; }
+      .hero-stats strong { font-size: 1rem; }
+      .hero-stats small { font-size: 11px; line-height: 1.3; }
+      .hero-actions { grid-template-columns: 1fr 1fr; gap: 7px; }
+      .hero-actions button:first-child { grid-column: 1 / -1; }
+      .hero-actions button { min-height: 40px; justify-content: flex-start; padding-inline: 10px; font-size: 12px; border-radius: 10px; }
+      .pending { gap: 6px; }
       .content-grid { gap: 12px; }
       .image-panel { border-radius: var(--dw-radius-lg); aspect-ratio: 4/3; }
       .image-panel img { cursor: zoom-in; }
@@ -478,7 +570,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
       .image-nav-btn { display: none; }
       .image-counter { bottom: 8px; }
       .thumb-btn { width: 56px; height: 56px; }
-      .info-panel { border-radius: var(--dw-radius-lg); padding: 12px; gap: 12px; }
+      .panel-head h2 { font-size: 1.04rem; }
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .related-section { margin-top: 16px; }
       .related-header { margin-bottom: 8px; }
@@ -560,6 +652,10 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     const id = this.itemId();
     return !!id && this.wardrobeService.isMarkWornMutationPending(id);
   });
+  isFavoritePending = computed(() => {
+    const id = this.itemId();
+    return !!id && this.wardrobeService.isFavoriteMutationPending(id);
+  });
   touchStartX = signal<number | null>(null);
   touchStartY = signal<number | null>(null);
   suppressPreviewOpenUntil = signal(0);
@@ -605,7 +701,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
 
   async deleteItem(): Promise<void> {
     const current = this.item();
-    if (!current || this.isDeletePending() || this.isMarkWornPending()) {
+    if (!current || this.isDeletePending() || this.isMarkWornPending() || this.isFavoritePending()) {
       return;
     }
     if (confirm(`Delete "${current.name}" from your wardrobe?`)) {
@@ -620,13 +716,25 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
 
   async markAsWorn(): Promise<void> {
     const current = this.item();
-    if (!current || this.isMarkWornPending() || this.isDeletePending()) {
+    if (!current || this.isMarkWornPending() || this.isDeletePending() || this.isFavoritePending()) {
       return;
     }
     try {
       await this.wardrobeService.markItemAsWorn(current.id);
     } catch {
       // Keep detail page interactive if update fails.
+    }
+  }
+
+  async toggleFavorite(): Promise<void> {
+    const current = this.item();
+    if (!current || this.isFavoritePending() || this.isDeletePending() || this.isMarkWornPending()) {
+      return;
+    }
+    try {
+      await this.wardrobeService.toggleFavorite(current.id);
+    } catch {
+      // Keep page interactive if update fails.
     }
   }
 
