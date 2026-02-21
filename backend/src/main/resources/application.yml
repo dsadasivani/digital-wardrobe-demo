@@ -40,6 +40,9 @@ app:
     default-admin-email: ${DEFAULT_ADMIN_EMAIL:}
     default-admin-name: ${DEFAULT_ADMIN_NAME:}
     default-admin-password: ${DEFAULT_ADMIN_PASSWORD:}
+    mock-data-enabled: ${MOCK_DATA_ENABLED:false}
+    mock-data-user-email: ${MOCK_DATA_USER_EMAIL:testuser1@dw.com}
+    mock-data-reset: ${MOCK_DATA_RESET:false}
   security:
     jwt-secret: ${JWT_SECRET}
     jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
