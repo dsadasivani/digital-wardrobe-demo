@@ -1,20 +1,38 @@
-import {Component, computed, inject, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CatalogOptionsService } from '../../../core/services';
 import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { ItemCardComponent } from '../../../shared/components/item-card/item-card.component';
-import { WardrobeItem, Accessory, WardrobeCategory } from '../../../core/models';
+import { Accessory, WardrobeCategory, WardrobeItem } from '../../../core/models';
+
+type WardrobeSortOption = 'name' | 'recent' | 'worn' | 'price';
+type WardrobePresetFilter = 'all' | 'favorites' | 'unused';
+
+interface WardrobeFilterPreset {
+  id: WardrobePresetFilter;
+  label: string;
+  icon: string;
+}
+
+interface WardrobeColorOption {
+  key: string;
+  name: string;
+  hex: string;
+  count: number;
+}
+
+const WARDROBE_FILTER_PRESETS: readonly WardrobeFilterPreset[] = [
+  { id: 'all', label: 'All Pieces', icon: 'checkroom' },
+  { id: 'favorites', label: 'Favorites', icon: 'favorite' },
+  { id: 'unused', label: 'Low Rotation', icon: 'history_toggle_off' },
+];
 
 const WARDROBE_LOADING_ICONS = [
   'checkroom',
@@ -36,35 +54,56 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
     MatTabsModule,
     MatIconModule,
     MatButtonModule,
-    MatChipsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
     MatMenuModule,
     MatTooltipModule,
     ItemCardComponent,
   ],
   template: `
     <div class="wardrobe-page animate-fade-in">
-      <!-- Page Header -->
-      <header class="page-header">
-        <div class="header-content">
-          <h1>My Wardrobe</h1>
-          <p class="subtitle">{{ filteredItems().length }} of {{ totalItemsCount() }} items</p>
+      <section class="hero-panel card">
+        <div class="hero-header">
+          <div class="header-copy">
+            <h1>My Wardrobe</h1>
+            <p class="subtitle">{{ filteredItems().length }} of {{ totalItemsCount() }} pieces in view</p>
+          </div>
+
+          <div class="header-actions desktop-actions">
+            <button type="button" class="action-btn" [matMenuTriggerFor]="sortMenu">
+              <mat-icon>sort</mat-icon>
+              <span>Sort: {{ sortLabel() }}</span>
+            </button>
+            <button type="button" class="action-btn" (click)="toggleView()">
+              <mat-icon>{{ viewMode() === 'grid' ? 'view_list' : 'grid_view' }}</mat-icon>
+              <span>{{ viewMode() === 'grid' ? 'List View' : 'Grid View' }}</span>
+            </button>
+            <button type="button" class="action-btn primary" routerLink="/wardrobe/add">
+              <mat-icon>add</mat-icon>
+              <span>Add Item</span>
+            </button>
+          </div>
+
+          <div class="header-actions mobile-actions">
+            <button type="button" class="action-btn" [matMenuTriggerFor]="sortMenu" aria-label="Sort items">
+              <mat-icon>sort</mat-icon>
+            </button>
+            <button type="button" class="action-btn" (click)="toggleView()" aria-label="Toggle list layout">
+              <mat-icon>{{ viewMode() === 'grid' ? 'view_list' : 'grid_view' }}</mat-icon>
+            </button>
+          </div>
         </div>
-        
-        <div class="header-actions">
-          <button class="action-btn" [matMenuTriggerFor]="sortMenu">
-            <mat-icon>sort</mat-icon>
-            <span>Sort</span>
-          </button>
-          <button class="action-btn" (click)="toggleView()">
-            <mat-icon>{{ viewMode() === 'grid' ? 'view_list' : 'grid_view' }}</mat-icon>
-          </button>
-          <button class="action-btn primary" routerLink="/wardrobe/add">
-            <mat-icon>add</mat-icon>
-            <span>Add Item</span>
-          </button>
+
+        <div class="preset-filters" role="group" aria-label="Quick wardrobe filters">
+          @for (preset of filterPresets; track preset.id) {
+            <button
+              type="button"
+              class="preset-chip"
+              [class.active]="activeFilter() === preset.id"
+              (click)="setPresetFilter(preset.id)">
+              <mat-icon>{{ preset.icon }}</mat-icon>
+              <span>{{ preset.label }}</span>
+              <strong>{{ getPresetCount(preset.id) }}</strong>
+            </button>
+          }
         </div>
 
         <mat-menu #sortMenu="matMenu">
@@ -85,37 +124,78 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
             <span>Price</span>
           </button>
         </mat-menu>
-      </header>
+      </section>
 
-      <!-- Search & Filters -->
       <section class="filters-section glass">
         <div class="search-container">
           <mat-icon class="search-icon">search</mat-icon>
-          <input 
-            type="text" 
+          <input
+            type="text"
             class="search-input"
-            placeholder="Search by name, brand, or tag..."
+            placeholder="Search by name, brand, or tag"
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)">
           @if (searchQuery()) {
-            <button class="clear-btn" (click)="searchQuery.set('')">
+            <button type="button" class="clear-btn" (click)="searchQuery.set('')" aria-label="Clear search">
               <mat-icon>close</mat-icon>
             </button>
           }
         </div>
 
-        <div class="color-filters">
-          <span class="filter-label">Colors:</span>
-          @for (color of colorOptions; track color.name) {
-            <button 
-              class="color-chip"
-              [class.selected]="selectedColors().includes(color.name)"
-              [style.--chip-color]="color.hex"
-              (click)="toggleColor(color.name)"
-              [matTooltip]="color.name">
+        <div class="filters-row">
+          <div class="color-filters" role="group" aria-label="Filter by color">
+            <span class="filter-label">Colors</span>
+            @if (availableColorOptions().length > 0) {
+              @for (color of availableColorOptions(); track color.key) {
+                <button
+                  type="button"
+                  class="color-chip"
+                  [class.selected]="selectedColors().includes(color.key)"
+                  [style.--chip-color]="color.hex"
+                  (click)="toggleColor(color.key)"
+                  [attr.aria-label]="'Filter ' + color.name"
+                  [attr.aria-pressed]="selectedColors().includes(color.key)"
+                  [matTooltip]="color.name + ' (' + color.count + ')'">
+                </button>
+              }
+            } @else {
+              <span class="no-colors-text">No colors available</span>
+            }
+          </div>
+
+          @if (hasActiveFilters()) {
+            <button type="button" class="clear-filters-btn" (click)="clearAllFilters()">
+              <mat-icon>filter_alt_off</mat-icon>
+              <span>Clear Filters</span>
             </button>
           }
         </div>
+      </section>
+
+      <section class="result-toolbar">
+        <div class="result-summary">
+          <span class="result-count">{{ filteredItems().length }} results</span>
+          @if (selectedCategory()) {
+            <span class="active-filter-chip">
+              <mat-icon>sell</mat-icon>
+              <span>{{ selectedCategoryLabel() }}</span>
+            </span>
+          }
+          @if (selectedColors().length > 0) {
+            <span class="active-filter-chip">
+              <mat-icon>palette</mat-icon>
+              <span>{{ selectedColors().length }} colors</span>
+            </span>
+          }
+          @if (searchQuery()) {
+            <span class="active-filter-chip">
+              <mat-icon>manage_search</mat-icon>
+              <span>{{ searchQuery() }}</span>
+            </span>
+          }
+        </div>
+
+        <span class="sort-indicator">Sorted by {{ sortLabel() }}</span>
       </section>
 
       <!-- Category Tabs -->
@@ -176,13 +256,13 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
             </div>
             <h3>No items found</h3>
             <p>
-              @if (searchQuery() || selectedColors().length > 0) {
-                Try adjusting your search or filters
+              @if (hasActiveFilters()) {
+                Try broadening filters or clearing your current selections.
               } @else {
-                Start building your digital wardrobe by adding your first item
+                Start building your digital wardrobe by adding your first item.
               }
             </p>
-            <button class="action-btn primary" routerLink="/wardrobe/add">
+            <button type="button" class="action-btn primary" routerLink="/wardrobe/add">
               <mat-icon>add</mat-icon>
               Add Your First Item
             </button>
@@ -208,40 +288,70 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         </section>
       }
 
+      <button
+        type="button"
+        class="mobile-add-fab"
+        routerLink="/wardrobe/add"
+        aria-label="Add wardrobe item">
+        <mat-icon>add</mat-icon>
+      </button>
+
     </div>
   `,
   styles: [`
     .wardrobe-page {
       padding: var(--dw-spacing-xl);
-      max-width: 1400px;
+      max-width: 1420px;
       margin: 0 auto;
     }
 
-    .page-header {
+    .hero-panel {
+      padding: var(--dw-spacing-lg);
+      margin-bottom: var(--dw-spacing-lg);
+      display: grid;
+      gap: var(--dw-spacing-md);
+      background:
+        radial-gradient(
+          circle at 90% 12%,
+          color-mix(in srgb, var(--dw-accent) 16%, transparent),
+          transparent 44%
+        ),
+        var(--dw-gradient-card);
+    }
+
+    .hero-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      flex-wrap: wrap;
-      gap: var(--dw-spacing-lg);
-      margin-bottom: var(--dw-spacing-xl);
+      gap: var(--dw-spacing-md);
     }
 
-    .header-content h1 {
-      margin-bottom: var(--dw-spacing-xs);
+    .header-copy {
+      min-width: 0;
+
+      h1 {
+        margin-bottom: var(--dw-spacing-xs);
+      }
     }
 
     .subtitle {
-      color: var(--dw-text-secondary);
       margin: 0;
+      color: var(--dw-text-secondary);
     }
 
     .header-actions {
       display: flex;
       gap: var(--dw-spacing-sm);
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .mobile-actions {
+      display: none;
     }
 
     .action-btn {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: var(--dw-spacing-sm);
       padding: var(--dw-spacing-sm) var(--dw-spacing-md);
@@ -251,11 +361,15 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       color: var(--dw-text-primary);
       font-weight: 500;
       cursor: pointer;
-      transition: all var(--dw-transition-fast);
 
       &:hover {
         border-color: var(--dw-border-strong);
         background: var(--dw-surface-hover);
+      }
+
+      &:disabled {
+        opacity: 0.7;
+        cursor: default;
       }
 
       &.primary {
@@ -270,25 +384,74 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       }
     }
 
-    .filters-section {
+    .preset-filters {
       display: flex;
+      gap: var(--dw-spacing-sm);
+      flex-wrap: wrap;
+    }
+
+    .preset-chip {
+      display: inline-flex;
       align-items: center;
-      gap: var(--dw-spacing-xl);
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: var(--dw-radius-full);
+      border: 1px solid var(--dw-border-subtle);
+      background: color-mix(in srgb, var(--dw-surface-elevated) 76%, transparent);
+      color: var(--dw-text-secondary);
+      cursor: pointer;
+
+      strong {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        padding: 0 5px;
+        border-radius: var(--dw-radius-full);
+        font-size: 11px;
+        color: var(--dw-text-primary);
+        background: color-mix(in srgb, var(--dw-primary) 12%, transparent);
+      }
+
+      mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+      }
+
+      &.active {
+        border-color: color-mix(in srgb, var(--dw-primary) 38%, transparent);
+        color: var(--dw-text-primary);
+        background: color-mix(in srgb, var(--dw-primary) 16%, transparent);
+
+        strong {
+          background: color-mix(in srgb, var(--dw-primary) 32%, transparent);
+        }
+      }
+    }
+
+    .filters-section {
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr) minmax(360px, 1fr);
+      align-items: center;
+      gap: var(--dw-spacing-sm);
       padding: var(--dw-spacing-md) var(--dw-spacing-lg);
       border-radius: var(--dw-radius-lg);
-      margin-bottom: var(--dw-spacing-lg);
-      flex-wrap: wrap;
+      margin-bottom: var(--dw-spacing-sm);
     }
 
     .search-container {
       display: flex;
       align-items: center;
       gap: var(--dw-spacing-sm);
-      flex: 1;
-      min-width: 250px;
       background: var(--dw-surface-card);
       border-radius: var(--dw-radius-md);
       padding: var(--dw-spacing-sm) var(--dw-spacing-md);
+      border: 1px solid transparent;
+
+      &:focus-within {
+        border-color: color-mix(in srgb, var(--dw-primary) 35%, transparent);
+      }
     }
 
     .search-icon {
@@ -313,8 +476,8 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       border: none;
       color: var(--dw-text-muted);
       cursor: pointer;
-      padding: 4px;
-      display: flex;
+      padding: 2px;
+      display: inline-flex;
 
       &:hover {
         color: var(--dw-text-primary);
@@ -327,15 +490,28 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       }
     }
 
+    .filters-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--dw-spacing-sm);
+      min-width: 0;
+    }
+
     .color-filters {
       display: flex;
       align-items: center;
       gap: var(--dw-spacing-sm);
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      min-width: 0;
     }
 
     .filter-label {
       color: var(--dw-text-secondary);
       font-size: 13px;
+      margin-right: 2px;
+      white-space: nowrap;
     }
 
     .color-chip {
@@ -348,15 +524,10 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         inset 0 0 0 1px rgba(255, 255, 255, 0.35),
         0 1px 3px rgba(0, 0, 0, 0.18);
       cursor: pointer;
-      transition: all var(--dw-transition-fast);
       padding: 0;
 
       &:hover {
-        transform: scale(1.15);
-        box-shadow:
-          inset 0 0 0 1px rgba(255, 255, 255, 0.5),
-          0 0 0 1px color-mix(in srgb, var(--dw-primary) 24%, transparent),
-          0 2px 6px rgba(0, 0, 0, 0.2);
+        transform: scale(1.12);
       }
 
       &:focus-visible {
@@ -373,6 +544,81 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
           0 0 0 2px color-mix(in srgb, var(--dw-primary) 52%, transparent),
           0 2px 8px -4px color-mix(in srgb, var(--dw-primary) 45%, rgba(0, 0, 0, 0.35));
       }
+    }
+
+    .clear-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 22%, transparent);
+      border-radius: var(--dw-radius-full);
+      background: transparent;
+      color: var(--dw-text-secondary);
+      cursor: pointer;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+
+      &:hover {
+        color: var(--dw-text-primary);
+        border-color: color-mix(in srgb, var(--dw-primary) 36%, transparent);
+      }
+    }
+
+    .no-colors-text {
+      color: var(--dw-text-muted);
+      font-size: 12px;
+    }
+
+    .result-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--dw-spacing-md);
+      flex-wrap: wrap;
+      margin: var(--dw-spacing-md) 0;
+    }
+
+    .result-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .result-count {
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+      padding: 4px 10px;
+      border-radius: var(--dw-radius-full);
+      background: color-mix(in srgb, var(--dw-primary) 8%, transparent);
+    }
+
+    .active-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: var(--dw-radius-full);
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 20%, transparent);
+      color: var(--dw-text-secondary);
+      background: color-mix(in srgb, var(--dw-surface-elevated) 70%, transparent);
+      font-size: 12px;
+
+      mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    .sort-indicator {
+      color: var(--dw-text-secondary);
+      font-size: 12px;
     }
 
     .category-tabs {
@@ -409,7 +655,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
     .items-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
       gap: var(--dw-spacing-lg);
 
       &.list-view {
@@ -421,7 +667,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
             flex-direction: row;
             
             .card-image {
-              width: 120px;
+              width: 136px;
               aspect-ratio: 1;
             }
 
@@ -479,22 +725,116 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       margin-top: var(--dw-spacing-lg);
     }
 
+    .mobile-add-fab {
+      position: fixed;
+      right: 16px;
+      bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 12px);
+      width: 52px;
+      height: 52px;
+      border: none;
+      border-radius: 50%;
+      background: var(--dw-gradient-primary);
+      color: var(--dw-on-primary);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--dw-shadow-lg), var(--dw-shadow-glow);
+      z-index: 28;
+      cursor: pointer;
+    }
+
+    @media (max-width: 1100px) {
+      .items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      }
+    }
+
     @media (max-width: 768px) {
       .wardrobe-page {
         padding: var(--dw-spacing-md);
-        padding-bottom: 80px;
+        padding-bottom: calc(var(--dw-mobile-nav-height) + 88px);
+      }
+
+      .hero-panel {
+        padding: var(--dw-spacing-md);
+      }
+
+      .hero-header {
+        align-items: center;
+      }
+
+      .desktop-actions {
+        display: none;
+      }
+
+      .mobile-actions {
+        display: flex;
+      }
+
+      .preset-filters {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        row-gap: 8px;
+      }
+
+      .filters-section {
+        grid-template-columns: 1fr;
+        padding: var(--dw-spacing-md);
+      }
+
+      .filters-row {
+        align-items: flex-start;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 10px;
+      }
+
+      .color-filters {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .result-toolbar {
+        margin-top: 10px;
+      }
+
+      .sort-indicator {
+        display: none;
+      }
+
+      .category-tabs {
+        margin-bottom: var(--dw-spacing-md);
+
+        ::ng-deep {
+          .mat-mdc-tab {
+            padding: 0 10px;
+          }
+        }
       }
 
       .items-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+
+        &.list-view {
+          grid-template-columns: 1fr;
+
+          dw-item-card {
+            ::ng-deep .item-card {
+              .card-image {
+                width: 114px;
+              }
+            }
+          }
+        }
       }
 
-      .header-actions span {
-        display: none;
+      .empty-state {
+        padding: var(--dw-spacing-xl) var(--dw-spacing-md);
       }
 
-      .header-actions .primary {
-        display: none;
+      .mobile-add-fab {
+        display: inline-flex;
       }
     }
   `]
@@ -511,28 +851,18 @@ export class WardrobeComponent implements OnInit {
   hasMoreItems = this.wardrobeService.hasMoreWardrobePages;
   isLoadingMoreItems = this.wardrobeService.wardrobePageLoading;
   isInitialLoading = computed(() => this.isLoadingMoreItems() && this.allItems().length === 0);
+  readonly filterPresets = WARDROBE_FILTER_PRESETS;
   readonly loadingIcons = WARDROBE_LOADING_ICONS;
   readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
 
   searchQuery = signal('');
   selectedCategory = signal<WardrobeCategory | null>(null);
   selectedColors = signal<string[]>([]);
-  sortOption = signal<'name' | 'recent' | 'worn' | 'price'>('recent');
+  sortOption = signal<WardrobeSortOption>('recent');
   viewMode = signal<'grid' | 'list'>('grid');
   selectedTabIndex = signal(0);
-  activeFilter = signal<'all' | 'favorites' | 'unused'>('all');
+  activeFilter = signal<WardrobePresetFilter>('all');
   private routeCategoryParam = signal<string | null>(null);
-
-  colorOptions = [
-    { name: 'Black', hex: '#1a1a1a' },
-    { name: 'White', hex: '#f5f5f5' },
-    { name: 'Navy', hex: '#1e3a5f' },
-    { name: 'Grey', hex: '#6b7280' },
-    { name: 'Brown', hex: '#8b4513' },
-    { name: 'Blue', hex: '#3b82f6' },
-    { name: 'Beige', hex: '#d4c5b0' },
-    { name: 'Purple', hex: '#7c3aed' },
-  ];
 
   filteredItems = computed(() => {
     let items = [...this.allItems()];
@@ -567,9 +897,8 @@ export class WardrobeComponent implements OnInit {
     // Filter by colors
     const colors = this.selectedColors();
     if (colors.length > 0) {
-      items = items.filter(item =>
-        colors.some(color => item.color.toLowerCase().includes(color.toLowerCase()))
-      );
+      const selectedColorSet = new Set(colors);
+      items = items.filter((item) => selectedColorSet.has(this.normalizeColorKey(item.color)));
     }
 
     // Sort
@@ -591,9 +920,73 @@ export class WardrobeComponent implements OnInit {
     return items;
   });
 
+  availableColorOptions = computed<WardrobeColorOption[]>(() => {
+    const colorByKey = new Map<string, WardrobeColorOption>();
+    for (const item of this.allItems()) {
+      const key = this.normalizeColorKey(item.color);
+      if (!key) {
+        continue;
+      }
+
+      const existing = colorByKey.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (existing.hex === '#b9b0a4' && item.colorHex) {
+          existing.hex = this.getDisplayColorHex(item.colorHex);
+        }
+        continue;
+      }
+
+      colorByKey.set(key, {
+        key,
+        name: this.toDisplayLabel(item.color),
+        hex: this.getDisplayColorHex(item.colorHex),
+        count: 1,
+      });
+    }
+
+    return Array.from(colorByKey.values()).sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+      return left.name.localeCompare(right.name);
+    });
+  });
+
   totalItemsCount = computed(() => {
     const total = this.totalItems();
     return total > 0 ? total : this.allItems().length;
+  });
+
+  favoriteItemsCount = computed(() => this.allItems().filter((item) => item.favorite).length);
+  lowRotationItemsCount = computed(() => this.allItems().filter((item) => item.worn < 5).length);
+  hasActiveFilters = computed(
+    () =>
+      this.activeFilter() !== 'all' ||
+      this.searchQuery().trim().length > 0 ||
+      this.selectedColors().length > 0 ||
+      this.selectedCategory() !== null,
+  );
+  sortLabel = computed(() => {
+    switch (this.sortOption()) {
+      case 'name':
+        return 'Name';
+      case 'recent':
+        return 'Recently Added';
+      case 'worn':
+        return 'Most Worn';
+      case 'price':
+        return 'Price';
+    }
+  });
+  selectedCategoryLabel = computed(() => {
+    const selectedCategoryId = this.selectedCategory();
+    if (!selectedCategoryId) {
+      return 'All Categories';
+    }
+
+    const matchingCategory = this.categories().find((category) => category.id === selectedCategoryId);
+    return matchingCategory?.label ?? selectedCategoryId;
   });
 
   ngOnInit(): void {
@@ -614,6 +1007,30 @@ export class WardrobeComponent implements OnInit {
         this.activeFilter.set('all');
       }
     });
+  }
+
+  getPresetCount(filter: WardrobePresetFilter): number {
+    switch (filter) {
+      case 'favorites':
+        return this.favoriteItemsCount();
+      case 'unused':
+        return this.lowRotationItemsCount();
+      case 'all':
+      default:
+        return this.allItems().length;
+    }
+  }
+
+  setPresetFilter(filter: WardrobePresetFilter): void {
+    this.activeFilter.set(filter);
+  }
+
+  clearAllFilters(): void {
+    this.activeFilter.set('all');
+    this.searchQuery.set('');
+    this.selectedColors.set([]);
+    this.selectedCategory.set(null);
+    this.selectedTabIndex.set(0);
   }
 
   getCategoryCount(category: string): number {
@@ -638,7 +1055,7 @@ export class WardrobeComponent implements OnInit {
     });
   }
 
-  sortBy(option: 'name' | 'recent' | 'worn' | 'price'): void {
+  sortBy(option: WardrobeSortOption): void {
     this.sortOption.set(option);
   }
 
@@ -680,6 +1097,30 @@ export class WardrobeComponent implements OnInit {
       return;
     }
     this.router.navigate(['/outfit-canvas'], { queryParams: { accessoryId: item.id } });
+  }
+
+  private normalizeColorKey(color: string | null | undefined): string {
+    return color?.trim().toLowerCase() ?? '';
+  }
+
+  private toDisplayLabel(value: string | null | undefined): string {
+    const normalized = this.normalizeColorKey(value);
+    if (!normalized) {
+      return 'Unknown';
+    }
+
+    return normalized
+      .split(/\s+/)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  }
+
+  private getDisplayColorHex(colorHex: string | null | undefined): string {
+    const normalizedHex = colorHex?.trim() ?? '';
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(normalizedHex)) {
+      return normalizedHex;
+    }
+    return '#b9b0a4';
   }
 
   private isWardrobeItem(item: WardrobeItem | Accessory): item is WardrobeItem {
@@ -737,3 +1178,4 @@ export class WardrobeComponent implements OnInit {
     this.selectedTabIndex.set(0);
   }
 }
+

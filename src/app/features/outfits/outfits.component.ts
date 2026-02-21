@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CatalogOptionsService } from '../../core/services';
 import { WardrobeService } from '../../core/services/wardrobe.service';
@@ -12,25 +14,123 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
 const OUTFIT_LOADING_ICONS = ['style', 'checkroom', 'auto_awesome', 'self_improvement'] as const;
 const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
+type OutfitSortOption = 'recent' | 'name' | 'rating' | 'worn';
+type OutfitQuickFilter = 'all' | 'favorites' | 'planned';
+
+interface OutfitFilterPreset {
+  id: OutfitQuickFilter;
+  label: string;
+  icon: string;
+}
+
+const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
+  { id: 'all', label: 'All Outfits', icon: 'style' },
+  { id: 'favorites', label: 'Favorites', icon: 'favorite' },
+  { id: 'planned', label: 'Planned', icon: 'event' },
+];
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-outfits',
-  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, MatTooltipModule, ImageReadyDirective],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    MatIconModule,
+    MatButtonModule,
+    MatMenuModule,
+    MatTooltipModule,
+    ImageReadyDirective,
+  ],
   template: `
     <div class="outfits-page animate-fade-in">
-      <header class="page-header">
-        <div><h1>My Outfits</h1><p class="subtitle">{{ outfits().length }} of {{ totalOutfitsCount() }} combinations</p></div>
-        <div class="header-actions">
-          <button class="action-btn secondary" routerLink="/calendar">
-            <mat-icon>calendar_month</mat-icon><span>Calendar</span>
-          </button>
-          <button class="action-btn primary" routerLink="/outfit-canvas">
-            <mat-icon>brush</mat-icon><span>Create Outfit</span>
-          </button>
+      <section class="hero-panel card">
+        <div class="hero-header">
+          <div class="header-copy">
+            <h1>My Outfits</h1>
+            <p class="subtitle">{{ filteredOutfits().length }} of {{ totalOutfitsCount() }} combinations in view</p>
+          </div>
+          <div class="header-actions desktop-actions">
+            <button type="button" class="action-btn secondary" [matMenuTriggerFor]="sortMenu">
+              <mat-icon>sort</mat-icon><span>Sort: {{ sortLabel() }}</span>
+            </button>
+            <button class="action-btn secondary" routerLink="/calendar">
+              <mat-icon>calendar_month</mat-icon><span>Calendar</span>
+            </button>
+            <button class="action-btn primary" routerLink="/outfit-canvas">
+              <mat-icon>brush</mat-icon><span>Create Outfit</span>
+            </button>
+          </div>
+          <div class="header-actions mobile-actions">
+            <button type="button" class="action-btn secondary" [matMenuTriggerFor]="sortMenu" aria-label="Sort outfits">
+              <mat-icon>sort</mat-icon>
+            </button>
+            <button class="action-btn secondary" routerLink="/calendar" aria-label="Open calendar">
+              <mat-icon>calendar_month</mat-icon>
+            </button>
+          </div>
         </div>
-      </header>
 
-      <section class="filter-chips">
+        <div class="preset-filters" role="group" aria-label="Outfit quick filters">
+          @for (preset of filterPresets; track preset.id) {
+            <button
+              type="button"
+              class="preset-chip"
+              [class.active]="activeQuickFilter() === preset.id"
+              (click)="setQuickFilter(preset.id)">
+              <mat-icon>{{ preset.icon }}</mat-icon>
+              <span>{{ preset.label }}</span>
+              <strong>{{ getQuickFilterCount(preset.id) }}</strong>
+            </button>
+          }
+        </div>
+
+        <mat-menu #sortMenu="matMenu">
+          <button mat-menu-item (click)="sortBy('recent')">
+            <mat-icon>schedule</mat-icon>
+            <span>Recently Added</span>
+          </button>
+          <button mat-menu-item (click)="sortBy('name')">
+            <mat-icon>sort_by_alpha</mat-icon>
+            <span>Name</span>
+          </button>
+          <button mat-menu-item (click)="sortBy('rating')">
+            <mat-icon>star</mat-icon>
+            <span>Highest Rated</span>
+          </button>
+          <button mat-menu-item (click)="sortBy('worn')">
+            <mat-icon>repeat</mat-icon>
+            <span>Most Worn</span>
+          </button>
+        </mat-menu>
+      </section>
+
+      <section class="filters-section glass">
+        <div class="search-container">
+          <mat-icon class="search-icon">search</mat-icon>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search outfits, occasions, seasons..."
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)">
+          @if (searchQuery()) {
+            <button type="button" class="clear-btn" (click)="searchQuery.set('')" aria-label="Clear search">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </div>
+        <div class="filters-row">
+          @if (hasActiveFilters()) {
+            <button type="button" class="clear-filters-btn" (click)="clearAllFilters()">
+              <mat-icon>filter_alt_off</mat-icon>
+              <span>Clear Filters</span>
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="filter-chips" role="group" aria-label="Outfit categories">
         <button
           type="button"
           class="chip"
@@ -49,6 +149,25 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
             <span>{{ getCategoryCount(entry.id) }}</span>
           </button>
         }
+      </section>
+
+      <section class="result-toolbar">
+        <div class="result-summary">
+          <span class="result-count">{{ filteredOutfits().length }} results</span>
+          @if (selectedCategory() !== 'all') {
+            <span class="active-filter-chip">
+              <mat-icon>sell</mat-icon>
+              <span>{{ selectedCategoryLabel() }}</span>
+            </span>
+          }
+          @if (searchQuery()) {
+            <span class="active-filter-chip">
+              <mat-icon>manage_search</mat-icon>
+              <span>{{ searchQuery() }}</span>
+            </span>
+          }
+        </div>
+        <span class="sort-indicator">Sorted by {{ sortLabel() }}</span>
       </section>
 
       @if (isInitialLoading()) {
@@ -123,10 +242,10 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
               </div>
               <h3>No outfits found</h3>
               <p>
-                @if (selectedCategory() !== 'all') {
-                  Try changing your category filter
+                @if (hasActiveFilters()) {
+                  Try adjusting your search or filters.
                 } @else {
-                  Create your first outfit combination
+                  Create your first outfit combination.
                 }
               </p>
               <button class="action-btn primary" routerLink="/outfit-canvas">
@@ -155,23 +274,295 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
           </button>
         </div>
       }
+
+      <button
+        type="button"
+        class="mobile-add-fab"
+        routerLink="/outfit-canvas"
+        aria-label="Create outfit">
+        <mat-icon>brush</mat-icon>
+      </button>
     </div>
   `,
   styles: [`
-    .outfits-page { padding: var(--dw-spacing-xl); max-width: 1400px; margin: 0 auto; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--dw-spacing-xl); }
-    .header-actions { display: flex; gap: 8px; }
-    .subtitle { color: var(--dw-text-secondary); margin: 0; }
-    .action-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: var(--dw-radius-md); border: none; background: var(--dw-gradient-primary); color: white; font-weight: 500; cursor: pointer; }
-    .action-btn.secondary { background: var(--dw-surface-card); color: var(--dw-text-primary); border: 1px solid var(--dw-border-strong); }
-    .filter-chips { display: flex; gap: 8px; margin-bottom: var(--dw-spacing-xl); flex-wrap: wrap; }
-    .chip { padding: 8px 14px; border-radius: var(--dw-radius-full); border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-card); color: var(--dw-text-secondary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-    .chip mat-icon { width: 15px; height: 15px; font-size: 15px; }
-    .chip span { font-size: 11px; color: var(--dw-text-muted); }
-    .chip.active { background: var(--dw-primary); border-color: var(--dw-primary); color: white; }
-    .chip.active span { color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent); }
-    .outfits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--dw-spacing-lg); }
-    .load-more-row { margin-top: var(--dw-spacing-lg); display: flex; justify-content: center; }
+    .outfits-page {
+      padding: var(--dw-spacing-xl);
+      max-width: 1420px;
+      margin: 0 auto;
+    }
+
+    .hero-panel {
+      padding: var(--dw-spacing-lg);
+      margin-bottom: var(--dw-spacing-lg);
+      display: grid;
+      gap: var(--dw-spacing-md);
+      background:
+        radial-gradient(
+          circle at 90% 14%,
+          color-mix(in srgb, var(--dw-accent) 14%, transparent),
+          transparent 44%
+        ),
+        var(--dw-gradient-card);
+    }
+
+    .hero-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--dw-spacing-md);
+    }
+
+    .header-copy {
+      min-width: 0;
+    }
+
+    .header-copy h1 {
+      margin-bottom: var(--dw-spacing-xs);
+    }
+
+    .subtitle {
+      color: var(--dw-text-secondary);
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .mobile-actions {
+      display: none;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: var(--dw-radius-md);
+      border: 1px solid var(--dw-border-subtle);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .action-btn.primary {
+      border: none;
+      background: var(--dw-gradient-primary);
+      color: var(--dw-on-primary);
+    }
+
+    .action-btn.secondary {
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      border: 1px solid var(--dw-border-strong);
+    }
+
+    .preset-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--dw-spacing-sm);
+    }
+
+    .preset-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: var(--dw-radius-full);
+      border: 1px solid var(--dw-border-subtle);
+      background: color-mix(in srgb, var(--dw-surface-elevated) 76%, transparent);
+      color: var(--dw-text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .preset-chip strong {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      padding: 0 5px;
+      border-radius: var(--dw-radius-full);
+      font-size: 11px;
+      color: var(--dw-text-primary);
+      background: color-mix(in srgb, var(--dw-primary) 12%, transparent);
+    }
+
+    .preset-chip mat-icon {
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+    }
+
+    .preset-chip.active {
+      border-color: color-mix(in srgb, var(--dw-primary) 42%, transparent);
+      color: var(--dw-text-primary);
+      background: color-mix(in srgb, var(--dw-primary) 16%, transparent);
+    }
+
+    .filters-section {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) auto;
+      align-items: center;
+      gap: var(--dw-spacing-sm);
+      padding: var(--dw-spacing-md) var(--dw-spacing-lg);
+      border-radius: var(--dw-radius-lg);
+      margin-bottom: var(--dw-spacing-sm);
+    }
+
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--dw-surface-card);
+      border-radius: var(--dw-radius-md);
+      padding: 0 12px;
+      min-height: 44px;
+      border: 1px solid transparent;
+    }
+
+    .search-container:focus-within {
+      border-color: color-mix(in srgb, var(--dw-primary) 35%, transparent);
+    }
+
+    .search-icon {
+      color: var(--dw-text-muted);
+    }
+
+    .search-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      color: var(--dw-text-primary);
+    }
+
+    .clear-btn {
+      border: none;
+      background: transparent;
+      color: var(--dw-text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .filters-row {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .clear-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 22%, transparent);
+      border-radius: var(--dw-radius-full);
+      background: transparent;
+      color: var(--dw-text-secondary);
+      cursor: pointer;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 8px 14px;
+      border-radius: var(--dw-radius-full);
+      border: 1px solid var(--dw-border-subtle);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-secondary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .chip mat-icon {
+      width: 15px;
+      height: 15px;
+      font-size: 15px;
+    }
+
+    .chip span {
+      font-size: 11px;
+      color: var(--dw-text-muted);
+    }
+
+    .chip.active {
+      background: var(--dw-primary);
+      border-color: var(--dw-primary);
+      color: white;
+    }
+
+    .chip.active span {
+      color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent);
+    }
+
+    .result-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--dw-spacing-md);
+      flex-wrap: wrap;
+      margin: 6px 0 var(--dw-spacing-md);
+    }
+
+    .result-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .result-count {
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+      padding: 4px 10px;
+      border-radius: var(--dw-radius-full);
+      background: color-mix(in srgb, var(--dw-primary) 8%, transparent);
+    }
+
+    .active-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: var(--dw-radius-full);
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 20%, transparent);
+      color: var(--dw-text-secondary);
+      background: color-mix(in srgb, var(--dw-surface-elevated) 70%, transparent);
+      font-size: 12px;
+    }
+
+    .sort-indicator {
+      color: var(--dw-text-secondary);
+      font-size: 12px;
+    }
+
+    .outfits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--dw-spacing-lg);
+    }
+
+    .load-more-row {
+      margin-top: var(--dw-spacing-lg);
+      display: flex;
+      justify-content: center;
+    }
     .outfit-card { background: var(--dw-gradient-card); border-radius: var(--dw-radius-lg); border: 1px solid var(--dw-border-subtle); overflow: hidden; transition: all 0.25s; }
     .outfit-card:hover { transform: translateY(-4px); box-shadow: var(--dw-shadow-glow); }
     .outfit-image { position: relative; aspect-ratio: 4/5; overflow: hidden; }
@@ -241,12 +632,38 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
     .empty-icon mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--dw-text-muted); }
     .empty-state h3 { margin-bottom: var(--dw-spacing-sm); }
     .empty-state p { color: var(--dw-text-secondary); margin: 0 0 var(--dw-spacing-lg); max-width: 320px; }
+    .mobile-add-fab {
+      position: fixed;
+      right: 16px;
+      bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 12px);
+      width: 52px;
+      height: 52px;
+      border: none;
+      border-radius: 50%;
+      background: var(--dw-gradient-primary);
+      color: var(--dw-on-primary);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--dw-shadow-lg), var(--dw-shadow-glow);
+      z-index: 28;
+      cursor: pointer;
+    }
     @media (max-width: 768px) {
-      .outfits-page { padding: var(--dw-spacing-md); }
-      .page-header { flex-direction: column; gap: 12px; margin-bottom: var(--dw-spacing-md); }
-      .header-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-      .action-btn { width: 100%; justify-content: center; padding: 10px 12px; font-size: 0.85rem; }
-      .action-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .outfits-page {
+        padding: var(--dw-spacing-md);
+        padding-bottom: calc(var(--dw-mobile-nav-height) + 88px);
+      }
+      .hero-panel { padding: var(--dw-spacing-md); }
+      .desktop-actions { display: none; }
+      .mobile-actions { display: flex; }
+      .preset-filters {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        row-gap: 8px;
+      }
+      .filters-section { grid-template-columns: 1fr; padding: var(--dw-spacing-md); }
+      .filters-row { justify-content: flex-start; }
       .filter-chips {
         margin-bottom: var(--dw-spacing-md);
         flex-wrap: nowrap;
@@ -264,6 +681,8 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       .items-count, .planned-on { font-size: 12px; }
       .empty-state { padding: 28px 16px; }
       .empty-icon mat-icon { font-size: 44px; width: 44px; height: 44px; }
+      .sort-indicator { display: none; }
+      .mobile-add-fab { display: inline-flex; }
     }
   `]
 })
@@ -278,9 +697,13 @@ export class OutfitsComponent implements OnInit {
   hasMoreOutfits = this.wardrobeService.hasMoreOutfitsPages;
   isLoadingMoreOutfits = this.wardrobeService.outfitsPageLoading;
   isInitialLoading = computed(() => this.isLoadingMoreOutfits() && this.outfits().length === 0);
+  readonly filterPresets = OUTFIT_FILTER_PRESETS;
   readonly loadingIcons = OUTFIT_LOADING_ICONS;
   readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
+  searchQuery = signal('');
   selectedCategory = signal<string>('all');
+  activeQuickFilter = signal<OutfitQuickFilter>('all');
+  sortOption = signal<OutfitSortOption>('recent');
 
   ngOnInit(): void {
     void this.loadOutfits();
@@ -288,16 +711,88 @@ export class OutfitsComponent implements OnInit {
   }
 
   filteredOutfits = computed(() => {
+    let items = [...this.outfits()];
     const selectedCategory = this.selectedCategory();
-    if (selectedCategory === 'all') {
-      return this.outfits();
+    const query = this.searchQuery().trim().toLowerCase();
+
+    if (selectedCategory !== 'all') {
+      items = items.filter((outfit) => outfit.category === selectedCategory);
     }
-    return this.outfits().filter((outfit) => outfit.category === selectedCategory);
+
+    switch (this.activeQuickFilter()) {
+      case 'favorites':
+        items = items.filter((outfit) => outfit.favorite);
+        break;
+      case 'planned':
+        items = items.filter((outfit) => (outfit.plannedDates?.length ?? 0) > 0);
+        break;
+      default:
+        break;
+    }
+
+    if (query) {
+      items = items.filter((outfit) => {
+        const tags = [outfit.name, outfit.category, outfit.occasion, outfit.season]
+          .filter((value): value is string => Boolean(value))
+          .join(' ')
+          .toLowerCase();
+        return tags.includes(query);
+      });
+    }
+
+    switch (this.sortOption()) {
+      case 'name':
+        items.sort((left, right) => left.name.localeCompare(right.name));
+        break;
+      case 'rating':
+        items.sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0));
+        break;
+      case 'worn':
+        items.sort((left, right) => right.worn - left.worn);
+        break;
+      case 'recent':
+      default:
+        items.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+        break;
+    }
+
+    return items;
   });
 
   totalOutfitsCount = computed(() => {
     const total = this.totalOutfits();
     return total > 0 ? total : this.outfits().length;
+  });
+  favoriteCount = computed(() => this.outfits().filter((outfit) => outfit.favorite).length);
+  plannedCount = computed(() =>
+    this.outfits().filter((outfit) => (outfit.plannedDates?.length ?? 0) > 0).length,
+  );
+  hasActiveFilters = computed(
+    () =>
+      this.activeQuickFilter() !== 'all' ||
+      this.selectedCategory() !== 'all' ||
+      this.searchQuery().trim().length > 0,
+  );
+  sortLabel = computed(() => {
+    switch (this.sortOption()) {
+      case 'name':
+        return 'Name';
+      case 'rating':
+        return 'Highest Rated';
+      case 'worn':
+        return 'Most Worn';
+      case 'recent':
+      default:
+        return 'Recently Added';
+    }
+  });
+  selectedCategoryLabel = computed(() => {
+    const selectedCategory = this.selectedCategory();
+    if (selectedCategory === 'all') {
+      return 'All';
+    }
+    const option = this.outfitCategories().find((entry) => entry.id === selectedCategory);
+    return option?.label ?? this.formatCategoryLabel(selectedCategory);
   });
   outfitPreviewMap = computed<Record<string, string[]>>(() => {
     const wardrobeImageById = new Map(this.wardrobeItems().map(item => [item.id, item.imageUrl]));
@@ -324,6 +819,32 @@ export class OutfitsComponent implements OnInit {
 
     return map;
   });
+
+  getQuickFilterCount(filter: OutfitQuickFilter): number {
+    switch (filter) {
+      case 'favorites':
+        return this.favoriteCount();
+      case 'planned':
+        return this.plannedCount();
+      case 'all':
+      default:
+        return this.outfits().length;
+    }
+  }
+
+  setQuickFilter(filter: OutfitQuickFilter): void {
+    this.activeQuickFilter.set(filter);
+  }
+
+  sortBy(option: OutfitSortOption): void {
+    this.sortOption.set(option);
+  }
+
+  clearAllFilters(): void {
+    this.searchQuery.set('');
+    this.selectedCategory.set('all');
+    this.activeQuickFilter.set('all');
+  }
 
   private async loadOutfits(): Promise<void> {
     try {
@@ -391,3 +912,4 @@ export class OutfitsComponent implements OnInit {
       .join(' ');
   }
 }
+

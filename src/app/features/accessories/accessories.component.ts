@@ -3,13 +3,35 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Accessory, WardrobeItem } from '../../core/models';
 import { CatalogOptionsService } from '../../core/services';
 import { WardrobeService } from '../../core/services/wardrobe.service';
 import { ItemCardComponent } from '../../shared/components/item-card/item-card.component';
+
+type AccessorySortOption = 'recent' | 'name' | 'brand' | 'worn';
+type AccessoryQuickFilter = 'all' | 'favorites' | 'lowRotation';
+
+interface AccessoryFilterPreset {
+  id: AccessoryQuickFilter;
+  label: string;
+  icon: string;
+}
+
+interface AccessoryColorOption {
+  key: string;
+  name: string;
+  hex: string;
+  count: number;
+}
+
+const ACCESSORY_FILTER_PRESETS: readonly AccessoryFilterPreset[] = [
+  { id: 'all', label: 'All Accessories', icon: 'style' },
+  { id: 'favorites', label: 'Favorites', icon: 'favorite' },
+  { id: 'lowRotation', label: 'Low Rotation', icon: 'history_toggle_off' },
+];
 
 const ACCESSORY_LOADING_ICONS = ['watch', 'style', 'diamond', 'checkroom', 'auto_awesome'] as const;
 const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
@@ -23,23 +45,71 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
     RouterLink,
     MatIconModule,
     MatButtonModule,
-    MatFormFieldModule,
-    MatSelectModule,
+    MatMenuModule,
+    MatTooltipModule,
     ItemCardComponent,
   ],
   template: `
     <div class="accessories-page animate-fade-in">
-      <header class="page-header">
-        <div>
-          <h1>Accessories</h1>
-          <p class="subtitle">{{ filteredAccessories().length }} of {{ totalAccessoriesCount() }} items</p>
-        </div>
-        <button class="action-btn primary" routerLink="/accessories/add">
-          <mat-icon>add</mat-icon><span>Add Accessory</span>
-        </button>
-      </header>
+      <section class="hero-panel card">
+        <div class="hero-header">
+          <div class="header-copy">
+            <h1>Accessories</h1>
+            <p class="subtitle">{{ filteredAccessories().length }} of {{ totalAccessoriesCount() }} items in view</p>
+          </div>
 
-      <section class="filters glass">
+          <div class="header-actions desktop-actions">
+            <button type="button" class="action-btn secondary" [matMenuTriggerFor]="sortMenu">
+              <mat-icon>sort</mat-icon>
+              <span>Sort: {{ sortLabel() }}</span>
+            </button>
+            <button class="action-btn primary" routerLink="/accessories/add">
+              <mat-icon>add</mat-icon><span>Add Accessory</span>
+            </button>
+          </div>
+
+          <div class="header-actions mobile-actions">
+            <button type="button" class="action-btn secondary" [matMenuTriggerFor]="sortMenu" aria-label="Sort accessories">
+              <mat-icon>sort</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="preset-filters" role="group" aria-label="Accessory quick filters">
+          @for (preset of filterPresets; track preset.id) {
+            <button
+              type="button"
+              class="preset-chip"
+              [class.active]="activeQuickFilter() === preset.id"
+              (click)="setQuickFilter(preset.id)">
+              <mat-icon>{{ preset.icon }}</mat-icon>
+              <span>{{ preset.label }}</span>
+              <strong>{{ getQuickFilterCount(preset.id) }}</strong>
+            </button>
+          }
+        </div>
+
+        <mat-menu #sortMenu="matMenu">
+          <button mat-menu-item (click)="sortBy('recent')">
+            <mat-icon>schedule</mat-icon>
+            <span>Recently Added</span>
+          </button>
+          <button mat-menu-item (click)="sortBy('name')">
+            <mat-icon>sort_by_alpha</mat-icon>
+            <span>Name</span>
+          </button>
+          <button mat-menu-item (click)="sortBy('brand')">
+            <mat-icon>branding_watermark</mat-icon>
+            <span>Brand</span>
+          </button>
+          <button mat-menu-item (click)="sortBy('worn')">
+            <mat-icon>repeat</mat-icon>
+            <span>Most Worn</span>
+          </button>
+        </mat-menu>
+      </section>
+
+      <section class="filters-section glass">
         <div class="search-container">
           <mat-icon class="search-icon">search</mat-icon>
           <input
@@ -49,22 +119,43 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)">
           @if (searchQuery()) {
-            <button class="clear-btn" type="button" (click)="searchQuery.set('')">
+            <button class="clear-btn" type="button" (click)="searchQuery.set('')" aria-label="Clear search">
               <mat-icon>close</mat-icon>
             </button>
           }
         </div>
-        <mat-form-field appearance="outline" class="sort-select">
-          <mat-label>Sort</mat-label>
-          <mat-select [ngModel]="sortBy()" (ngModelChange)="sortBy.set($event)">
-            <mat-option value="recent">Recently Added</mat-option>
-            <mat-option value="name">Name</mat-option>
-            <mat-option value="brand">Brand</mat-option>
-          </mat-select>
-        </mat-form-field>
+
+        <div class="filters-row">
+          <div class="color-filters" role="group" aria-label="Filter by color">
+            <span class="filter-label">Colors</span>
+            @if (availableColorOptions().length > 0) {
+              @for (color of availableColorOptions(); track color.key) {
+                <button
+                  type="button"
+                  class="color-chip"
+                  [class.selected]="selectedColors().includes(color.key)"
+                  [style.--chip-color]="color.hex"
+                  (click)="toggleColor(color.key)"
+                  [attr.aria-label]="'Filter ' + color.name"
+                  [attr.aria-pressed]="selectedColors().includes(color.key)"
+                  [matTooltip]="color.name + ' (' + color.count + ')'">
+                </button>
+              }
+            } @else {
+              <span class="no-colors-text">No colors available</span>
+            }
+          </div>
+
+          @if (hasActiveFilters()) {
+            <button type="button" class="clear-filters-btn" (click)="clearAllFilters()">
+              <mat-icon>filter_alt_off</mat-icon>
+              <span>Clear Filters</span>
+            </button>
+          }
+        </div>
       </section>
 
-      <section class="category-chips">
+      <section class="category-chips" role="group" aria-label="Accessory categories">
         <button
           type="button"
           class="chip"
@@ -85,15 +176,29 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         }
       </section>
 
-      <section class="quick-filters">
-        <button
-          type="button"
-          class="chip"
-          [class.active]="showFavoritesOnly()"
-          (click)="showFavoritesOnly.set(!showFavoritesOnly())">
-          <mat-icon>{{ showFavoritesOnly() ? 'favorite' : 'favorite_border' }}</mat-icon>
-          Favorites
-        </button>
+      <section class="result-toolbar">
+        <div class="result-summary">
+          <span class="result-count">{{ filteredAccessories().length }} results</span>
+          @if (selectedCategory() !== 'all') {
+            <span class="active-filter-chip">
+              <mat-icon>sell</mat-icon>
+              <span>{{ selectedCategoryLabel() }}</span>
+            </span>
+          }
+          @if (selectedColors().length > 0) {
+            <span class="active-filter-chip">
+              <mat-icon>palette</mat-icon>
+              <span>{{ selectedColors().length }} colors</span>
+            </span>
+          }
+          @if (searchQuery()) {
+            <span class="active-filter-chip">
+              <mat-icon>manage_search</mat-icon>
+              <span>{{ searchQuery() }}</span>
+            </span>
+          }
+        </div>
+        <span class="sort-indicator">Sorted by {{ sortLabel() }}</span>
       </section>
 
       @if (isInitialLoading()) {
@@ -134,10 +239,10 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
               </div>
               <h3>No accessories found</h3>
               <p>
-                @if (searchQuery() || selectedCategory() !== 'all' || showFavoritesOnly()) {
-                  Try adjusting your search or filters
+                @if (hasActiveFilters()) {
+                  Try adjusting your search or filters.
                 } @else {
-                  Add your first accessory to complete your wardrobe
+                  Add your first accessory to complete your wardrobe.
                 }
               </p>
               <button class="action-btn primary" routerLink="/accessories/add">
@@ -162,40 +267,456 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
           </button>
         </div>
       }
+
+      <button
+        type="button"
+        class="mobile-add-fab"
+        routerLink="/accessories/add"
+        aria-label="Add accessory">
+        <mat-icon>add</mat-icon>
+      </button>
     </div>
   `,
   styles: [`
-    .accessories-page { padding: var(--dw-spacing-xl); max-width: 1400px; margin: 0 auto; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: var(--dw-spacing-lg); }
-    .subtitle { color: var(--dw-text-secondary); margin: 0; }
-    .action-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: var(--dw-radius-md); border: none; background: var(--dw-gradient-primary); color: white; font-weight: 500; cursor: pointer; }
-    .filters { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: var(--dw-radius-lg); margin-bottom: 12px; }
-    .search-container { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px; background: var(--dw-surface-card); border-radius: var(--dw-radius-md); padding: 0 10px; height: 46px; }
-    .search-icon { color: var(--dw-text-muted); }
-    .search-input { flex: 1; border: none; background: transparent; outline: none; color: var(--dw-text-primary); }
-    .clear-btn { border: none; background: transparent; color: var(--dw-text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-    .sort-select { width: 180px; }
-    .category-chips, .quick-filters { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; margin-bottom: 2px; scrollbar-width: none; }
-    .category-chips::-webkit-scrollbar, .quick-filters::-webkit-scrollbar { display: none; }
-    .chip { border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-card); color: var(--dw-text-primary); border-radius: 999px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-    .chip span { font-size: 11px; color: var(--dw-text-secondary); }
-    .chip.active { background: var(--dw-gradient-primary); color: var(--dw-on-primary); border-color: transparent; }
-    .chip.active span { color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent); }
-    .chip mat-icon { width: 16px; height: 16px; font-size: 16px; }
-    .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--dw-spacing-lg); }
-    .load-more-row { display: flex; justify-content: center; margin-top: var(--dw-spacing-lg); }
-    .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--dw-spacing-2xl); text-align: center; }
-    .empty-icon { width: 100px; height: 100px; background: var(--dw-surface-card); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: var(--dw-spacing-lg); }
-    .empty-icon mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--dw-text-muted); }
-    .empty-state h3 { margin-bottom: var(--dw-spacing-sm); }
-    .empty-state p { color: var(--dw-text-secondary); margin: 0 0 var(--dw-spacing-lg); max-width: 320px; }
+    .accessories-page {
+      padding: var(--dw-spacing-xl);
+      max-width: 1420px;
+      margin: 0 auto;
+    }
+
+    .hero-panel {
+      padding: var(--dw-spacing-lg);
+      margin-bottom: var(--dw-spacing-lg);
+      display: grid;
+      gap: var(--dw-spacing-md);
+      background:
+        radial-gradient(
+          circle at 88% 12%,
+          color-mix(in srgb, var(--dw-accent) 14%, transparent),
+          transparent 44%
+        ),
+        var(--dw-gradient-card);
+    }
+
+    .hero-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--dw-spacing-md);
+    }
+
+    .header-copy {
+      min-width: 0;
+
+      h1 {
+        margin-bottom: var(--dw-spacing-xs);
+      }
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--dw-text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--dw-spacing-sm);
+    }
+
+    .mobile-actions {
+      display: none;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: var(--dw-radius-md);
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--dw-border-subtle);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+
+      &:disabled {
+        cursor: default;
+        opacity: 0.72;
+      }
+
+      &.primary {
+        border: none;
+        background: var(--dw-gradient-primary);
+        color: var(--dw-on-primary);
+      }
+
+      &.secondary {
+        background: var(--dw-surface-card);
+      }
+    }
+
+    .preset-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--dw-spacing-sm);
+    }
+
+    .preset-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: var(--dw-radius-full);
+      border: 1px solid var(--dw-border-subtle);
+      background: color-mix(in srgb, var(--dw-surface-elevated) 76%, transparent);
+      color: var(--dw-text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+
+      strong {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        padding: 0 5px;
+        border-radius: var(--dw-radius-full);
+        font-size: 11px;
+        color: var(--dw-text-primary);
+        background: color-mix(in srgb, var(--dw-primary) 12%, transparent);
+      }
+
+      mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+      }
+
+      &.active {
+        border-color: color-mix(in srgb, var(--dw-primary) 42%, transparent);
+        color: var(--dw-text-primary);
+        background: color-mix(in srgb, var(--dw-primary) 16%, transparent);
+      }
+    }
+
+    .filters-section {
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr) minmax(360px, 1fr);
+      align-items: center;
+      gap: var(--dw-spacing-sm);
+      padding: var(--dw-spacing-md) var(--dw-spacing-lg);
+      border-radius: var(--dw-radius-lg);
+      margin-bottom: var(--dw-spacing-sm);
+    }
+
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--dw-surface-card);
+      border-radius: var(--dw-radius-md);
+      padding: 0 12px;
+      min-height: 44px;
+      border: 1px solid transparent;
+
+      &:focus-within {
+        border-color: color-mix(in srgb, var(--dw-primary) 35%, transparent);
+      }
+    }
+
+    .search-icon {
+      color: var(--dw-text-muted);
+    }
+
+    .search-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      color: var(--dw-text-primary);
+    }
+
+    .clear-btn {
+      border: none;
+      background: transparent;
+      color: var(--dw-text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .filters-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--dw-spacing-sm);
+      min-width: 0;
+    }
+
+    .color-filters {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--dw-spacing-sm);
+      flex-wrap: wrap;
+    }
+
+    .filter-label {
+      color: var(--dw-text-secondary);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .color-chip {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid color-mix(in srgb, var(--dw-text-primary) 28%, transparent);
+      background: var(--chip-color);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 1px 3px rgba(0, 0, 0, 0.18);
+      cursor: pointer;
+      padding: 0;
+
+      &.selected {
+        border-color: color-mix(in srgb, var(--dw-primary) 55%, transparent);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+          0 0 0 2px color-mix(in srgb, var(--dw-primary) 52%, transparent);
+      }
+    }
+
+    .clear-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 22%, transparent);
+      border-radius: var(--dw-radius-full);
+      background: transparent;
+      color: var(--dw-text-secondary);
+      cursor: pointer;
+    }
+
+    .no-colors-text {
+      color: var(--dw-text-muted);
+      font-size: 12px;
+    }
+
+    .category-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 0 8px;
+      margin-bottom: 4px;
+      scrollbar-width: none;
+    }
+
+    .category-chips::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chip {
+      border: 1px solid var(--dw-border-subtle);
+      background: var(--dw-surface-card);
+      color: var(--dw-text-primary);
+      border-radius: 999px;
+      padding: 7px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .chip span {
+      font-size: 11px;
+      color: var(--dw-text-secondary);
+    }
+
+    .chip.active {
+      background: var(--dw-gradient-primary);
+      color: var(--dw-on-primary);
+      border-color: transparent;
+    }
+
+    .chip.active span {
+      color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent);
+    }
+
+    .chip mat-icon {
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+    }
+
+    .result-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--dw-spacing-md);
+      flex-wrap: wrap;
+      margin: 6px 0 var(--dw-spacing-md);
+    }
+
+    .result-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .result-count {
+      font-size: 12px;
+      color: var(--dw-text-secondary);
+      padding: 4px 10px;
+      border-radius: var(--dw-radius-full);
+      background: color-mix(in srgb, var(--dw-primary) 8%, transparent);
+    }
+
+    .active-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: var(--dw-radius-full);
+      border: 1px solid color-mix(in srgb, var(--dw-primary) 20%, transparent);
+      color: var(--dw-text-secondary);
+      background: color-mix(in srgb, var(--dw-surface-elevated) 70%, transparent);
+      font-size: 12px;
+    }
+
+    .sort-indicator {
+      color: var(--dw-text-secondary);
+      font-size: 12px;
+    }
+
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: var(--dw-spacing-lg);
+    }
+
+    .load-more-row {
+      display: flex;
+      justify-content: center;
+      margin-top: var(--dw-spacing-lg);
+    }
+
+    .empty-state {
+      grid-column: 1/-1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--dw-spacing-2xl);
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 100px;
+      height: 100px;
+      background: var(--dw-surface-card);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--dw-spacing-lg);
+    }
+
+    .empty-icon mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: var(--dw-text-muted);
+    }
+
+    .empty-state h3 {
+      margin-bottom: var(--dw-spacing-sm);
+    }
+
+    .empty-state p {
+      color: var(--dw-text-secondary);
+      margin: 0 0 var(--dw-spacing-lg);
+      max-width: 320px;
+    }
+
+    .mobile-add-fab {
+      position: fixed;
+      right: 16px;
+      bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 12px);
+      width: 52px;
+      height: 52px;
+      border: none;
+      border-radius: 50%;
+      background: var(--dw-gradient-primary);
+      color: var(--dw-on-primary);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--dw-shadow-lg), var(--dw-shadow-glow);
+      z-index: 28;
+      cursor: pointer;
+    }
+
     @media (max-width: 768px) {
-      .accessories-page { padding: var(--dw-spacing-md); }
-      .page-header { margin-bottom: 12px; }
-      .action-btn span { display: none; }
-      .filters { display: grid; grid-template-columns: 1fr; }
-      .sort-select { width: 100%; }
-      .items-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .accessories-page {
+        padding: var(--dw-spacing-md);
+        padding-bottom: calc(var(--dw-mobile-nav-height) + 88px);
+      }
+
+      .hero-panel {
+        padding: var(--dw-spacing-md);
+      }
+
+      .desktop-actions {
+        display: none;
+      }
+
+      .mobile-actions {
+        display: flex;
+      }
+
+      .preset-filters {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        row-gap: 8px;
+      }
+
+      .filters-section {
+        grid-template-columns: 1fr;
+        padding: var(--dw-spacing-md);
+      }
+
+      .filters-row {
+        align-items: flex-start;
+        justify-content: flex-start;
+        flex-direction: column;
+      }
+
+      .color-filters {
+        justify-content: flex-start;
+      }
+
+      .sort-indicator {
+        display: none;
+      }
+
+      .items-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .mobile-add-fab {
+        display: inline-flex;
+      }
     }
   `],
 })
@@ -211,14 +732,16 @@ export class AccessoriesComponent implements OnInit {
   isInitialLoading = computed(
     () => this.isLoadingMoreAccessories() && this.accessories().length === 0,
   );
+  readonly filterPresets = ACCESSORY_FILTER_PRESETS;
   readonly loadingIcons = ACCESSORY_LOADING_ICONS;
   readonly loadingPlaceholders = LIST_LOADING_PLACEHOLDERS;
   categories = this.catalogOptionsService.accessoryCategories;
 
   searchQuery = signal('');
   selectedCategory = signal<'all' | Accessory['category']>('all');
-  showFavoritesOnly = signal(false);
-  sortBy = signal<'recent' | 'name' | 'brand'>('recent');
+  selectedColors = signal<string[]>([]);
+  activeQuickFilter = signal<AccessoryQuickFilter>('all');
+  sortOption = signal<AccessorySortOption>('recent');
 
   ngOnInit(): void {
     void this.loadAccessories();
@@ -234,8 +757,15 @@ export class AccessoriesComponent implements OnInit {
       items = items.filter(item => item.category === selectedCategory);
     }
 
-    if (this.showFavoritesOnly()) {
-      items = items.filter(item => item.favorite);
+    switch (this.activeQuickFilter()) {
+      case 'favorites':
+        items = items.filter(item => item.favorite);
+        break;
+      case 'lowRotation':
+        items = items.filter(item => item.worn < 5);
+        break;
+      default:
+        break;
     }
 
     if (query) {
@@ -247,12 +777,21 @@ export class AccessoriesComponent implements OnInit {
       );
     }
 
-    switch (this.sortBy()) {
+    const selectedColors = this.selectedColors();
+    if (selectedColors.length > 0) {
+      const selectedColorSet = new Set(selectedColors);
+      items = items.filter(item => selectedColorSet.has(this.normalizeColorKey(item.color)));
+    }
+
+    switch (this.sortOption()) {
       case 'name':
         items.sort((a, b) => a.name.localeCompare(b.name));
         break;
       case 'brand':
         items.sort((a, b) => (a.brand ?? '').localeCompare(b.brand ?? ''));
+        break;
+      case 'worn':
+        items.sort((a, b) => b.worn - a.worn);
         break;
       case 'recent':
       default:
@@ -267,6 +806,105 @@ export class AccessoriesComponent implements OnInit {
     const total = this.totalAccessories();
     return total > 0 ? total : this.accessories().length;
   });
+
+  favoriteCount = computed(() => this.accessories().filter(item => item.favorite).length);
+  lowRotationCount = computed(() => this.accessories().filter(item => item.worn < 5).length);
+  hasActiveFilters = computed(
+    () =>
+      this.activeQuickFilter() !== 'all' ||
+      this.searchQuery().trim().length > 0 ||
+      this.selectedCategory() !== 'all' ||
+      this.selectedColors().length > 0,
+  );
+  sortLabel = computed(() => {
+    switch (this.sortOption()) {
+      case 'name':
+        return 'Name';
+      case 'brand':
+        return 'Brand';
+      case 'worn':
+        return 'Most Worn';
+      case 'recent':
+      default:
+        return 'Recently Added';
+    }
+  });
+  selectedCategoryLabel = computed(() => {
+    const selectedCategory = this.selectedCategory();
+    if (selectedCategory === 'all') {
+      return 'All';
+    }
+    const match = this.categories().find(item => item.id === selectedCategory);
+    return match?.label ?? selectedCategory;
+  });
+  availableColorOptions = computed<AccessoryColorOption[]>(() => {
+    const colorByKey = new Map<string, AccessoryColorOption>();
+    for (const item of this.accessories()) {
+      const key = this.normalizeColorKey(item.color);
+      if (!key) {
+        continue;
+      }
+
+      const existing = colorByKey.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (existing.hex === '#b9b0a4' && item.colorHex) {
+          existing.hex = this.getDisplayColorHex(item.colorHex);
+        }
+        continue;
+      }
+
+      colorByKey.set(key, {
+        key,
+        name: this.toDisplayLabel(item.color),
+        hex: this.getDisplayColorHex(item.colorHex),
+        count: 1,
+      });
+    }
+
+    return Array.from(colorByKey.values()).sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+      return left.name.localeCompare(right.name);
+    });
+  });
+
+  getQuickFilterCount(filter: AccessoryQuickFilter): number {
+    switch (filter) {
+      case 'favorites':
+        return this.favoriteCount();
+      case 'lowRotation':
+        return this.lowRotationCount();
+      case 'all':
+      default:
+        return this.accessories().length;
+    }
+  }
+
+  setQuickFilter(filter: AccessoryQuickFilter): void {
+    this.activeQuickFilter.set(filter);
+  }
+
+  sortBy(option: AccessorySortOption): void {
+    this.sortOption.set(option);
+  }
+
+  toggleColor(color: string): void {
+    this.selectedColors.update((colors) => {
+      if (colors.includes(color)) {
+        return colors.filter((existingColor) => existingColor !== color);
+      }
+      return [...colors, color];
+    });
+  }
+
+  clearAllFilters(): void {
+    this.activeQuickFilter.set('all');
+    this.searchQuery.set('');
+    this.selectedCategory.set('all');
+    this.selectedColors.set([]);
+  }
 
   getCategoryCount(category: string): number {
     return this.accessories().filter(item => item.category === category).length;
@@ -310,6 +948,30 @@ export class AccessoriesComponent implements OnInit {
     return this.wardrobeService.isDeleteMutationPending(itemId);
   }
 
+  private normalizeColorKey(color: string | null | undefined): string {
+    return color?.trim().toLowerCase() ?? '';
+  }
+
+  private toDisplayLabel(value: string | null | undefined): string {
+    const normalized = this.normalizeColorKey(value);
+    if (!normalized) {
+      return 'Unknown';
+    }
+
+    return normalized
+      .split(/\s+/)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  }
+
+  private getDisplayColorHex(colorHex: string | null | undefined): string {
+    const normalizedHex = colorHex?.trim() ?? '';
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(normalizedHex)) {
+      return normalizedHex;
+    }
+    return '#b9b0a4';
+  }
+
   private async loadAccessories(): Promise<void> {
     try {
       await this.wardrobeService.ensureAccessoriesPageLoaded();
@@ -338,3 +1000,4 @@ export class AccessoriesComponent implements OnInit {
     }
   }
 }
+
