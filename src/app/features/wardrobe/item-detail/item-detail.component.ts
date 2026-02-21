@@ -4,7 +4,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   HostListener,
+  OnDestroy,
   Signal,
+  WritableSignal,
   computed,
   ElementRef,
   inject,
@@ -22,6 +24,12 @@ import { WardrobeService } from '../../../core/services/wardrobe.service';
 import { DetailSkeletonComponent } from '../../../shared/components/detail-skeleton/detail-skeleton.component';
 import { InlineActionLoaderComponent } from '../../../shared/components/inline-action-loader/inline-action-loader.component';
 import { ImageReadyDirective } from '../../../shared/directives/image-ready.directive';
+
+interface DetailActionFeedback {
+  kind: 'favorite' | 'worn';
+  icon: string;
+  label: string;
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,6 +63,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
               mat-icon-button
               class="favorite-btn"
               [class.active]="item()!.favorite"
+              [class.feedback-pop]="favoritePulse()"
               [disabled]="isFavoritePending() || isDeletePending() || isMarkWornPending()"
               (click)="toggleFavorite()"
               [attr.aria-label]="item()!.favorite ? 'Remove favorite' : 'Add favorite'"
@@ -64,9 +73,9 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
           </header>
 
           <div class="hero-stats">
-            <article>
+            <article class="worn-stat" [class.feedback-pop]="wornStatPulse()">
               <label>Worn</label>
-              <strong>{{ item()!.worn }}x</strong>
+              <strong class="wear-count" [class.bump]="wornStatPulse()">{{ item()!.worn }}x</strong>
               <small>{{ item()!.lastWorn ? ('Last ' + (item()!.lastWorn | date: 'MMM d')) : 'Never worn' }}</small>
             </article>
             <article>
@@ -82,7 +91,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
           </div>
 
           <div class="hero-actions">
-            <button mat-flat-button color="primary" class="mark-worn-btn" (click)="markAsWorn()" [disabled]="isMarkWornPending() || isDeletePending() || isFavoritePending()">
+            <button mat-flat-button color="primary" class="mark-worn-btn" [class.feedback-pop]="markWornPulse()" (click)="markAsWorn()" [disabled]="isMarkWornPending() || isDeletePending() || isFavoritePending()">
               <mat-icon>check_circle</mat-icon>
               Mark as Worn
             </button>
@@ -95,6 +104,19 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
               Delete
             </button>
           </div>
+
+          @if (actionFeedback(); as feedback) {
+            <div
+              class="action-feedback"
+              [class.favorite]="feedback.kind === 'favorite'"
+              [class.worn]="feedback.kind === 'worn'"
+              role="status"
+              aria-live="polite"
+            >
+              <mat-icon>{{ feedback.icon }}</mat-icon>
+              <span>{{ feedback.label }}</span>
+            </div>
+          }
 
           @if (isDeletePending() || isMarkWornPending() || isFavoritePending()) {
             <div class="pending">
@@ -110,6 +132,13 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
                   label="Updating wear count..."
                   tone="positive"
                   icon="check_circle"
+                ></dw-inline-action-loader>
+              }
+              @if (isFavoritePending()) {
+                <dw-inline-action-loader
+                  label="Saving favorite..."
+                  tone="positive"
+                  icon="favorite"
                 ></dw-inline-action-loader>
               }
             </div>
@@ -309,14 +338,19 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
     .title p { margin: 0; text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px; color: var(--dw-text-muted); font-weight: 600; }
     .title h1 { margin: 2px 0 0; font-size: clamp(1.35rem, 2.8vw, 2rem); line-height: 1.15; }
     .title span { color: var(--dw-text-secondary); font-size: 13px; }
-    .favorite-btn { border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-elevated); }
-    .favorite-btn mat-icon { color: var(--dw-text-secondary); }
+    .favorite-btn { position: relative; border: 1px solid var(--dw-border-subtle); background: var(--dw-surface-elevated); transition: transform 180ms ease; }
+    .favorite-btn mat-icon { color: var(--dw-text-secondary); transition: color 180ms ease, transform 180ms ease; }
     .favorite-btn.active mat-icon { color: var(--dw-accent); }
+    .favorite-btn.feedback-pop { transform: scale(1.08); }
+    .favorite-btn.feedback-pop mat-icon { transform: scale(1.2); }
     .hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .hero-stats article { border: 1px solid var(--dw-border-subtle); border-radius: var(--dw-radius-md); padding: 10px; background: color-mix(in srgb, var(--dw-surface-elevated) 90%, transparent); display: grid; gap: 2px; }
     .hero-stats label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; color: var(--dw-text-muted); font-weight: 600; }
     .hero-stats strong { font-size: 1.1rem; line-height: 1.05; }
     .hero-stats small { color: var(--dw-text-secondary); font-size: 12px; }
+    .worn-stat.feedback-pop { border-color: color-mix(in srgb, var(--dw-primary) 44%, var(--dw-border-subtle)); }
+    .wear-count { transition: transform 180ms ease, color 180ms ease; }
+    .wear-count.bump { transform: scale(1.14); color: var(--dw-primary); }
     .hero-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .hero-actions button { width: 100%; }
     .mark-worn-btn {
@@ -325,9 +359,31 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
       color: var(--dw-primary-light) !important;
       border: 1px solid color-mix(in srgb, var(--dw-primary-light) 24%, transparent);
       font-weight: 600;
+      transition: transform 180ms ease;
     }
+    .mark-worn-btn.feedback-pop { transform: scale(1.03); }
     .mark-worn-btn:hover:not(:disabled) { filter: brightness(1.04); }
     .mark-worn-btn:disabled { opacity: 0.62; }
+    .action-feedback {
+      border-radius: var(--dw-radius-full);
+      border: 1px solid var(--dw-border-subtle);
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--dw-surface-card);
+    }
+    .action-feedback mat-icon { font-size: 16px; }
+    .action-feedback.favorite {
+      border-color: color-mix(in srgb, var(--dw-accent) 35%, transparent);
+      color: var(--dw-accent);
+    }
+    .action-feedback.worn {
+      border-color: color-mix(in srgb, var(--dw-primary) 35%, transparent);
+      color: var(--dw-primary-dark);
+    }
     .pending { display: flex; gap: 8px; flex-wrap: wrap; }
     .content-grid { display: grid; gap: var(--dw-spacing-lg); grid-template-columns: minmax(280px, 420px) 1fr; }
     .image-column { display: grid; gap: 10px; align-content: start; }
@@ -582,7 +638,7 @@ import { ImageReadyDirective } from '../../../shared/directives/image-ready.dire
     }
   `]
 })
-export class ItemDetailComponent implements OnInit, AfterViewInit {
+export class ItemDetailComponent implements OnInit, AfterViewInit, OnDestroy {
   private static readonly SWIPE_THRESHOLD_PX = 36;
 
   private route = inject(ActivatedRoute);
@@ -646,6 +702,10 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   isImageExpanded = signal(false);
   canScrollLeft = signal(false);
   canScrollRight = signal(true);
+  favoritePulse = signal(false);
+  markWornPulse = signal(false);
+  wornStatPulse = signal(false);
+  actionFeedback = signal<DetailActionFeedback | null>(null);
   isDeletePending = computed(() => {
     const id = this.itemId();
     return !!id && this.wardrobeService.isDeleteMutationPending(id);
@@ -662,6 +722,10 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
   touchStartY = signal<number | null>(null);
   suppressPreviewOpenUntil = signal(0);
   categoryOptions = this.catalogOptionsService.wardrobeCategories;
+  private actionFeedbackTimeoutId = signal<number | null>(null);
+  private favoritePulseTimeoutId = signal<number | null>(null);
+  private markWornPulseTimeoutId = signal<number | null>(null);
+  private wornStatPulseTimeoutId = signal<number | null>(null);
 
   categoryLabel = computed(() => {
     const category = this.item()?.category;
@@ -702,6 +766,13 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     queueMicrotask(() => this.refreshRelatedScrollState());
   }
 
+  ngOnDestroy(): void {
+    this.clearTimer(this.actionFeedbackTimeoutId);
+    this.clearTimer(this.favoritePulseTimeoutId);
+    this.clearTimer(this.markWornPulseTimeoutId);
+    this.clearTimer(this.wornStatPulseTimeoutId);
+  }
+
   goBack(): void {
     this.location.back();
   }
@@ -728,6 +799,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     }
     try {
       await this.wardrobeService.markItemAsWorn(current.id);
+      this.triggerMarkWornFeedback();
     } catch {
       // Keep detail page interactive if update fails.
     }
@@ -738,8 +810,10 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     if (!current || this.isFavoritePending() || this.isDeletePending() || this.isMarkWornPending()) {
       return;
     }
+    const isAddingFavorite = !current.favorite;
     try {
       await this.wardrobeService.toggleFavorite(current.id);
+      this.triggerFavoriteFeedback(isAddingFavorite);
     } catch {
       // Keep page interactive if update fails.
     }
@@ -892,5 +966,90 @@ export class ItemDetailComponent implements OnInit, AfterViewInit {
     return category
       .replace(/-/g, ' ')
       .replace(/\b\w/g, (value) => value.toUpperCase());
+  }
+
+  private triggerFavoriteFeedback(isAddingFavorite: boolean): void {
+    this.triggerPulse('favorite');
+    this.showActionFeedback({
+      kind: 'favorite',
+      icon: isAddingFavorite ? 'favorite' : 'favorite_border',
+      label: isAddingFavorite ? 'Added to favorites' : 'Removed from favorites',
+    });
+    this.triggerHaptics(14);
+  }
+
+  private triggerMarkWornFeedback(): void {
+    this.triggerPulse('mark-worn');
+    this.triggerPulse('worn-stat');
+    this.showActionFeedback({
+      kind: 'worn',
+      icon: 'check_circle',
+      label: 'Wear logged',
+    });
+    this.triggerHaptics([12, 38, 16]);
+  }
+
+  private triggerPulse(type: 'favorite' | 'mark-worn' | 'worn-stat'): void {
+    const durationMs = 360;
+    if (type === 'favorite') {
+      this.clearTimer(this.favoritePulseTimeoutId);
+      this.favoritePulse.set(false);
+      this.favoritePulseTimeoutId.set(window.setTimeout(() => {
+        this.favoritePulse.set(true);
+        this.favoritePulseTimeoutId.set(window.setTimeout(() => {
+          this.favoritePulse.set(false);
+          this.favoritePulseTimeoutId.set(null);
+        }, durationMs));
+      }, 0));
+      return;
+    }
+
+    if (type === 'mark-worn') {
+      this.clearTimer(this.markWornPulseTimeoutId);
+      this.markWornPulse.set(false);
+      this.markWornPulseTimeoutId.set(window.setTimeout(() => {
+        this.markWornPulse.set(true);
+        this.markWornPulseTimeoutId.set(window.setTimeout(() => {
+          this.markWornPulse.set(false);
+          this.markWornPulseTimeoutId.set(null);
+        }, durationMs));
+      }, 0));
+      return;
+    }
+
+    this.clearTimer(this.wornStatPulseTimeoutId);
+    this.wornStatPulse.set(false);
+    this.wornStatPulseTimeoutId.set(window.setTimeout(() => {
+      this.wornStatPulse.set(true);
+      this.wornStatPulseTimeoutId.set(window.setTimeout(() => {
+        this.wornStatPulse.set(false);
+        this.wornStatPulseTimeoutId.set(null);
+      }, durationMs));
+    }, 0));
+  }
+
+  private showActionFeedback(feedback: DetailActionFeedback): void {
+    this.clearTimer(this.actionFeedbackTimeoutId);
+    this.actionFeedback.set(feedback);
+    this.actionFeedbackTimeoutId.set(window.setTimeout(() => {
+      this.actionFeedback.set(null);
+      this.actionFeedbackTimeoutId.set(null);
+    }, 1800));
+  }
+
+  private triggerHaptics(pattern: number | number[]): void {
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
+      return;
+    }
+    navigator.vibrate(pattern);
+  }
+
+  private clearTimer(timerIdSignal: WritableSignal<number | null>): void {
+    const timerId = timerIdSignal();
+    if (timerId === null) {
+      return;
+    }
+    clearTimeout(timerId);
+    timerIdSignal.set(null);
   }
 }

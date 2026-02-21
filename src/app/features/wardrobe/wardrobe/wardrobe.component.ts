@@ -288,14 +288,6 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         </section>
       }
 
-      <button
-        type="button"
-        class="mobile-add-fab"
-        routerLink="/wardrobe/add"
-        aria-label="Add wardrobe item">
-        <mat-icon>add</mat-icon>
-      </button>
-
     </div>
   `,
   styles: [`
@@ -725,24 +717,6 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       margin-top: var(--dw-spacing-lg);
     }
 
-    .mobile-add-fab {
-      position: fixed;
-      right: 16px;
-      bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 12px);
-      width: 52px;
-      height: 52px;
-      border: none;
-      border-radius: 50%;
-      background: var(--dw-gradient-primary);
-      color: var(--dw-on-primary);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      box-shadow: var(--dw-shadow-lg), var(--dw-shadow-glow);
-      z-index: 28;
-      cursor: pointer;
-    }
-
     @media (max-width: 1100px) {
       .items-grid {
         grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -752,7 +726,7 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
     @media (max-width: 768px) {
       .wardrobe-page {
         padding: var(--dw-spacing-md);
-        padding-bottom: calc(var(--dw-mobile-nav-height) + 88px);
+        padding-bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 16px);
       }
 
       .hero-panel {
@@ -833,9 +807,6 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         padding: var(--dw-spacing-xl) var(--dw-spacing-md);
       }
 
-      .mobile-add-fab {
-        display: inline-flex;
-      }
     }
   `]
 })

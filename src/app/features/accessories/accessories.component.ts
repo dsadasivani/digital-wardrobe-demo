@@ -268,13 +268,6 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         </div>
       }
 
-      <button
-        type="button"
-        class="mobile-add-fab"
-        routerLink="/accessories/add"
-        aria-label="Add accessory">
-        <mat-icon>add</mat-icon>
-      </button>
     </div>
   `,
   styles: [`
@@ -648,28 +641,10 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
       max-width: 320px;
     }
 
-    .mobile-add-fab {
-      position: fixed;
-      right: 16px;
-      bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 12px);
-      width: 52px;
-      height: 52px;
-      border: none;
-      border-radius: 50%;
-      background: var(--dw-gradient-primary);
-      color: var(--dw-on-primary);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      box-shadow: var(--dw-shadow-lg), var(--dw-shadow-glow);
-      z-index: 28;
-      cursor: pointer;
-    }
-
     @media (max-width: 768px) {
       .accessories-page {
         padding: var(--dw-spacing-md);
-        padding-bottom: calc(var(--dw-mobile-nav-height) + 88px);
+        padding-bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 16px);
       }
 
       .hero-panel {
@@ -714,9 +689,6 @@ const LIST_LOADING_PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
         gap: 12px;
       }
 
-      .mobile-add-fab {
-        display: inline-flex;
-      }
     }
   `],
 })

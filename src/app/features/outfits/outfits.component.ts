@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -48,7 +55,9 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
         <div class="hero-header">
           <div class="header-copy">
             <h1>My Outfits</h1>
-            <p class="subtitle">{{ filteredOutfits().length }} of {{ totalOutfitsCount() }} combinations in view</p>
+            <p class="subtitle">
+              {{ filteredOutfits().length }} of {{ totalOutfitsCount() }} combinations in view
+            </p>
           </div>
           <div class="header-actions desktop-actions">
             <button type="button" class="action-btn secondary" [matMenuTriggerFor]="sortMenu">
@@ -62,11 +71,24 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
             </button>
           </div>
           <div class="header-actions mobile-actions">
-            <button type="button" class="action-btn secondary" [matMenuTriggerFor]="sortMenu" aria-label="Sort outfits">
+            <button
+              type="button"
+              class="action-btn secondary"
+              [matMenuTriggerFor]="sortMenu"
+              aria-label="Sort outfits"
+            >
               <mat-icon>sort</mat-icon>
             </button>
             <button class="action-btn secondary" routerLink="/calendar" aria-label="Open calendar">
               <mat-icon>calendar_month</mat-icon>
+            </button>
+            <button
+              class="action-btn primary create-outfit-mobile-btn"
+              routerLink="/outfit-canvas"
+              aria-label="Create outfit"
+            >
+              <mat-icon>brush</mat-icon>
+              <span>Create outfit</span>
             </button>
           </div>
         </div>
@@ -77,7 +99,8 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
               type="button"
               class="preset-chip"
               [class.active]="activeQuickFilter() === preset.id"
-              (click)="setQuickFilter(preset.id)">
+              (click)="setQuickFilter(preset.id)"
+            >
               <mat-icon>{{ preset.icon }}</mat-icon>
               <span>{{ preset.label }}</span>
               <strong>{{ getQuickFilterCount(preset.id) }}</strong>
@@ -113,9 +136,15 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
             class="search-input"
             placeholder="Search outfits, occasions, seasons..."
             [ngModel]="searchQuery()"
-            (ngModelChange)="searchQuery.set($event)">
+            (ngModelChange)="searchQuery.set($event)"
+          />
           @if (searchQuery()) {
-            <button type="button" class="clear-btn" (click)="searchQuery.set('')" aria-label="Clear search">
+            <button
+              type="button"
+              class="clear-btn"
+              (click)="searchQuery.set('')"
+              aria-label="Clear search"
+            >
               <mat-icon>close</mat-icon>
             </button>
           }
@@ -135,7 +164,8 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
           type="button"
           class="chip"
           [class.active]="selectedCategory() === 'all'"
-          (click)="selectedCategory.set('all')">
+          (click)="selectedCategory.set('all')"
+        >
           All
         </button>
         @for (entry of outfitCategories(); track entry.id) {
@@ -143,7 +173,8 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
             type="button"
             class="chip"
             [class.active]="selectedCategory() === entry.id"
-            (click)="selectedCategory.set(entry.id)">
+            (click)="selectedCategory.set(entry.id)"
+          >
             <mat-icon>{{ entry.icon }}</mat-icon>
             {{ entry.label }}
             <span>{{ getCategoryCount(entry.id) }}</span>
@@ -194,7 +225,8 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
             <div
               class="outfit-card"
               [class.favorite]="outfit.favorite"
-              [routerLink]="['/outfits', outfit.id]">
+              [routerLink]="['/outfits', outfit.id]"
+            >
               <div class="outfit-image">
                 @if (outfitPreviewImages(outfit); as previewImages) {
                   @if (previewImages.length > 0) {
@@ -206,7 +238,11 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
                     >
                       @for (imageUrl of previewImages; track imageUrl + '-' + $index) {
                         <div class="grid-cell">
-                          <img [src]="imageUrl" [dwImageReady]="imageUrl" [alt]="outfit.name + ' item ' + ($index + 1)" />
+                          <img
+                            [src]="imageUrl"
+                            [dwImageReady]="imageUrl"
+                            [alt]="outfit.name + ' item ' + ($index + 1)"
+                          />
                         </div>
                       }
                     </div>
@@ -219,19 +255,33 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
                 @if (hiddenItemsCount(outfit) > 0) {
                   <div class="more-items-badge">+{{ hiddenItemsCount(outfit) }}</div>
                 }
-                @if (outfit.rating) {<div class="rating"><mat-icon>star</mat-icon>{{ outfit.rating }}</div>}
+                @if (outfit.rating) {
+                  <div class="rating"><mat-icon>star</mat-icon>{{ outfit.rating }}</div>
+                }
               </div>
               <div class="outfit-content">
                 <h3>{{ outfit.name }}</h3>
                 <div class="meta">
-                  @if (outfit.category) {<span class="badge">{{ displayCategoryLabel(outfit.category) }}</span>}
-                  @if (outfit.occasion) {<span class="badge">{{ outfit.occasion }}</span>}
-                  @if (outfit.season) {<span class="badge">{{ outfit.season }}</span>}
+                  @if (outfit.category) {
+                    <span class="badge">{{ displayCategoryLabel(outfit.category) }}</span>
+                  }
+                  @if (outfit.occasion) {
+                    <span class="badge">{{ outfit.occasion }}</span>
+                  }
+                  @if (outfit.season) {
+                    <span class="badge">{{ outfit.season }}</span>
+                  }
                 </div>
-                <span class="items-count"><mat-icon>layers</mat-icon>{{ outfit.items.length }} items</span>
-                <span class="items-count"><mat-icon>check_circle</mat-icon>{{ outfit.worn }} worn</span>
+                <span class="items-count"
+                  ><mat-icon>layers</mat-icon>{{ outfit.items.length }} items</span
+                >
+                <span class="items-count"
+                  ><mat-icon>check_circle</mat-icon>{{ outfit.worn }} worn</span
+                >
                 @if (outfit.plannedDates?.length) {
-                  <span class="planned-on"><mat-icon>event</mat-icon>{{ outfit.plannedDates![0] }}</span>
+                  <span class="planned-on"
+                    ><mat-icon>event</mat-icon>{{ outfit.plannedDates![0] }}</span
+                  >
                 }
               </div>
             </div>
@@ -263,7 +313,8 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
             type="button"
             class="action-btn secondary"
             (click)="onLoadMore()"
-            [disabled]="isLoadingMoreOutfits()">
+            [disabled]="isLoadingMoreOutfits()"
+          >
             @if (isLoadingMoreOutfits()) {
               <mat-icon>hourglass_top</mat-icon>
               <span>Loading...</span>
@@ -274,417 +325,569 @@ const OUTFIT_FILTER_PRESETS: readonly OutfitFilterPreset[] = [
           </button>
         </div>
       }
-
-      <button
-        type="button"
-        class="mobile-add-fab"
-        routerLink="/outfit-canvas"
-        aria-label="Create outfit">
-        <mat-icon>brush</mat-icon>
-      </button>
     </div>
   `,
-  styles: [`
-    .outfits-page {
-      padding: var(--dw-spacing-xl);
-      max-width: 1420px;
-      margin: 0 auto;
-    }
-
-    .hero-panel {
-      padding: var(--dw-spacing-lg);
-      margin-bottom: var(--dw-spacing-lg);
-      display: grid;
-      gap: var(--dw-spacing-md);
-      background:
-        radial-gradient(
-          circle at 90% 14%,
-          color-mix(in srgb, var(--dw-accent) 14%, transparent),
-          transparent 44%
-        ),
-        var(--dw-gradient-card);
-    }
-
-    .hero-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: var(--dw-spacing-md);
-    }
-
-    .header-copy {
-      min-width: 0;
-    }
-
-    .header-copy h1 {
-      margin-bottom: var(--dw-spacing-xs);
-    }
-
-    .subtitle {
-      color: var(--dw-text-secondary);
-      margin: 0;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .mobile-actions {
-      display: none;
-    }
-
-    .action-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      border-radius: var(--dw-radius-md);
-      border: 1px solid var(--dw-border-subtle);
-      background: var(--dw-surface-card);
-      color: var(--dw-text-primary);
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .action-btn.primary {
-      border: none;
-      background: var(--dw-gradient-primary);
-      color: var(--dw-on-primary);
-    }
-
-    .action-btn.secondary {
-      background: var(--dw-surface-card);
-      color: var(--dw-text-primary);
-      border: 1px solid var(--dw-border-strong);
-    }
-
-    .preset-filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--dw-spacing-sm);
-    }
-
-    .preset-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 10px;
-      border-radius: var(--dw-radius-full);
-      border: 1px solid var(--dw-border-subtle);
-      background: color-mix(in srgb, var(--dw-surface-elevated) 76%, transparent);
-      color: var(--dw-text-secondary);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .preset-chip strong {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 20px;
-      padding: 0 5px;
-      border-radius: var(--dw-radius-full);
-      font-size: 11px;
-      color: var(--dw-text-primary);
-      background: color-mix(in srgb, var(--dw-primary) 12%, transparent);
-    }
-
-    .preset-chip mat-icon {
-      width: 16px;
-      height: 16px;
-      font-size: 16px;
-    }
-
-    .preset-chip.active {
-      border-color: color-mix(in srgb, var(--dw-primary) 42%, transparent);
-      color: var(--dw-text-primary);
-      background: color-mix(in srgb, var(--dw-primary) 16%, transparent);
-    }
-
-    .filters-section {
-      display: grid;
-      grid-template-columns: minmax(280px, 1fr) auto;
-      align-items: center;
-      gap: var(--dw-spacing-sm);
-      padding: var(--dw-spacing-md) var(--dw-spacing-lg);
-      border-radius: var(--dw-radius-lg);
-      margin-bottom: var(--dw-spacing-sm);
-    }
-
-    .search-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--dw-surface-card);
-      border-radius: var(--dw-radius-md);
-      padding: 0 12px;
-      min-height: 44px;
-      border: 1px solid transparent;
-    }
-
-    .search-container:focus-within {
-      border-color: color-mix(in srgb, var(--dw-primary) 35%, transparent);
-    }
-
-    .search-icon {
-      color: var(--dw-text-muted);
-    }
-
-    .search-input {
-      flex: 1;
-      border: none;
-      background: transparent;
-      outline: none;
-      color: var(--dw-text-primary);
-    }
-
-    .clear-btn {
-      border: none;
-      background: transparent;
-      color: var(--dw-text-muted);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      padding: 0;
-    }
-
-    .filters-row {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .clear-filters-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border: 1px solid color-mix(in srgb, var(--dw-primary) 22%, transparent);
-      border-radius: var(--dw-radius-full);
-      background: transparent;
-      color: var(--dw-text-secondary);
-      cursor: pointer;
-    }
-
-    .filter-chips {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 4px;
-      flex-wrap: wrap;
-    }
-
-    .chip {
-      padding: 8px 14px;
-      border-radius: var(--dw-radius-full);
-      border: 1px solid var(--dw-border-subtle);
-      background: var(--dw-surface-card);
-      color: var(--dw-text-secondary);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-    }
-
-    .chip mat-icon {
-      width: 15px;
-      height: 15px;
-      font-size: 15px;
-    }
-
-    .chip span {
-      font-size: 11px;
-      color: var(--dw-text-muted);
-    }
-
-    .chip.active {
-      background: var(--dw-primary);
-      border-color: var(--dw-primary);
-      color: white;
-    }
-
-    .chip.active span {
-      color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent);
-    }
-
-    .result-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--dw-spacing-md);
-      flex-wrap: wrap;
-      margin: 6px 0 var(--dw-spacing-md);
-    }
-
-    .result-summary {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .result-count {
-      font-size: 12px;
-      color: var(--dw-text-secondary);
-      padding: 4px 10px;
-      border-radius: var(--dw-radius-full);
-      background: color-mix(in srgb, var(--dw-primary) 8%, transparent);
-    }
-
-    .active-filter-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 10px;
-      border-radius: var(--dw-radius-full);
-      border: 1px solid color-mix(in srgb, var(--dw-primary) 20%, transparent);
-      color: var(--dw-text-secondary);
-      background: color-mix(in srgb, var(--dw-surface-elevated) 70%, transparent);
-      font-size: 12px;
-    }
-
-    .sort-indicator {
-      color: var(--dw-text-secondary);
-      font-size: 12px;
-    }
-
-    .outfits-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: var(--dw-spacing-lg);
-    }
-
-    .load-more-row {
-      margin-top: var(--dw-spacing-lg);
-      display: flex;
-      justify-content: center;
-    }
-    .outfit-card { background: var(--dw-gradient-card); border-radius: var(--dw-radius-lg); border: 1px solid var(--dw-border-subtle); overflow: hidden; transition: all 0.25s; }
-    .outfit-card:hover { transform: translateY(-4px); box-shadow: var(--dw-shadow-glow); }
-    .outfit-image { position: relative; aspect-ratio: 4/5; overflow: hidden; }
-    .outfit-image-grid {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 6px;
-      padding: 8px;
-      background:
-        radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--dw-primary) 16%, transparent), transparent 58%),
-        var(--dw-surface-elevated);
-    }
-    .grid-cell {
-      border-radius: 12px;
-      overflow: hidden;
-      background: color-mix(in srgb, var(--dw-surface-card) 78%, black);
-      border: 1px solid color-mix(in srgb, var(--dw-border-subtle) 76%, transparent);
-    }
-    .grid-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .outfit-image-grid.layout-1 .grid-cell:nth-child(1) { grid-column: 1 / span 2; grid-row: 1 / span 2; }
-    .outfit-image-grid.layout-2 .grid-cell:nth-child(1) { grid-row: 1 / span 2; }
-    .outfit-image-grid.layout-3 .grid-cell:nth-child(1) { grid-row: 1 / span 2; }
-    .outfit-image-fallback {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      color: var(--dw-text-muted);
-      background: var(--dw-surface-elevated);
-    }
-    .outfit-image-fallback mat-icon { font-size: 44px; width: 44px; height: 44px; }
-    .more-items-badge {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 2;
-      min-width: 36px;
-      height: 30px;
-      padding: 0 10px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: color-mix(in srgb, var(--dw-overlay-scrim) 90%, transparent);
-      color: var(--dw-on-primary);
-      border: 1px solid color-mix(in srgb, var(--dw-border-strong) 38%, transparent);
-      font-size: 12px;
-      font-weight: 700;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-    }
-    .rating { position: absolute; bottom: 8px; left: 8px; display: flex; align-items: center; gap: 4px; background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent); padding: 4px 10px; border-radius: 20px; font-size: 13px; color: var(--dw-on-primary); }
-    .rating mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--dw-warning); }
-    .outfit-content { padding: var(--dw-spacing-md); }
-    .outfit-content h3 { font-size: 1.1rem; margin-bottom: 8px; }
-    .meta { display: flex; gap: 8px; margin-bottom: 8px; }
-    .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: color-mix(in srgb, var(--dw-primary) 16%, transparent); color: var(--dw-primary); }
-    .items-count { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dw-text-secondary); }
-    .items-count mat-icon { font-size: 16px; width: 16px; height: 16px; }
-    .planned-on { margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dw-text-secondary); }
-    .planned-on mat-icon { font-size: 14px; width: 14px; height: 14px; }
-    .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--dw-spacing-2xl); text-align: center; }
-    .empty-icon { width: 100px; height: 100px; background: var(--dw-surface-card); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: var(--dw-spacing-lg); }
-    .empty-icon mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--dw-text-muted); }
-    .empty-state h3 { margin-bottom: var(--dw-spacing-sm); }
-    .empty-state p { color: var(--dw-text-secondary); margin: 0 0 var(--dw-spacing-lg); max-width: 320px; }
-    .mobile-add-fab {
-      position: fixed;
-      right: 16px;
-      bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 12px);
-      width: 52px;
-      height: 52px;
-      border: none;
-      border-radius: 50%;
-      background: var(--dw-gradient-primary);
-      color: var(--dw-on-primary);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      box-shadow: var(--dw-shadow-lg), var(--dw-shadow-glow);
-      z-index: 28;
-      cursor: pointer;
-    }
-    @media (max-width: 768px) {
+  styles: [
+    `
       .outfits-page {
-        padding: var(--dw-spacing-md);
-        padding-bottom: calc(var(--dw-mobile-nav-height) + 88px);
+        padding: var(--dw-spacing-xl);
+        max-width: 1420px;
+        margin: 0 auto;
       }
-      .hero-panel { padding: var(--dw-spacing-md); }
-      .desktop-actions { display: none; }
-      .mobile-actions { display: flex; }
+
+      .hero-panel {
+        padding: var(--dw-spacing-lg);
+        margin-bottom: var(--dw-spacing-lg);
+        display: grid;
+        gap: var(--dw-spacing-md);
+        background:
+          radial-gradient(
+            circle at 90% 14%,
+            color-mix(in srgb, var(--dw-accent) 14%, transparent),
+            transparent 44%
+          ),
+          var(--dw-gradient-card);
+      }
+
+      .hero-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--dw-spacing-md);
+      }
+
+      .header-copy {
+        min-width: 0;
+      }
+
+      .header-copy h1 {
+        margin-bottom: var(--dw-spacing-xs);
+      }
+
+      .subtitle {
+        color: var(--dw-text-secondary);
+        margin: 0;
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .mobile-actions {
+        display: none;
+      }
+
+      .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: var(--dw-radius-md);
+        border: 1px solid var(--dw-border-subtle);
+        background: var(--dw-surface-card);
+        color: var(--dw-text-primary);
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      .action-btn.primary {
+        border: none;
+        background: var(--dw-gradient-primary);
+        color: var(--dw-on-primary);
+      }
+
+      .action-btn.secondary {
+        background: var(--dw-surface-card);
+        color: var(--dw-text-primary);
+        border: 1px solid var(--dw-border-strong);
+      }
+
       .preset-filters {
+        display: flex;
         flex-wrap: wrap;
-        overflow-x: visible;
-        row-gap: 8px;
+        gap: var(--dw-spacing-sm);
       }
-      .filters-section { grid-template-columns: 1fr; padding: var(--dw-spacing-md); }
-      .filters-row { justify-content: flex-start; }
+
+      .preset-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: var(--dw-radius-full);
+        border: 1px solid var(--dw-border-subtle);
+        background: color-mix(in srgb, var(--dw-surface-elevated) 76%, transparent);
+        color: var(--dw-text-secondary);
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .preset-chip strong {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        padding: 0 5px;
+        border-radius: var(--dw-radius-full);
+        font-size: 11px;
+        color: var(--dw-text-primary);
+        background: color-mix(in srgb, var(--dw-primary) 12%, transparent);
+      }
+
+      .preset-chip mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+      }
+
+      .preset-chip.active {
+        border-color: color-mix(in srgb, var(--dw-primary) 42%, transparent);
+        color: var(--dw-text-primary);
+        background: color-mix(in srgb, var(--dw-primary) 16%, transparent);
+      }
+
+      .filters-section {
+        display: grid;
+        grid-template-columns: minmax(280px, 1fr) auto;
+        align-items: center;
+        gap: var(--dw-spacing-sm);
+        padding: var(--dw-spacing-md) var(--dw-spacing-lg);
+        border-radius: var(--dw-radius-lg);
+        margin-bottom: var(--dw-spacing-sm);
+      }
+
+      .search-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--dw-surface-card);
+        border-radius: var(--dw-radius-md);
+        padding: 0 12px;
+        min-height: 44px;
+        border: 1px solid transparent;
+      }
+
+      .search-container:focus-within {
+        border-color: color-mix(in srgb, var(--dw-primary) 35%, transparent);
+      }
+
+      .search-icon {
+        color: var(--dw-text-muted);
+      }
+
+      .search-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        outline: none;
+        color: var(--dw-text-primary);
+      }
+
+      .clear-btn {
+        border: none;
+        background: transparent;
+        color: var(--dw-text-muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .filters-row {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .clear-filters-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border: 1px solid color-mix(in srgb, var(--dw-primary) 22%, transparent);
+        border-radius: var(--dw-radius-full);
+        background: transparent;
+        color: var(--dw-text-secondary);
+        cursor: pointer;
+      }
+
       .filter-chips {
-        margin-bottom: var(--dw-spacing-md);
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 2px;
+        display: flex;
+        gap: 8px;
+        margin-bottom: 4px;
+        flex-wrap: wrap;
       }
-      .filter-chips::-webkit-scrollbar { display: none; }
-      .chip { flex: 0 0 auto; padding: 7px 12px; font-size: 12px; }
-      .outfits-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--dw-spacing-md); }
-      .outfit-image { aspect-ratio: 4 / 4.2; }
-      .outfit-content { padding: 12px; }
-      .outfit-content h3 { margin: 0 0 6px; font-size: 1rem; }
-      .meta { flex-wrap: wrap; gap: 6px; }
-      .items-count, .planned-on { font-size: 12px; }
-      .empty-state { padding: 28px 16px; }
-      .empty-icon mat-icon { font-size: 44px; width: 44px; height: 44px; }
-      .sort-indicator { display: none; }
-      .mobile-add-fab { display: inline-flex; }
-    }
-  `]
+
+      .chip {
+        padding: 8px 14px;
+        border-radius: var(--dw-radius-full);
+        border: 1px solid var(--dw-border-subtle);
+        background: var(--dw-surface-card);
+        color: var(--dw-text-secondary);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+
+      .chip mat-icon {
+        width: 15px;
+        height: 15px;
+        font-size: 15px;
+      }
+
+      .chip span {
+        font-size: 11px;
+        color: var(--dw-text-muted);
+      }
+
+      .chip.active {
+        background: var(--dw-primary);
+        border-color: var(--dw-primary);
+        color: white;
+      }
+
+      .chip.active span {
+        color: color-mix(in srgb, var(--dw-on-primary) 82%, transparent);
+      }
+
+      .result-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--dw-spacing-md);
+        flex-wrap: wrap;
+        margin: 6px 0 var(--dw-spacing-md);
+      }
+
+      .result-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .result-count {
+        font-size: 12px;
+        color: var(--dw-text-secondary);
+        padding: 4px 10px;
+        border-radius: var(--dw-radius-full);
+        background: color-mix(in srgb, var(--dw-primary) 8%, transparent);
+      }
+
+      .active-filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: var(--dw-radius-full);
+        border: 1px solid color-mix(in srgb, var(--dw-primary) 20%, transparent);
+        color: var(--dw-text-secondary);
+        background: color-mix(in srgb, var(--dw-surface-elevated) 70%, transparent);
+        font-size: 12px;
+      }
+
+      .sort-indicator {
+        color: var(--dw-text-secondary);
+        font-size: 12px;
+      }
+
+      .outfits-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: var(--dw-spacing-lg);
+      }
+
+      .load-more-row {
+        margin-top: var(--dw-spacing-lg);
+        display: flex;
+        justify-content: center;
+      }
+      .outfit-card {
+        background: var(--dw-gradient-card);
+        border-radius: var(--dw-radius-lg);
+        border: 1px solid var(--dw-border-subtle);
+        overflow: hidden;
+        transition: all 0.25s;
+      }
+      .outfit-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--dw-shadow-glow);
+      }
+      .outfit-image {
+        position: relative;
+        aspect-ratio: 4/5;
+        overflow: hidden;
+      }
+      .outfit-image-grid {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 6px;
+        padding: 8px;
+        background:
+          radial-gradient(
+            circle at 10% 10%,
+            color-mix(in srgb, var(--dw-primary) 16%, transparent),
+            transparent 58%
+          ),
+          var(--dw-surface-elevated);
+      }
+      .grid-cell {
+        border-radius: 12px;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--dw-surface-card) 78%, black);
+        border: 1px solid color-mix(in srgb, var(--dw-border-subtle) 76%, transparent);
+      }
+      .grid-cell img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .outfit-image-grid.layout-1 .grid-cell:nth-child(1) {
+        grid-column: 1 / span 2;
+        grid-row: 1 / span 2;
+      }
+      .outfit-image-grid.layout-2 .grid-cell:nth-child(1) {
+        grid-row: 1 / span 2;
+      }
+      .outfit-image-grid.layout-3 .grid-cell:nth-child(1) {
+        grid-row: 1 / span 2;
+      }
+      .outfit-image-fallback {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--dw-text-muted);
+        background: var(--dw-surface-elevated);
+      }
+      .outfit-image-fallback mat-icon {
+        font-size: 44px;
+        width: 44px;
+        height: 44px;
+      }
+      .more-items-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 2;
+        min-width: 36px;
+        height: 30px;
+        padding: 0 10px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: color-mix(in srgb, var(--dw-overlay-scrim) 90%, transparent);
+        color: var(--dw-on-primary);
+        border: 1px solid color-mix(in srgb, var(--dw-border-strong) 38%, transparent);
+        font-size: 12px;
+        font-weight: 700;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+      .rating {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: color-mix(in srgb, var(--dw-overlay-scrim) 92%, transparent);
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        color: var(--dw-on-primary);
+      }
+      .rating mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: var(--dw-warning);
+      }
+      .outfit-content {
+        padding: var(--dw-spacing-md);
+      }
+      .outfit-content h3 {
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+      }
+      .meta {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .badge {
+        font-size: 11px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: color-mix(in srgb, var(--dw-primary) 16%, transparent);
+        color: var(--dw-primary);
+      }
+      .items-count {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--dw-text-secondary);
+      }
+      .items-count mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+      .planned-on {
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--dw-text-secondary);
+      }
+      .planned-on mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+      }
+      .empty-state {
+        grid-column: 1/-1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: var(--dw-spacing-2xl);
+        text-align: center;
+      }
+      .empty-icon {
+        width: 100px;
+        height: 100px;
+        background: var(--dw-surface-card);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: var(--dw-spacing-lg);
+      }
+      .empty-icon mat-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        color: var(--dw-text-muted);
+      }
+      .empty-state h3 {
+        margin-bottom: var(--dw-spacing-sm);
+      }
+      .empty-state p {
+        color: var(--dw-text-secondary);
+        margin: 0 0 var(--dw-spacing-lg);
+        max-width: 320px;
+      }
+      @media (max-width: 768px) {
+        .outfits-page {
+          padding: var(--dw-spacing-md);
+          padding-bottom: calc(var(--dw-mobile-nav-height) + var(--dw-safe-bottom) + 16px);
+        }
+        .hero-panel {
+          padding: var(--dw-spacing-md);
+        }
+        .desktop-actions {
+          display: none;
+        }
+        .mobile-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, auto));
+          gap: 8px;
+          justify-content: end;
+        }
+        .create-outfit-mobile-btn {
+          grid-column: 1 / -1;
+          justify-self: stretch;
+          justify-content: center;
+          min-height: 36px;
+          padding: 6px 10px;
+          gap: 6px;
+        }
+        .create-outfit-mobile-btn span {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+        }
+        .create-outfit-mobile-btn mat-icon {
+          width: 16px;
+          height: 18px;
+          font-size: 17px;
+        }
+        .preset-filters {
+          flex-wrap: wrap;
+          overflow-x: visible;
+          row-gap: 8px;
+        }
+        .filters-section {
+          grid-template-columns: 1fr;
+          padding: var(--dw-spacing-md);
+        }
+        .filters-row {
+          justify-content: flex-start;
+        }
+        .filter-chips {
+          margin-bottom: var(--dw-spacing-md);
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 2px;
+        }
+        .filter-chips::-webkit-scrollbar {
+          display: none;
+        }
+        .chip {
+          flex: 0 0 auto;
+          padding: 7px 12px;
+          font-size: 12px;
+        }
+        .outfits-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: var(--dw-spacing-md);
+        }
+        .outfit-image {
+          aspect-ratio: 4 / 4.2;
+        }
+        .outfit-content {
+          padding: 12px;
+        }
+        .outfit-content h3 {
+          margin: 0 0 6px;
+          font-size: 1rem;
+        }
+        .meta {
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .items-count,
+        .planned-on {
+          font-size: 12px;
+        }
+        .empty-state {
+          padding: 28px 16px;
+        }
+        .empty-icon mat-icon {
+          font-size: 44px;
+          width: 44px;
+          height: 44px;
+        }
+        .sort-indicator {
+          display: none;
+        }
+      }
+    `,
+  ],
 })
 export class OutfitsComponent implements OnInit {
   private wardrobeService = inject(WardrobeService);
@@ -764,8 +967,8 @@ export class OutfitsComponent implements OnInit {
     return total > 0 ? total : this.outfits().length;
   });
   favoriteCount = computed(() => this.outfits().filter((outfit) => outfit.favorite).length);
-  plannedCount = computed(() =>
-    this.outfits().filter((outfit) => (outfit.plannedDates?.length ?? 0) > 0).length,
+  plannedCount = computed(
+    () => this.outfits().filter((outfit) => (outfit.plannedDates?.length ?? 0) > 0).length,
   );
   hasActiveFilters = computed(
     () =>
@@ -795,8 +998,10 @@ export class OutfitsComponent implements OnInit {
     return option?.label ?? this.formatCategoryLabel(selectedCategory);
   });
   outfitPreviewMap = computed<Record<string, string[]>>(() => {
-    const wardrobeImageById = new Map(this.wardrobeItems().map(item => [item.id, item.imageUrl]));
-    const accessoryImageById = new Map(this.accessoryItems().map(item => [item.id, item.imageUrl]));
+    const wardrobeImageById = new Map(this.wardrobeItems().map((item) => [item.id, item.imageUrl]));
+    const accessoryImageById = new Map(
+      this.accessoryItems().map((item) => [item.id, item.imageUrl]),
+    );
     const map: Record<string, string[]> = {};
 
     for (const outfit of this.outfits()) {
@@ -814,7 +1019,8 @@ export class OutfitsComponent implements OnInit {
           break;
         }
       }
-      map[outfit.id] = uniqueImages.length > 0 ? uniqueImages : outfit.imageUrl ? [outfit.imageUrl] : [];
+      map[outfit.id] =
+        uniqueImages.length > 0 ? uniqueImages : outfit.imageUrl ? [outfit.imageUrl] : [];
     }
 
     return map;
@@ -893,7 +1099,9 @@ export class OutfitsComponent implements OnInit {
     if (outfits.length === 0) {
       return;
     }
-    await Promise.allSettled(outfits.map(outfit => this.wardrobeService.ensureOutfitDependenciesLoaded(outfit)));
+    await Promise.allSettled(
+      outfits.map((outfit) => this.wardrobeService.ensureOutfitDependenciesLoaded(outfit)),
+    );
   }
 
   private async loadOutfitCategoryOptions(): Promise<void> {
@@ -912,4 +1120,3 @@ export class OutfitsComponent implements OnInit {
       .join(' ');
   }
 }
-
