@@ -34,7 +34,13 @@ import { MobileNavItem } from '../../../core/services/app-ui-state.service';
       }
       @for (item of navItems(); track item.label) {
         @if (item.kind === 'create') {
-          <button class="mobile-nav-item create-item" [class.open]="createMenuOpen()" (click)="onCreateToggle($event)">
+          <button
+            class="mobile-nav-item create-item"
+            type="button"
+            [class.open]="createMenuOpen()"
+            [attr.aria-label]="createMenuOpen() ? 'Close create menu' : 'Open create menu'"
+            (click)="onCreateToggle($event)"
+          >
             <mat-icon>add</mat-icon>
           </button>
         } @else {
@@ -60,6 +66,18 @@ import { MobileNavItem } from '../../../core/services/app-ui-state.service';
         --dw-mobile-nav-active-icon: var(--dw-primary);
         --dw-mobile-nav-active-dot: var(--dw-accent);
         --dw-mobile-nav-create-fg: var(--dw-on-primary);
+        --dw-mobile-nav-create-gradient: linear-gradient(
+          145deg,
+          color-mix(in srgb, var(--dw-primary-dark) 82%, #ffffff 18%) 0%,
+          var(--dw-primary) 44%,
+          color-mix(in srgb, var(--dw-accent) 64%, var(--dw-primary) 36%) 100%
+        );
+        --dw-mobile-nav-create-border: color-mix(in srgb, var(--dw-on-primary) 56%, transparent);
+        --dw-mobile-nav-create-shadow:
+          0 16px 32px color-mix(in srgb, var(--dw-primary-dark) 30%, transparent),
+          0 8px 16px color-mix(in srgb, var(--dw-accent) 18%, transparent);
+        --dw-mobile-nav-create-halo: color-mix(in srgb, var(--dw-accent) 56%, transparent);
+        --dw-mobile-nav-create-focus: color-mix(in srgb, var(--dw-primary) 34%, transparent);
       }
 
       :host-context(body[data-theme='dark']) {
@@ -68,6 +86,18 @@ import { MobileNavItem } from '../../../core/services/app-ui-state.service';
         --dw-mobile-nav-active-icon: var(--dw-primary-light);
         --dw-mobile-nav-active-dot: var(--dw-accent-light);
         --dw-mobile-nav-create-fg: var(--dw-on-primary);
+        --dw-mobile-nav-create-gradient: linear-gradient(
+          145deg,
+          color-mix(in srgb, var(--dw-primary-dark) 58%, #f4d8b7 42%) 0%,
+          color-mix(in srgb, var(--dw-primary) 72%, #ffe5c7 28%) 50%,
+          color-mix(in srgb, var(--dw-accent) 68%, #ffe5c8 32%) 100%
+        );
+        --dw-mobile-nav-create-border: color-mix(in srgb, #fff0de 36%, transparent);
+        --dw-mobile-nav-create-shadow:
+          0 18px 34px color-mix(in srgb, #000 58%, transparent),
+          0 10px 24px color-mix(in srgb, var(--dw-accent) 24%, transparent);
+        --dw-mobile-nav-create-halo: color-mix(in srgb, var(--dw-accent-light) 62%, transparent);
+        --dw-mobile-nav-create-focus: color-mix(in srgb, var(--dw-primary-light) 34%, transparent);
       }
 
       .mobile-create-backdrop {
@@ -228,21 +258,77 @@ import { MobileNavItem } from '../../../core/services/app-ui-state.service';
         border-radius: 50%;
         padding: 0;
         margin-top: -22px;
-        background: var(--dw-gradient-primary);
+        position: relative;
+        isolation: isolate;
+        overflow: visible;
+        background: var(--dw-mobile-nav-create-gradient);
+        border: 1px solid var(--dw-mobile-nav-create-border);
         color: var(--dw-mobile-nav-create-fg);
-        box-shadow: var(--dw-shadow-md);
+        box-shadow: var(--dw-mobile-nav-create-shadow);
+        transition:
+          transform 180ms var(--dw-ease-emphasis),
+          box-shadow 180ms var(--dw-ease-emphasis);
+      }
+
+      .mobile-nav-item.create-item::before {
+        content: '';
+        position: absolute;
+        inset: -5px;
+        border-radius: inherit;
+        z-index: -2;
+        background:
+          radial-gradient(
+            circle at 50% 45%,
+            color-mix(in srgb, white 28%, transparent) 0%,
+            transparent 56%
+          ),
+          radial-gradient(
+            circle at 50% 50%,
+            var(--dw-mobile-nav-create-halo) 0%,
+            transparent 72%
+          );
+        opacity: 0.9;
+        pointer-events: none;
+      }
+
+      .mobile-nav-item.create-item::after {
+        content: '';
+        position: absolute;
+        inset: 3px;
+        border-radius: inherit;
+        z-index: -1;
+        background: linear-gradient(
+          158deg,
+          color-mix(in srgb, white 24%, transparent) 0%,
+          color-mix(in srgb, white 4%, transparent) 40%,
+          transparent 78%
+        );
+        opacity: 0.8;
+        pointer-events: none;
       }
 
       .mobile-nav-item.create-item mat-icon {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
+        font-size: 31px;
+        width: 31px;
+        height: 31px;
         color: var(--dw-mobile-nav-create-fg);
-        transition: transform 220ms ease;
+        filter: drop-shadow(0 1px 0 color-mix(in srgb, #000 16%, transparent));
+        transition: transform 220ms var(--dw-ease-emphasis);
       }
 
       .mobile-nav-item.create-item.open mat-icon {
         transform: rotate(135deg);
+      }
+
+      .mobile-nav-item.create-item.open {
+        transform: translateY(-1px) scale(1.02);
+        box-shadow:
+          0 18px 34px color-mix(in srgb, var(--dw-primary-dark) 35%, transparent),
+          0 0 0 6px color-mix(in srgb, var(--dw-mobile-nav-create-halo) 24%, transparent);
+      }
+
+      .mobile-nav-item.create-item.open::before {
+        animation: createHaloPulse 1.4s ease-in-out infinite;
       }
 
       .mobile-nav-item.create-item span {
@@ -250,7 +336,12 @@ import { MobileNavItem } from '../../../core/services/app-ui-state.service';
       }
 
       .mobile-nav-item.create-item:active {
-        transform: scale(0.96);
+        transform: translateY(1px) scale(0.95);
+      }
+
+      .mobile-nav-item.create-item:focus-visible {
+        outline: 2px solid var(--dw-mobile-nav-create-focus);
+        outline-offset: 3px;
       }
 
       @keyframes createPopupIn {
@@ -261,6 +352,21 @@ import { MobileNavItem } from '../../../core/services/app-ui-state.service';
         to {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
+        }
+      }
+
+      @keyframes createHaloPulse {
+        0% {
+          transform: scale(0.98);
+          opacity: 0.7;
+        }
+        50% {
+          transform: scale(1.04);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(0.98);
+          opacity: 0.7;
         }
       }
     `,
