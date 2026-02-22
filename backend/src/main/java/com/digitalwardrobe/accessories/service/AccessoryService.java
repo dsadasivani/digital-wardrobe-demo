@@ -89,7 +89,7 @@ public class AccessoryService {
 
         item.setWorn(0);
         item.setFavorite(Boolean.TRUE.equals(request.favorite()));
-        item.setTags(request.tags());
+        item.setTags(normalizeTags(request.tags()));
         item.setCreatedAt(Instant.now());
         item.setUpdatedAt(Instant.now());
         AccessoryDocument saved = accessoryRepository.save(item);
@@ -140,7 +140,7 @@ public class AccessoryService {
             item.setFavorite(request.favorite());
         }
         if (request.tags() != null) {
-            item.setTags(request.tags());
+            item.setTags(normalizeTags(request.tags()));
         }
         item.setUpdatedAt(Instant.now());
         AccessoryDocument saved = accessoryRepository.save(item);
@@ -344,6 +344,16 @@ public class AccessoryService {
         }
         return imagePaths.stream()
                 .filter(path -> path != null && !path.isBlank())
+                .map(String::trim)
+                .toList();
+    }
+
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null) {
+            return List.of();
+        }
+        return tags.stream()
+                .filter(tag -> tag != null && !tag.isBlank())
                 .map(String::trim)
                 .toList();
     }

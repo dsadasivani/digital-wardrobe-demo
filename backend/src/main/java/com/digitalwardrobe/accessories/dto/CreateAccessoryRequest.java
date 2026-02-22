@@ -2,7 +2,6 @@ package com.digitalwardrobe.accessories.dto;
 
 import java.math.BigDecimal;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
@@ -23,5 +22,5 @@ public record CreateAccessoryRequest(
         List<String> imagePaths,
         String primaryImagePath,
         @NotNull(message = "favorite is required") Boolean favorite,
-        @NotEmpty(message = "tags are required") List<String> tags) {
+        List<String> tags) {
 }

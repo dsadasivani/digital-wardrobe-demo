@@ -90,7 +90,7 @@ public class WardrobeService {
         }
 
         item.setFavorite(Boolean.TRUE.equals(request.favorite()));
-        item.setTags(request.tags());
+        item.setTags(normalizeTags(request.tags()));
         item.setNotes(request.notes());
         item.setWorn(0);
         item.setCreatedAt(Instant.now());
@@ -152,7 +152,7 @@ public class WardrobeService {
             item.setFavorite(request.favorite());
         }
         if (request.tags() != null) {
-            item.setTags(request.tags());
+            item.setTags(normalizeTags(request.tags()));
         }
         if (request.notes() != null) {
             item.setNotes(request.notes());
@@ -360,6 +360,16 @@ public class WardrobeService {
         }
         return imagePaths.stream()
                 .filter(path -> path != null && !path.isBlank())
+                .map(String::trim)
+                .toList();
+    }
+
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null) {
+            return List.of();
+        }
+        return tags.stream()
+                .filter(tag -> tag != null && !tag.isBlank())
                 .map(String::trim)
                 .toList();
     }
