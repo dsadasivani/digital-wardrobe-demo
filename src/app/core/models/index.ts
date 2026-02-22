@@ -147,10 +147,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  gender?: UserGender;
   avatar?: string;
   preferences: UserPreferences;
   createdAt: Date;
 }
+
+export type UserGender = 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
 
 export interface UserPreferences {
   favoriteColors: string[];

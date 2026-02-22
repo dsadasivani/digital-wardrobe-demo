@@ -41,7 +41,7 @@ public class UserController {
                 schema = @Schema(implementation = UserResponse.class),
                 examples = @ExampleObject(
                     name = "UserProfile",
-                    value = "{\"id\":\"67bf5f01\",\"name\":\"Alex Doe\",\"email\":\"alex@example.com\",\"avatar\":null,\"preferences\":{\"favoriteColors\":[\"black\"],\"stylePreferences\":[\"minimal\"],\"location\":\"Hyderabad\",\"notificationsEnabled\":true,\"darkMode\":false},\"createdAt\":\"2026-02-15T09:00:00Z\"}"
+                    value = "{\"id\":\"67bf5f01\",\"name\":\"Alex Doe\",\"email\":\"alex@example.com\",\"gender\":\"female\",\"avatar\":null,\"preferences\":{\"favoriteColors\":[\"black\"],\"stylePreferences\":[\"minimal\"],\"location\":\"Hyderabad\",\"notificationsEnabled\":true,\"darkMode\":false},\"createdAt\":\"2026-02-15T09:00:00Z\"}"
                 )
             )
         ),

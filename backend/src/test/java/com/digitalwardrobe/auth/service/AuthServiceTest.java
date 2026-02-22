@@ -39,7 +39,7 @@ class AuthServiceTest {
     @Test
     void signup_ShouldNormalizeEmailAndReturnToken() {
         AuthService authService = new AuthService(userService, passwordEncoder, jwtService);
-        SignupRequest request = new SignupRequest("Test User", "  USER@Example.Com ", "password123");
+        SignupRequest request = new SignupRequest("Test User", "  USER@Example.Com ", "password123", "female");
 
         UserDocument savedUser = new UserDocument();
         savedUser.setId("user-1");
@@ -52,7 +52,7 @@ class AuthServiceTest {
         when(userService.save(any(UserDocument.class))).thenReturn(savedUser);
         when(jwtService.generateToken("user-1", "user@example.com", List.of("USER"))).thenReturn("jwt-token");
         when(userService.toResponse(savedUser)).thenReturn(
-            new UserResponse("user-1", "Test User", "user@example.com", null, null, null)
+            new UserResponse("user-1", "Test User", "user@example.com", "female", null, null, null)
         );
 
         AuthResponse response = authService.signup(request);
@@ -69,7 +69,7 @@ class AuthServiceTest {
 
         ResponseStatusException ex = assertThrows(
             ResponseStatusException.class,
-            () -> authService.signup(new SignupRequest("A", "user@example.com", "password123"))
+            () -> authService.signup(new SignupRequest("A", "user@example.com", "password123", "male"))
         );
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }

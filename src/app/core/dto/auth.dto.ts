@@ -1,3 +1,5 @@
+export type UserGenderDto = 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
+
 export interface UserPreferencesDto {
   favoriteColors: string[];
   stylePreferences: string[];
@@ -10,6 +12,7 @@ export interface UserDto {
   id: string;
   name: string;
   email: string;
+  gender: UserGenderDto | null;
   avatar: string | null;
   preferences: UserPreferencesDto;
   createdAt: string;
@@ -43,6 +46,7 @@ export interface SignupRequestDto {
   name: string;
   email: string;
   password: string;
+  gender: UserGenderDto;
 }
 
 export interface UpdateUserPreferencesRequestDto {
@@ -56,6 +60,7 @@ export interface UpdateUserPreferencesRequestDto {
 export interface UpdateUserRequestDto {
   name?: string;
   email?: string;
+  gender?: UserGenderDto;
   avatar?: string;
   preferences?: UpdateUserPreferencesRequestDto;
 }

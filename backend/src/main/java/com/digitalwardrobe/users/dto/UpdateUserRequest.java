@@ -2,6 +2,7 @@ package com.digitalwardrobe.users.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
@@ -10,6 +11,11 @@ public record UpdateUserRequest(
     String name,
     @Email(message = "email must be valid")
     String email,
+    @Pattern(
+        regexp = "male|female|non-binary|prefer-not-to-say",
+        message = "gender must be one of male, female, non-binary, prefer-not-to-say"
+    )
+    String gender,
     String avatar,
     @Valid
     PreferencesPatch preferences

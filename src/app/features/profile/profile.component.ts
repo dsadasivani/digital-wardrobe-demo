@@ -14,9 +14,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router } from '@angular/router';
 import { AuthService, ImageCropperService } from '../../core/services';
+import { UserGender } from '../../core/models';
 import { ImageReadyDirective } from '../../shared/directives/image-ready.directive';
 
 @Component({
@@ -30,6 +32,7 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
     MatButtonModule,
     MatIconModule,
     MatSlideToggleModule,
+    MatSelectModule,
     ImageReadyDirective,
   ],
   template: `
@@ -49,15 +52,32 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
           </div>
 
           <div class="avatar-actions">
-            <button
-              mat-stroked-button
-              type="button"
-              [disabled]="isAvatarProcessing()"
-              (click)="openAvatarPicker()"
-            >
-              <mat-icon>{{ isAvatarProcessing() ? 'hourglass_top' : 'photo_camera' }}</mat-icon>
-              {{ isAvatarProcessing() ? 'Processing...' : 'Change Photo' }}
-            </button>
+            <div class="avatar-top-row">
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="isAvatarProcessing()"
+                (click)="openAvatarPicker()"
+              >
+                <mat-icon>{{ isAvatarProcessing() ? 'hourglass_top' : 'photo_camera' }}</mat-icon>
+                {{ isAvatarProcessing() ? 'Processing...' : 'Change Photo' }}
+              </button>
+              <div class="gender-signature" [ngClass]="genderThemeClass()" aria-live="polite">
+                <span class="gender-motion" aria-hidden="true">
+                  <span class="gender-halo"></span>
+                  <span class="gender-particle-wrap">
+                    <span class="gender-particle"></span>
+                  </span>
+                  <span class="gender-core">
+                    <mat-icon>{{ genderIcon() }}</mat-icon>
+                  </span>
+                </span>
+                <span class="gender-copy">
+                  <span class="gender-kicker">Identity</span>
+                  <strong>{{ genderLabel() }}</strong>
+                </span>
+              </div>
+            </div>
             <button
               mat-button
               type="button"
@@ -79,6 +99,7 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
               <p class="avatar-error">{{ avatarError() }}</p>
             }
           </div>
+
         </div>
 
         <form class="profile-form">
@@ -96,6 +117,15 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
               name="email"
               type="email"
             />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Gender</mat-label>
+            <mat-select [ngModel]="gender()" (ngModelChange)="gender.set($event)" name="gender">
+              @for (option of genderOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -168,6 +198,7 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
       .avatar-section {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: var(--dw-spacing-lg);
         margin-bottom: var(--dw-spacing-xl);
       }
@@ -196,6 +227,12 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
         display: grid;
         gap: 4px;
       }
+      .avatar-top-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
       .remove-avatar-btn {
         justify-self: flex-start;
         padding-left: 2px;
@@ -210,6 +247,128 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
         margin: 0;
         font-size: 12px;
         color: var(--dw-error);
+      }
+      .gender-signature {
+        --gender-accent: var(--dw-primary);
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 40px;
+        padding: 5px 12px 5px 7px;
+        border-radius: var(--dw-radius-full);
+        border: 1px solid color-mix(in srgb, var(--dw-border-subtle) 68%, var(--gender-accent) 32%);
+        background: linear-gradient(
+          120deg,
+          color-mix(in srgb, var(--dw-surface-card) 95%, var(--gender-accent) 5%) 0%,
+          color-mix(in srgb, var(--dw-surface-card) 89%, var(--gender-accent) 11%) 100%
+        );
+        box-shadow: inset 0 1px 0 color-mix(in srgb, var(--dw-surface-elevated) 86%, transparent);
+        color: var(--dw-text-secondary);
+        flex-shrink: 0;
+      }
+      .gender-motion {
+        position: relative;
+        width: 26px;
+        height: 26px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .gender-halo {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1px solid color-mix(in srgb, var(--gender-accent) 36%, transparent);
+        animation: genderHaloBreath 2.8s ease-in-out infinite;
+      }
+      .gender-particle-wrap {
+        position: absolute;
+        inset: 0;
+        animation: genderParticleOrbit 4.5s linear infinite;
+      }
+      .gender-particle {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        transform: translateX(-50%);
+        background: color-mix(in srgb, var(--gender-accent) 88%, var(--dw-surface-elevated));
+        box-shadow: 0 0 8px color-mix(in srgb, var(--gender-accent) 50%, transparent);
+      }
+      .gender-core {
+        position: relative;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--gender-accent) 82%, var(--dw-surface-card));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--gender-accent) 18%, transparent);
+        animation: genderCorePulse 2.8s ease-in-out infinite;
+      }
+      .gender-core mat-icon {
+        font-size: 11px;
+        width: 11px;
+        height: 11px;
+        color: var(--dw-surface-card);
+      }
+      .gender-copy {
+        display: grid;
+        line-height: 1.05;
+      }
+      .gender-kicker {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dw-text-muted);
+      }
+      .gender-copy strong {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .gender-male {
+        --gender-accent: #6b8fcc;
+      }
+      .gender-female {
+        --gender-accent: #c889ad;
+      }
+      .gender-non-binary {
+        --gender-accent: #5a9f8d;
+      }
+      .gender-neutral {
+        --gender-accent: #8f95ab;
+      }
+      @keyframes genderHaloBreath {
+        from {
+          transform: scale(0.96);
+          opacity: 0.55;
+        }
+        to {
+          transform: scale(1.06);
+          opacity: 1;
+        }
+      }
+      @keyframes genderParticleOrbit {
+        0%,
+        100% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes genderCorePulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.08);
+        }
       }
       .profile-form {
         display: flex;
@@ -268,6 +427,13 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
       .logout-btn:hover {
         background: color-mix(in srgb, var(--dw-error) 10%, transparent) !important;
       }
+      @media (prefers-reduced-motion: reduce) {
+        .gender-halo,
+        .gender-particle-wrap,
+        .gender-core {
+          animation: none;
+        }
+      }
 
       @media (max-width: 768px) {
         .profile-page {
@@ -310,6 +476,14 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
         .avatar-actions {
           width: 100%;
         }
+        .avatar-top-row {
+          width: 100%;
+          justify-content: flex-start;
+          gap: 8px;
+        }
+        .gender-signature {
+          min-height: 36px;
+        }
 
         .profile-form {
           gap: 10px;
@@ -338,6 +512,13 @@ import { ImageReadyDirective } from '../../shared/directives/image-ready.directi
   ],
 })
 export class ProfileComponent {
+  readonly genderOptions: ReadonlyArray<{ value: UserGender; label: string }> = [
+    { value: 'female', label: 'Female' },
+    { value: 'male', label: 'Male' },
+    { value: 'non-binary', label: 'Non-binary' },
+    { value: 'prefer-not-to-say', label: 'Prefer not to say' },
+  ];
+
   private authService = inject(AuthService);
   private imageCropper = inject(ImageCropperService);
   private router = inject(Router);
@@ -346,6 +527,7 @@ export class ProfileComponent {
   user = this.authService.user;
   name = linkedSignal(() => this.user()?.name ?? '');
   email = linkedSignal(() => this.user()?.email ?? '');
+  gender = linkedSignal<UserGender>(() => this.user()?.gender ?? 'prefer-not-to-say');
   location = linkedSignal(() => this.user()?.preferences?.location ?? '');
   darkMode = linkedSignal(() => this.user()?.preferences?.darkMode ?? false);
   notificationsEnabled = linkedSignal(() => this.user()?.preferences?.notificationsEnabled ?? true);
@@ -356,11 +538,48 @@ export class ProfileComponent {
   displayAvatar = computed(() =>
     this.avatarChanged() ? this.avatarDraft() : this.avatarDraft() || this.user()?.avatar || null,
   );
+  genderLabel = computed(() => {
+    switch (this.gender()) {
+      case 'female':
+        return 'Female';
+      case 'male':
+        return 'Male';
+      case 'non-binary':
+        return 'Non-binary';
+      default:
+        return 'Prefer not to say';
+    }
+  });
+  genderIcon = computed(() => {
+    switch (this.gender()) {
+      case 'female':
+        return 'face_3';
+      case 'male':
+        return 'face_6';
+      case 'non-binary':
+        return 'diversity_3';
+      default:
+        return 'self_improvement';
+    }
+  });
+  genderThemeClass = computed(() => {
+    switch (this.gender()) {
+      case 'female':
+        return 'gender-female';
+      case 'male':
+        return 'gender-male';
+      case 'non-binary':
+        return 'gender-non-binary';
+      default:
+        return 'gender-neutral';
+    }
+  });
 
   saveChanges(): void {
     this.authService.updateProfile({
       name: this.name().trim() || this.user()?.name,
       email: this.email().trim() || this.user()?.email,
+      gender: this.gender(),
       avatar: this.avatarChanged() ? (this.avatarDraft() ?? '') : undefined,
       preferences: {
         ...(this.user()?.preferences ?? {

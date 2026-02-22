@@ -41,7 +41,7 @@ public class AuthController {
                 schema = @Schema(implementation = AuthResponse.class),
                 examples = @ExampleObject(
                     name = "SignupSuccess",
-                    value = "{\"token\":\"eyJhbGciOi...\",\"user\":{\"id\":\"67bf5f01\",\"name\":\"Alex Doe\",\"email\":\"alex@example.com\",\"avatar\":null,\"preferences\":{\"favoriteColors\":[],\"stylePreferences\":[],\"location\":null,\"notificationsEnabled\":true,\"darkMode\":false},\"createdAt\":\"2026-02-15T09:00:00Z\"}}"
+                    value = "{\"token\":\"eyJhbGciOi...\",\"user\":{\"id\":\"67bf5f01\",\"name\":\"Alex Doe\",\"email\":\"alex@example.com\",\"gender\":\"female\",\"avatar\":null,\"preferences\":{\"favoriteColors\":[],\"stylePreferences\":[],\"location\":null,\"notificationsEnabled\":true,\"darkMode\":false},\"createdAt\":\"2026-02-15T09:00:00Z\"}}"
                 )
             )
         ),
@@ -85,7 +85,7 @@ public class AuthController {
                 schema = @Schema(implementation = AuthResponse.class),
                 examples = @ExampleObject(
                     name = "LoginSuccess",
-                    value = "{\"token\":\"eyJhbGciOi...\",\"user\":{\"id\":\"67bf5f01\",\"name\":\"Alex Doe\",\"email\":\"alex@example.com\",\"avatar\":null,\"preferences\":{\"favoriteColors\":[],\"stylePreferences\":[],\"location\":null,\"notificationsEnabled\":true,\"darkMode\":false},\"createdAt\":\"2026-02-15T09:00:00Z\"}}"
+                    value = "{\"token\":\"eyJhbGciOi...\",\"user\":{\"id\":\"67bf5f01\",\"name\":\"Alex Doe\",\"email\":\"alex@example.com\",\"gender\":\"female\",\"avatar\":null,\"preferences\":{\"favoriteColors\":[],\"stylePreferences\":[],\"location\":null,\"notificationsEnabled\":true,\"darkMode\":false},\"createdAt\":\"2026-02-15T09:00:00Z\"}}"
                 )
             )
         ),

@@ -17,6 +17,7 @@ public class UserDocument {
 
     private String passwordHash;
     private String name;
+    private String gender;
     private String avatar;
     private UserPreferences preferences = new UserPreferences();
     private List<String> roles = new ArrayList<>(List.of("USER"));
@@ -61,6 +62,14 @@ public class UserDocument {
 
     public void setAvatar(String avatar) {
         this.avatar = avatar;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 
     public UserPreferences getPreferences() {

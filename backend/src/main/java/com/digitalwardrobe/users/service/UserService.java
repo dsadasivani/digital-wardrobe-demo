@@ -50,6 +50,9 @@ public class UserService {
             }
             user.setEmail(normalizeEmail(request.email()));
         }
+        if (request.gender() != null) {
+            user.setGender(normalizeGender(request.gender()));
+        }
         if (request.avatar() != null) {
             user.setAvatar(request.avatar());
         }
@@ -92,6 +95,7 @@ public class UserService {
             user.getId(),
             user.getName(),
             user.getEmail(),
+            user.getGender(),
             user.getAvatar(),
             new UserResponse.Preferences(
                 preferences.getFavoriteColors(),
@@ -112,5 +116,9 @@ public class UserService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
+    }
+
+    private String normalizeGender(String gender) {
+        return gender.trim().toLowerCase();
     }
 }

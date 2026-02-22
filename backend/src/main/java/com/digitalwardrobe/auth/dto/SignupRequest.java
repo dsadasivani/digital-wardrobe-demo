@@ -2,6 +2,7 @@ package com.digitalwardrobe.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record SignupRequest(
@@ -14,5 +15,11 @@ public record SignupRequest(
     String email,
     @NotBlank(message = "password is required")
     @Size(min = 8, max = 200, message = "password must be between 8 and 200 chars")
-    String password
+    String password,
+    @NotBlank(message = "gender is required")
+    @Pattern(
+        regexp = "male|female|non-binary|prefer-not-to-say",
+        message = "gender must be one of male, female, non-binary, prefer-not-to-say"
+    )
+    String gender
 ) {}

@@ -38,6 +38,7 @@ public class AuthService {
         user.setName(request.name().trim());
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setGender(normalizeGender(request.gender()));
         user.setPreferences(new UserPreferences());
         user.setRoles(List.of("USER"));
         user.setCreatedAt(Instant.now());
@@ -62,5 +63,9 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
+    }
+
+    private String normalizeGender(String gender) {
+        return gender.trim().toLowerCase();
     }
 }

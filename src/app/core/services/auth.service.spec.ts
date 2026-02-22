@@ -45,6 +45,7 @@ function buildUserDto(): UserDto {
     id: 'user-1',
     name: 'Test User',
     email: 'user@example.com',
+    gender: 'female',
     avatar: null,
     preferences: {
       favoriteColors: [],

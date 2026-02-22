@@ -7,8 +7,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 
 import { AuthService } from '../../core/services/auth.service';
+import { UserGender } from '../../core/models';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,6 +24,7 @@ import { AuthService } from '../../core/services/auth.service';
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
   ],
   template: `
     <div class="auth-page">
@@ -88,6 +91,31 @@ import { AuthService } from '../../core/services/auth.service';
                   Enter a valid email address.
                 } @else if (emailModel.hasError('maxlength')) {
                   Email must be 320 characters or fewer.
+                }
+              </mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Gender</mat-label>
+            <mat-select
+              name="gender"
+              required
+              [ngModel]="gender()"
+              (ngModelChange)="onGenderChange($event)"
+              #genderModel="ngModel"
+            >
+              @for (option of genderOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+            <mat-icon matPrefix>wc</mat-icon>
+            @if ((genderModel.invalid && (genderModel.touched || submitted())) || fieldError('gender')) {
+              <mat-error>
+                @if (fieldError('gender')) {
+                  {{ fieldError('gender') }}
+                } @else if (genderModel.hasError('required')) {
+                  Gender is required.
                 }
               </mat-error>
             }
@@ -256,9 +284,16 @@ import { AuthService } from '../../core/services/auth.service';
 export class SignupComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
+  readonly genderOptions: ReadonlyArray<{ value: UserGender; label: string }> = [
+    { value: 'female', label: 'Female' },
+    { value: 'male', label: 'Male' },
+    { value: 'non-binary', label: 'Non-binary' },
+    { value: 'prefer-not-to-say', label: 'Prefer not to say' },
+  ];
 
   name = signal('');
   email = signal('');
+  gender = signal<UserGender>('prefer-not-to-say');
   password = signal('');
   confirmPassword = signal('');
   showPassword = signal(false);
@@ -284,6 +319,7 @@ export class SignupComponent {
     this.clearServerErrors();
     const name = this.name().trim();
     const email = this.email().trim();
+    const gender = this.gender();
     const password = this.password();
     const confirmPassword = this.confirmPassword();
     this.name.set(name);
@@ -298,7 +334,7 @@ export class SignupComponent {
     }
 
     this.loading.set(true);
-    const result = await this.authService.signup(name, email, password);
+    const result = await this.authService.signup(name, email, password, gender);
     this.loading.set(false);
 
     if (result.success) {
@@ -327,6 +363,11 @@ export class SignupComponent {
   onPasswordChange(value: string): void {
     this.password.set(value ?? '');
     this.clearServerFieldError('password');
+  }
+
+  onGenderChange(value: UserGender): void {
+    this.gender.set(value ?? 'prefer-not-to-say');
+    this.clearServerFieldError('gender');
   }
 
   onConfirmPasswordChange(value: string): void {

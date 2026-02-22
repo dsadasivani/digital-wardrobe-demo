@@ -7,6 +7,7 @@ public record UserResponse(
     String id,
     String name,
     String email,
+    String gender,
     String avatar,
     Preferences preferences,
     Instant createdAt

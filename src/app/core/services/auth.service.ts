@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { AuthApi } from '../api/auth.api';
 import { ApiErrorDto } from '../dto/auth.dto';
 import { mapUserDtoToModel, mapUserUpdatesToUpdateRequestDto } from '../mappers/auth.mapper';
-import { User, UserPreferences } from '../models';
+import { User, UserGender, UserPreferences } from '../models';
 import { AuthTokenService } from './auth-token.service';
 import { CatalogOptionsService } from './catalog-options.service';
 import { ThemeService } from './theme.service';
@@ -73,9 +73,14 @@ export class AuthService {
     return false;
   }
 
-  async signup(name: string, email: string, password: string): Promise<AuthActionResult> {
+  async signup(
+    name: string,
+    email: string,
+    password: string,
+    gender: UserGender
+  ): Promise<AuthActionResult> {
     try {
-      const response = await firstValueFrom(this.authApi.signup({ name, email, password }));
+      const response = await firstValueFrom(this.authApi.signup({ name, email, password, gender }));
       const mappedUser = mapUserDtoToModel(response.user);
       this.authTokenService.setToken(response.token);
       this.isAuthenticated.set(true);
