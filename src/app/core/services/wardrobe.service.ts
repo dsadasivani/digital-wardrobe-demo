@@ -370,11 +370,18 @@ export class WardrobeService {
     this.invalidateDashboardSections();
   }
 
-  async updateItem(id: string, updates: Partial<WardrobeItem>): Promise<void> {
+  async updateItem(
+    id: string,
+    updates: Partial<WardrobeItem>,
+    options?: { previousFavorite?: boolean },
+  ): Promise<void> {
+    const currentItem = this.wardrobeItems().find((item) => item.id === id);
+    const previousFavorite = options?.previousFavorite ?? currentItem?.favorite;
     const dto = mapWardrobeItemToUpdateDto(updates);
     const response = await firstValueFrom(this.wardrobeApi.update(id, dto));
     const updated = mapWardrobeItemDtoToModel(response);
     this.wardrobeItems.update((items) => this.upsertById(items, updated));
+    this.syncDashboardFavoriteCount(previousFavorite, updated.favorite);
     this.syncDashboardWardrobeItem(updated);
     this.invalidateDashboardSections();
   }
@@ -391,7 +398,7 @@ export class WardrobeService {
     await this.runWithMutationState('favorite', id, async () => {
       const item = this.wardrobeItems().find((i) => i.id === id);
       if (item) {
-        await this.updateItem(id, { favorite: !item.favorite });
+        await this.updateItem(id, { favorite: !item.favorite }, { previousFavorite: item.favorite });
         return;
       }
       const accessory = this.accessories().find((a) => a.id === id);
@@ -402,7 +409,11 @@ export class WardrobeService {
 
       try {
         const wardrobeItem = await firstValueFrom(this.wardrobeApi.getById(id));
-        await this.updateItem(id, { favorite: !wardrobeItem.favorite });
+        await this.updateItem(
+          id,
+          { favorite: !wardrobeItem.favorite },
+          { previousFavorite: wardrobeItem.favorite },
+        );
         return;
       } catch {
         // Continue to accessory lookup fallback.
@@ -445,11 +456,18 @@ export class WardrobeService {
     this.invalidateDashboardSections();
   }
 
-  async updateAccessory(id: string, updates: Partial<Accessory>): Promise<void> {
+  async updateAccessory(
+    id: string,
+    updates: Partial<Accessory>,
+    options?: { previousFavorite?: boolean },
+  ): Promise<void> {
+    const currentAccessory = this.accessories().find((item) => item.id === id);
+    const previousFavorite = options?.previousFavorite ?? currentAccessory?.favorite;
     const dto = mapAccessoryToUpdateDto(updates);
     const response = await firstValueFrom(this.accessoriesApi.update(id, dto));
     const updated = mapAccessoryDtoToModel(response);
     this.accessories.update((items) => this.upsertById(items, updated));
+    this.syncDashboardFavoriteCount(previousFavorite, updated.favorite);
     this.invalidateDashboardSections();
   }
 
@@ -624,7 +642,11 @@ export class WardrobeService {
   }
 
   private async toggleAccessoryFavoriteInternal(id: string, currentFavorite: boolean): Promise<void> {
-    await this.updateAccessory(id, { favorite: !currentFavorite });
+    await this.updateAccessory(
+      id,
+      { favorite: !currentFavorite },
+      { previousFavorite: currentFavorite },
+    );
   }
 
   private mutationStateKey(action: MutationAction, id: string): string {
@@ -1186,6 +1208,26 @@ export class WardrobeService {
   private hasCompleteImageGallery(item: { imageUrls: string[]; imageCount?: number }): boolean {
     const declaredImageCount = item.imageCount ?? item.imageUrls.length;
     return item.imageUrls.length >= declaredImageCount;
+  }
+
+  private syncDashboardFavoriteCount(
+    previousFavorite: boolean | undefined,
+    nextFavorite: boolean | undefined,
+  ): void {
+    if (previousFavorite === undefined || nextFavorite === undefined || previousFavorite === nextFavorite) {
+      return;
+    }
+
+    this.dashboardCountersData.update((counters) => {
+      if (!counters) {
+        return counters;
+      }
+      const delta = nextFavorite ? 1 : -1;
+      return {
+        ...counters,
+        favoriteCount: Math.max(0, counters.favoriteCount + delta),
+      };
+    });
   }
 
   private syncDashboardWardrobeItem(updatedItem: WardrobeItem): void {
