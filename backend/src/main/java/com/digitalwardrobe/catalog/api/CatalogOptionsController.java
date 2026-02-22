@@ -2,9 +2,11 @@ package com.digitalwardrobe.catalog.api;
 
 import com.digitalwardrobe.catalog.dto.AddCategoryOptionRequest;
 import com.digitalwardrobe.catalog.dto.AddOccasionOptionRequest;
+import com.digitalwardrobe.catalog.dto.AddSizeOptionRequest;
 import com.digitalwardrobe.catalog.dto.CatalogCategoryOptionResponse;
 import com.digitalwardrobe.catalog.dto.CatalogOptionsResponse;
 import com.digitalwardrobe.catalog.dto.OccasionOptionResponse;
+import com.digitalwardrobe.catalog.dto.SizeOptionResponse;
 import com.digitalwardrobe.catalog.service.CatalogOptionsService;
 import com.digitalwardrobe.users.service.UserService;
 import jakarta.validation.Valid;
@@ -71,5 +73,14 @@ public class CatalogOptionsController {
             Authentication authentication) {
         String userId = userService.requireCurrentUserId(authentication);
         return new OccasionOptionResponse(catalogOptionsService.addOccasion(userId, request.value()));
+    }
+
+    @PostMapping("/sizes")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SizeOptionResponse addSize(
+            @Valid @RequestBody AddSizeOptionRequest request,
+            Authentication authentication) {
+        String userId = userService.requireCurrentUserId(authentication);
+        return new SizeOptionResponse(catalogOptionsService.addSize(userId, request.value()));
     }
 }

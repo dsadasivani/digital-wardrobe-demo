@@ -23,6 +23,7 @@ public class CatalogOptionsService {
     public static final String ACCESSORY_CATEGORY_SCOPE = "accessory-category";
     public static final String OUTFIT_CATEGORY_SCOPE = "outfit-category";
     public static final String OCCASION_SCOPE = "occasion";
+    public static final String SIZE_SCOPE = "size";
     private static final String SYSTEM_USER_ID = "__system__";
     private static final int CUSTOM_SORT_ORDER = 10_000;
     private static final String DEFAULT_WARDROBE_ICON = "checkroom";
@@ -72,6 +73,16 @@ public class CatalogOptionsService {
             "lounge",
             "streetwear");
 
+    private static final List<String> SIZE_DEFAULTS = List.of(
+            "XS",
+            "S",
+            "M",
+            "L",
+            "XL",
+            "XXL",
+            "XXXL",
+            "Free-Size");
+
     private final CatalogOptionRepository catalogOptionRepository;
     private volatile boolean defaultsSeeded;
 
@@ -83,21 +94,24 @@ public class CatalogOptionsService {
         ensureDefaultsSeeded();
         return new CatalogOptionsResponse(
                 listCategories(WARDROBE_CATEGORY_SCOPE, userId),
-                listOccasions(userId));
+                listOccasions(userId),
+                listSizes(userId));
     }
 
     public CatalogOptionsResponse getAccessoryOptions(String userId) {
         ensureDefaultsSeeded();
         return new CatalogOptionsResponse(
                 listCategories(ACCESSORY_CATEGORY_SCOPE, userId),
-                listOccasions(userId));
+                listOccasions(userId),
+                listSizes(userId));
     }
 
     public CatalogOptionsResponse getOutfitOptions(String userId) {
         ensureDefaultsSeeded();
         return new CatalogOptionsResponse(
                 listCategories(OUTFIT_CATEGORY_SCOPE, userId),
-                listOccasions(userId));
+                listOccasions(userId),
+                listSizes(userId));
     }
 
     public CatalogCategoryOptionResponse addWardrobeCategory(String userId, String requestedLabel) {
@@ -127,6 +141,30 @@ public class CatalogOptionsService {
         Instant now = Instant.now();
         CatalogOptionDocument created = new CatalogOptionDocument();
         created.setScope(OCCASION_SCOPE);
+        created.setUserId(userId);
+        created.setOptionId(optionId);
+        created.setLabel(normalizedValue);
+        created.setIcon(null);
+        created.setSystemDefault(false);
+        created.setSortOrder(CUSTOM_SORT_ORDER);
+        created.setCreatedAt(now);
+        created.setUpdatedAt(now);
+        CatalogOptionDocument saved = catalogOptionRepository.save(created);
+        return saved.getLabel();
+    }
+
+    public String addSize(String userId, String requestedValue) {
+        ensureDefaultsSeeded();
+        String normalizedValue = normalizeSizeValue(requestedValue);
+        String optionId = slugify(normalizedValue);
+        Optional<CatalogOptionDocument> existing = findExistingOption(SIZE_SCOPE, userId, optionId);
+        if (existing.isPresent()) {
+            return existing.get().getLabel();
+        }
+
+        Instant now = Instant.now();
+        CatalogOptionDocument created = new CatalogOptionDocument();
+        created.setScope(SIZE_SCOPE);
         created.setUserId(userId);
         created.setOptionId(optionId);
         created.setLabel(normalizedValue);
@@ -193,6 +231,16 @@ public class CatalogOptionsService {
         return deduplicatedByOptionId.values().stream().toList();
     }
 
+    private List<String> listSizes(String userId) {
+        List<CatalogOptionDocument> options = catalogOptionRepository
+                .findAllByScopeAndUserIdInOrderBySortOrderAscLabelAsc(SIZE_SCOPE, List.of(SYSTEM_USER_ID, userId));
+        Map<String, String> deduplicatedByOptionId = new LinkedHashMap<>();
+        for (CatalogOptionDocument option : options) {
+            deduplicatedByOptionId.putIfAbsent(option.getOptionId(), option.getLabel());
+        }
+        return deduplicatedByOptionId.values().stream().toList();
+    }
+
     private CatalogCategoryOptionResponse toCategoryOption(CatalogOptionDocument option) {
         return new CatalogCategoryOptionResponse(
                 option.getOptionId(),
@@ -221,6 +269,29 @@ public class CatalogOptionsService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Occasion value must be at most 60 chars");
         }
         return normalized;
+    }
+
+    private String normalizeSizeValue(String value) {
+        if (!StringUtils.hasText(value)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Size value is required");
+        }
+        String normalized = value.trim().replaceAll("\\s+", " ");
+        if (normalized.length() > 60) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Size value must be at most 60 chars");
+        }
+
+        String token = normalized.replaceAll("[\\s-]+", "").toLowerCase(Locale.ROOT);
+        return switch (token) {
+            case "xs" -> "XS";
+            case "s" -> "S";
+            case "m" -> "M";
+            case "l" -> "L";
+            case "xl" -> "XL";
+            case "xxl" -> "XXL";
+            case "xxxl" -> "XXXL";
+            case "freesize", "freesized", "onesize", "onesized" -> "Free-Size";
+            default -> normalized;
+        };
     }
 
     private String slugify(String input) {
@@ -358,6 +429,28 @@ public class CatalogOptionsService {
         }
     }
 
+    private void seedSizeDefaults(List<String> sizes) {
+        for (int index = 0; index < sizes.size(); index++) {
+            String value = sizes.get(index);
+            String optionId = slugify(value);
+            CatalogOptionDocument option = catalogOptionRepository
+                    .findByScopeAndUserIdAndOptionId(SIZE_SCOPE, SYSTEM_USER_ID, optionId)
+                    .orElseGet(CatalogOptionDocument::new);
+            option.setScope(SIZE_SCOPE);
+            option.setUserId(SYSTEM_USER_ID);
+            option.setOptionId(optionId);
+            option.setLabel(value);
+            option.setIcon(null);
+            option.setSystemDefault(true);
+            option.setSortOrder(index);
+            if (option.getCreatedAt() == null) {
+                option.setCreatedAt(Instant.now());
+            }
+            option.setUpdatedAt(Instant.now());
+            catalogOptionRepository.save(option);
+        }
+    }
+
     private record CategorySeed(String id, String label, String icon) {
     }
 
@@ -373,6 +466,7 @@ public class CatalogOptionsService {
             seedCategoryDefaults(ACCESSORY_CATEGORY_SCOPE, ACCESSORY_CATEGORY_DEFAULTS);
             seedCategoryDefaults(OUTFIT_CATEGORY_SCOPE, OUTFIT_CATEGORY_DEFAULTS);
             seedOccasionDefaults(OCCASION_DEFAULTS);
+            seedSizeDefaults(SIZE_DEFAULTS);
             defaultsSeeded = true;
         }
     }

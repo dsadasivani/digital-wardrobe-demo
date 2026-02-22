@@ -8,6 +8,7 @@ import {
   CategoryInfo,
   OCCASION_OPTIONS,
   OUTFIT_CATEGORIES,
+  WARDROBE_SIZE_OPTIONS,
   WARDROBE_CATEGORIES,
 } from '../models';
 
@@ -19,6 +20,7 @@ export class CatalogOptionsService {
   private readonly accessoryCategoriesState = signal<AccessoryCategoryInfo[]>(ACCESSORY_CATEGORIES);
   private readonly outfitCategoriesState = signal<CategoryInfo[]>(OUTFIT_CATEGORIES);
   private readonly occasionOptionsState = signal<string[]>(OCCASION_OPTIONS);
+  private readonly sizeOptionsState = signal<string[]>(WARDROBE_SIZE_OPTIONS);
 
   private wardrobeOptionsLoaded = false;
   private accessoryOptionsLoaded = false;
@@ -31,12 +33,14 @@ export class CatalogOptionsService {
   readonly accessoryCategories = this.accessoryCategoriesState.asReadonly();
   readonly outfitCategories = this.outfitCategoriesState.asReadonly();
   readonly occasionOptions = this.occasionOptionsState.asReadonly();
+  readonly sizeOptions = this.sizeOptionsState.asReadonly();
 
   clearAll(): void {
     this.wardrobeCategoriesState.set(WARDROBE_CATEGORIES);
     this.accessoryCategoriesState.set(ACCESSORY_CATEGORIES);
     this.outfitCategoriesState.set(OUTFIT_CATEGORIES);
     this.occasionOptionsState.set(OCCASION_OPTIONS);
+    this.sizeOptionsState.set(WARDROBE_SIZE_OPTIONS);
     this.wardrobeOptionsLoaded = false;
     this.accessoryOptionsLoaded = false;
     this.outfitOptionsLoaded = false;
@@ -58,6 +62,7 @@ export class CatalogOptionsService {
           this.normalizeCategoryOptions(response.categories, WARDROBE_CATEGORIES, 'checkroom'),
         );
         this.occasionOptionsState.set(this.normalizeOccasionOptions(response.occasions));
+        this.sizeOptionsState.set(this.normalizeSizeOptions(response.sizes ?? []));
         this.wardrobeOptionsLoaded = true;
       })
       .finally(() => {
@@ -151,6 +156,19 @@ export class CatalogOptionsService {
     return normalized;
   }
 
+  async addSize(value: string): Promise<string> {
+    const response = await firstValueFrom(this.catalogOptionsApi.addSize(value));
+    const normalized = response.value.trim();
+    this.sizeOptionsState.update((current) => {
+      const exists = current.some((option) => option.toLowerCase() === normalized.toLowerCase());
+      if (exists) {
+        return current;
+      }
+      return [...current, normalized];
+    });
+    return normalized;
+  }
+
   private normalizeCategoryOptions<T extends { id: string; label: string; icon: string }>(
     incoming: CatalogCategoryOptionDto[],
     fallback: T[],
@@ -172,6 +190,22 @@ export class CatalogOptionsService {
 
   private normalizeOccasionOptions(incoming: string[]): string[] {
     const source = incoming.length ? incoming : OCCASION_OPTIONS;
+    const deduplicated = new Map<string, string>();
+    for (const option of source) {
+      const normalized = option.trim();
+      if (!normalized.length) {
+        continue;
+      }
+      const dedupeKey = normalized.toLowerCase();
+      if (!deduplicated.has(dedupeKey)) {
+        deduplicated.set(dedupeKey, normalized);
+      }
+    }
+    return Array.from(deduplicated.values());
+  }
+
+  private normalizeSizeOptions(incoming: string[]): string[] {
+    const source = incoming.length ? incoming : WARDROBE_SIZE_OPTIONS;
     const deduplicated = new Map<string, string>();
     for (const option of source) {
       const normalized = option.trim();

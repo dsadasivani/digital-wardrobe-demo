@@ -31,6 +31,17 @@ import {
   resolveColorName,
 } from '../../../shared/utils/color-extractor';
 
+const SIZE_DISPLAY_LABELS: Record<string, string> = {
+  XS: 'XS - Extra Small',
+  S: 'S - Small',
+  M: 'M - Medium',
+  L: 'L - Large',
+  XL: 'XL - Extra Large',
+  XXL: 'XXL - Double Extra Large',
+  XXXL: 'XXXL - Triple Extra Large',
+  'Free-Size': 'Free-Size - One Size Fits Most',
+};
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-add-item',
@@ -226,10 +237,52 @@ import {
             <input matInput [(ngModel)]="brand" name="brand" placeholder="e.g., Ralph Lauren" />
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
-            <mat-label>Size (optional)</mat-label>
-            <input matInput [(ngModel)]="size" name="size" placeholder="e.g., M, 32, 10" />
-          </mat-form-field>
+          <div class="field-stack">
+            <div class="select-plus-row">
+              <mat-form-field appearance="outline" class="select-field">
+                <mat-label>Size (optional)</mat-label>
+                <mat-select [(ngModel)]="size" name="size">
+                  <mat-option [value]="''">None</mat-option>
+                  @for (option of sizeOptions(); track option) {
+                    <mat-option [value]="option">{{ sizeDisplayLabel(option) }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <button
+                type="button"
+                class="field-plus-btn"
+                [class.active]="isAddingSize()"
+                [attr.aria-expanded]="isAddingSize()"
+                [attr.aria-label]="isAddingSize() ? 'Close size creator' : 'Add size'"
+                (click)="toggleSizeCreator()"
+              >
+                <mat-icon>{{ isAddingSize() ? 'close' : 'add' }}</mat-icon>
+              </button>
+            </div>
+            @if (isAddingSize()) {
+              <div class="inline-create-panel">
+                <p class="inline-hint">Create your own size option</p>
+                <div class="inline-create-row">
+                  <input
+                    type="text"
+                    [ngModel]="newSizeValue()"
+                    (ngModelChange)="newSizeValue.set($event)"
+                    name="newWardrobeSize"
+                    placeholder="e.g., 32, UK 10, 4XL"
+                  />
+                  <button
+                    type="button"
+                    class="inline-create-btn"
+                    (click)="createSize()"
+                    [disabled]="isCreatingSize()"
+                  >
+                    <mat-icon>{{ isCreatingSize() ? 'hourglass_top' : 'check' }}</mat-icon>
+                    <span>{{ isCreatingSize() ? 'Adding...' : 'Save' }}</span>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
         </div>
 
         <mat-form-field appearance="outline">
@@ -801,6 +854,7 @@ export class AddItemComponent implements OnInit {
 
   categories = this.catalogOptionsService.wardrobeCategories;
   occasionOptions = this.catalogOptionsService.occasionOptions;
+  sizeOptions = this.catalogOptionsService.sizeOptions;
   itemName = '';
   category = '';
   color = 'Black';
@@ -829,6 +883,9 @@ export class AddItemComponent implements OnInit {
   isAddingOccasion = signal(false);
   isCreatingOccasion = signal(false);
   newOccasionValue = signal('');
+  isAddingSize = signal(false);
+  isCreatingSize = signal(false);
+  newSizeValue = signal('');
   private colorAnalysisRequestId = 0;
 
   ngOnInit(): void {
@@ -930,6 +987,13 @@ export class AddItemComponent implements OnInit {
     }
   }
 
+  toggleSizeCreator(): void {
+    this.isAddingSize.update((current) => !current);
+    if (!this.isAddingSize()) {
+      this.newSizeValue.set('');
+    }
+  }
+
   async createCategory(): Promise<void> {
     const label = this.newCategoryLabel().trim();
     if (!label || this.isCreatingCategory()) {
@@ -966,6 +1030,29 @@ export class AddItemComponent implements OnInit {
     } finally {
       this.isCreatingOccasion.set(false);
     }
+  }
+
+  async createSize(): Promise<void> {
+    const value = this.newSizeValue().trim();
+    if (!value || this.isCreatingSize()) {
+      return;
+    }
+    this.isCreatingSize.set(true);
+    this.errorMessage.set(null);
+    try {
+      const created = await this.catalogOptionsService.addSize(value);
+      this.size = created;
+      this.newSizeValue.set('');
+      this.isAddingSize.set(false);
+    } catch (error) {
+      this.errorMessage.set(this.extractErrorMessage(error));
+    } finally {
+      this.isCreatingSize.set(false);
+    }
+  }
+
+  sizeDisplayLabel(option: string): string {
+    return SIZE_DISPLAY_LABELS[option] ?? option;
   }
 
   async onSubmit(): Promise<void> {

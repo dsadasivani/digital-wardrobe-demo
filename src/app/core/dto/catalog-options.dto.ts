@@ -8,8 +8,13 @@ export interface CatalogCategoryOptionDto {
 export interface CatalogOptionsDto {
   categories: CatalogCategoryOptionDto[];
   occasions: string[];
+  sizes?: string[];
 }
 
 export interface OccasionOptionDto {
+  value: string;
+}
+
+export interface SizeOptionDto {
   value: string;
 }

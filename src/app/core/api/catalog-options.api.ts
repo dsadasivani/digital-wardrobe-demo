@@ -6,6 +6,7 @@ import type {
   CatalogCategoryOptionDto,
   CatalogOptionsDto,
   OccasionOptionDto,
+  SizeOptionDto,
 } from '../dto/catalog-options.dto';
 import { SKIP_GLOBAL_LOADING } from '../interceptors/loading-context';
 
@@ -45,5 +46,9 @@ export class CatalogOptionsApi {
 
   addOccasion(value: string): Observable<OccasionOptionDto> {
     return this.http.post<OccasionOptionDto>(`${this.url}/occasions`, { value });
+  }
+
+  addSize(value: string): Observable<SizeOptionDto> {
+    return this.http.post<SizeOptionDto>(`${this.url}/sizes`, { value });
   }
 }

@@ -31,6 +31,17 @@ interface DetailActionFeedback {
   label: string;
 }
 
+const SIZE_DISPLAY_LABELS: Record<string, string> = {
+  XS: 'XS - Extra Small',
+  S: 'S - Small',
+  M: 'M - Medium',
+  L: 'L - Large',
+  XL: 'XL - Extra Large',
+  XXL: 'XXL - Double Extra Large',
+  XXXL: 'XXXL - Triple Extra Large',
+  'Free-Size': 'Free-Size - One Size Fits Most',
+};
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'dw-item-detail',
@@ -224,7 +235,7 @@ interface DetailActionFeedback {
             <div class="stats">
               <div><span class="label">Occasion</span><strong>{{ item()!.occasion || 'Unspecified' }}</strong></div>
               <div><span class="label">Brand</span><strong>{{ item()!.brand || 'Unspecified' }}</strong></div>
-              <div><span class="label">Size</span><strong>{{ item()!.size || 'Unspecified' }}</strong></div>
+              <div><span class="label">Size</span><strong>{{ sizeLabel() }}</strong></div>
               <div><span class="label">Price</span><strong>{{ item()!.price ? ('$' + item()!.price) : 'Not listed' }}</strong></div>
               <div><span class="label">Purchased</span><strong>{{ item()!.purchaseDate ? (item()!.purchaseDate | date: 'mediumDate') : 'Unknown' }}</strong></div>
               <div><span class="label">Created</span><strong>{{ item()!.createdAt | date: 'mediumDate' }}</strong></div>
@@ -735,6 +746,7 @@ export class ItemDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.categoryOptions().find((option) => option.id === category)?.label
       ?? this.formatCategoryLabel(category);
   });
+  sizeLabel = computed(() => this.formatSizeLabel(this.item()?.size));
 
   relatedItems = computed(() => {
     const current = this.item();
@@ -966,6 +978,14 @@ export class ItemDetailComponent implements OnInit, AfterViewInit, OnDestroy {
     return category
       .replace(/-/g, ' ')
       .replace(/\b\w/g, (value) => value.toUpperCase());
+  }
+
+  private formatSizeLabel(size: string | undefined): string {
+    const normalized = (size ?? '').trim();
+    if (!normalized) {
+      return 'Unspecified';
+    }
+    return SIZE_DISPLAY_LABELS[normalized] ?? normalized;
   }
 
   private triggerFavoriteFeedback(isAddingFavorite: boolean): void {

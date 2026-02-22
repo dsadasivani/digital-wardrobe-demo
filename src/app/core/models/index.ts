@@ -104,6 +104,17 @@ export const OCCASION_OPTIONS: string[] = [
   'streetwear',
 ];
 
+export const WARDROBE_SIZE_OPTIONS: string[] = [
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  'XXL',
+  'XXXL',
+  'Free-Size',
+];
+
 export type OutfitCategory = string;
 
 export const OUTFIT_CATEGORIES: CategoryInfo[] = [
